@@ -1,0 +1,5 @@
+case,input,expected result
+Normal,Complete verified item,One task; owner told once
+Edge,"Due date still ""next week""",Returned to chair; no task
+Duplicate,"Chair presses ""verified"" twice",No second task
+Refuse,Verified by someone not registered,No tasks; Tom alerted

@@ -1,0 +1,5 @@
+case,input,expected result
+Normal,Every line matches,Matched; Aisha approves
+Edge,"Twelve billed, ten received",Stops: over receipt
+Duplicate,Two invoices for the same goods,Second stops: already invoiced
+Escalate,"$12,000 invoice on an order Tom raised",Helen approves

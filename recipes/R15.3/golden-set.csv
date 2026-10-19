@@ -1,0 +1,5 @@
+case,input,expected result
+Normal,Unsubscribe clicked,All lists confirmed
+Edge,Older opt-in arrives late,Opt-out stands
+Duplicate,Same unsubscribe twice,One change
+Escalate,Shop's API down,Shop paused

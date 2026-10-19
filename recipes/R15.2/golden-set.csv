@@ -1,0 +1,5 @@
+case,input,expected result
+Normal,Forecast 15 a week; 25 free,Cleared
+Edge,"Fits the window, not week one",Held
+Duplicate,"Brief re-marked ""ready""",One check
+Escalate,Live week at 90%,Next wave held

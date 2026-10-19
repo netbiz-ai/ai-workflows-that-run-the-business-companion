@@ -1,0 +1,5 @@
+case,input,expected result
+Normal,"14 jobs, one overdue, one open complaint","Full briefing, all 14; risks listed"
+Edge,Scheduling system down,"""Partial"", ""not available"" shown; second start tries"
+Duplicate,Schedule fires again after a full briefing,Stops; one briefing
+Refuse,Monthly AI cap reached,No run; Owen alerted

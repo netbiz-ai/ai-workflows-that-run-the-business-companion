@@ -1,0 +1,5 @@
+case,input,expected result
+Normal,Brief with three current claims,Three tags; approvers asked
+Edge,"""Delivered this week"" for ""delivery within five business days""",Redrafted in the list's words
+Duplicate,"Brief re-marked ""approved""",No second draft
+Refuse,"Retired ""install within 48 hours"" claim",Back to Ben; no AI call

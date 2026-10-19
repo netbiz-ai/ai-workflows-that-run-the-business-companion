@@ -1,0 +1,6 @@
+case,input,expected result
+Normal,"Same phone, name with and without ""LLC""","Queued, explained"
+Edge,"Managed owner accounts sharing the firm's phone, rejected; later one phone changes",Suppressed; queued again after the change
+Duplicate,Pair already in the queue,Not queued again
+Escalate,"Open quote, or credit terms","Ben, or Aisha, confirms first"
+Refuse,Unrelated accounts on one webmail domain,Not queued

@@ -1,0 +1,5 @@
+case,input,expected result
+Normal,"Seven fresh rows, two large changes",Passes; a link after every figure
+Edge,"""Fell by 6""; change is +6",Fails the direction check
+Duplicate,Corrected export rerun at 3 p.m.,First draft superseded
+Escalate,Nobody verifies by 4:45 p.m.,"Table and commentary, ""not verified"""

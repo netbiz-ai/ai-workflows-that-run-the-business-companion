@@ -1,0 +1,5 @@
+case,input,expected result
+Normal,Quantity mismatch,"To Tom, with a draft"
+Edge,Unknown reason code,To Aisha
+Duplicate,Same invoice and reason twice,"One item, one note"
+Refuse,"Draft says ""we will pay on Friday""",Draft dropped; item stays

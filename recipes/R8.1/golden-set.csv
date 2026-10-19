@@ -1,0 +1,7 @@
+case,input,expected result
+Normal,"Past due, on neither list",First overdue reminder sent
+Edge,Part-paid yesterday,Stopped; Aisha told
+Restart,Dispute closed yesterday,Resumes at its paused stage
+Duplicate,Flow run twice the same morning,One reminder
+Refuse,"Dispute logged by Ben, or agreed hold","Stopped, reason logged"
+Escalate,Dispute logged while a final notice awaits approval,Not sent

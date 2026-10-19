@@ -1,0 +1,5 @@
+case,input,expected result
+Normal,Six fresh sources,Seven rows; every source fresh or manual
+Edge,Delivery export with a renamed column,"Operations rows blank, ""format changed"""
+Duplicate,Schedule fires twice on the same files,No new version
+Escalate,Receivables total differs from control total,"Blank, ""does not reconcile""; Owen, Aisha alerted"

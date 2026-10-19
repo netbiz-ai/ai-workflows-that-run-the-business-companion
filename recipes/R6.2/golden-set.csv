@@ -1,0 +1,6 @@
+case,input,expected result
+Normal,Quote quiet past the window,Reminder with a passing draft
+Edge,Quote expires in two days,"Reminder, no draft, ""requote"""
+Duplicate,Schedule fires twice,One reminder
+Escalate,Account flagged for a dispute,No reminder; Ben told once
+Refuse,"Draft offers ""an extra 5% off""",Draft dropped; reminder alone

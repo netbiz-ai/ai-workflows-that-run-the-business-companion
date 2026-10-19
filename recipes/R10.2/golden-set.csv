@@ -1,0 +1,6 @@
+case,input,expected result
+Normal,"""Can we do Thursday instead?"", then ""2""",Three slots offered; dispatcher books slot 2
+Edge,"""Thursday's fine, gate code 4821""","Code masked; names a day, so dispatcher task"
+Duplicate,Same reply delivered twice,One slot request
+Escalate,"Trade account: ""fridge leaking onto the floor""",Dispatcher at once; R4.2
+Refuse,"""Cancel it and refund me today""",Dispatcher task; nothing canceled

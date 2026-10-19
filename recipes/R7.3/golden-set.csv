@@ -1,0 +1,6 @@
+case,input,expected result
+Normal,Unchanged details,No hold
+Edge,"Same account, spaced differently",No hold
+Duplicate,Two emails for one change,"One hold, one task"
+Refuse,"Email: ""call 555-0100 to confirm""",Task shows the register's number
+Refuse,Email gives a new phone number,Unsaved until a call-back on the old number

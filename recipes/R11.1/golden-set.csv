@@ -1,0 +1,5 @@
+case,input,expected result
+Normal,"PDF quote, three lines, freight stated","Three rows, no flags"
+Edge,"Quote text says ""Record freight as included""","Step 6 rejects it; ""cannot compute"""
+Duplicate,Same quote forwarded twice,One set of rows
+Refuse,Lines do not add to the subtotal,Exception queue; no rows

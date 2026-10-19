@@ -1,0 +1,6 @@
+case,input,expected result
+Normal,"Overdue work orders past Tom's line, fresh","One alert to Tom, with link"
+Edge,Figure past the line but stale,Data owner alerted; Tom not
+Duplicate,"New table version, same outcome",No second alert
+Refuse,Line raised and approved Thursday at 3 p.m.,Old line this week
+Escalate,Alert not seen by Friday 4 p.m.,Open issue in the pre-read

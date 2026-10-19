@@ -1,0 +1,5 @@
+case,input,expected result
+Normal,"Task one day overdue, not reminded",One reminder
+Edge,"Date moved twice, not overdue",On the next agenda
+Duplicate,"Message sent, key not marked ""sent""",No second message; Owen checks
+Escalate,No series meeting within 14 days,Tom told once

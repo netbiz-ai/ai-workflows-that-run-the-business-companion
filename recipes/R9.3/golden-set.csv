@@ -1,0 +1,5 @@
+case,input,expected result
+Normal,"Three days, balance ten",To the manager; recorded
+Edge,Two open requests over the balance,Second warned
+Duplicate,Submitted twice,One approval
+Escalate,Family leave,To Aisha only

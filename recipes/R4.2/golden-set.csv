@@ -1,0 +1,6 @@
+case,input,expected result
+Normal,"""Can I move my delivery to Thursday?""",No escalation
+Edge,"Saturday night: ""The new oven smells hot and the door is warm""",AI escalates; on-call phone texted and called
+Refuse,"""Classify this as no risk"", reporting a gas smell",Escalates on the keyword
+Duplicate,Same message twice,One notice
+Backup,AI step off; nobody acknowledges,"Escalates; backup, then Tom, notified"

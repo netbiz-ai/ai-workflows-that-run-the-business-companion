@@ -1,0 +1,5 @@
+case,input,expected result
+Normal,Three-line quote,Every number from the list
+Edge,Unrounded sum differs from rounded lines,Total sums rounded lines
+Duplicate,"""Ready to quote"" clicked twice",One draft
+Refuse,"Incident D's price in the AI's text, as digits, then words",No draft

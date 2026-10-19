@@ -1,0 +1,6 @@
+case,input,expected result
+Normal,Reply about one open quote,Link on that deal; summary waits
+Edge,Two open deals; email fits either,"""Unclear""; exception queue"
+Duplicate,Same email in two mailboxes,One activity
+Escalate,Manager's address on two accounts,Exception queue; nothing written
+Refuse,"Colleague's lunch email, marked by mistake",Not logged

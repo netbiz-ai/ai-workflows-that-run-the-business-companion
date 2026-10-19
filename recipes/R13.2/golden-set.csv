@@ -1,0 +1,6 @@
+case,input,expected result
+Normal,Delivery guide 10 days before review,One reminder to Tom
+Edge,New source without a review date,Not indexed; Owen alerted
+Duplicate,Weekly run fires twice,No second reminder
+Refuse,"Last year's expense policy, past expiry","Withdrawn; R13.1 says ""I don't know"""
+Escalate,Owner has left,Owen reassigns

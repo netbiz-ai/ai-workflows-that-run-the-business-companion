@@ -1,0 +1,6 @@
+case,input,expected result
+Normal,Property manager's web form,"One new lead, no AI call"
+Duplicate,Same form twice,One lead
+Edge,"Sunday form, Monday email, same address","One lead, one activity"
+Escalate,Two records share the email,Queued for Ben
+Refuse,"""Please put us on your supplier list""",Not a lead; shared inbox

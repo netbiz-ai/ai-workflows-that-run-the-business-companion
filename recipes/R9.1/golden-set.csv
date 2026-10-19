@@ -1,0 +1,5 @@
+case,input,expected result
+Normal,Complete seasonal hire,Template accounts; checklist to manager
+Edge,"AI adds ""give the alarm code""",Rejected; template checklist
+Duplicate,"Saved twice, start moved",One set of accounts; tasks moved
+Escalate,Withdrawn after accounts exist,"Aisha confirms; R9.4 ""immediate"""

@@ -1,0 +1,6 @@
+case,input,expected result
+Normal,"$2,400, checked row, quote valid 20 days","""Checked; to approval"""
+Edge,Quote valid until tomorrow,"Blocked: ""expires within margin"""
+Duplicate,"Status write, version unchanged",No new check
+Refuse,Supplier on R7.3 hold,"Blocked: ""supplier on hold"""
+Escalate,"Two $450 requests, same supplier, three days apart",Checked as one $900 order

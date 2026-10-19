@@ -1,0 +1,7 @@
+case,input,expected result
+Normal,"$3,200, $9,000 left","Tom; $5,800 left"
+Edge,"Second $6,000 of a possible split; $8,000 left","Helen, on the $12,000 total"
+Edge,"Tom raises $4,000",Skips to Helen
+Duplicate,Status set twice,One approval
+Refuse,Helen approves after the quote expired,"Blocked: ""quote expired during approval"""
+Refuse,Requester edits after release,Edit refused; new request needed

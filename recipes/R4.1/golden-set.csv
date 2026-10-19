@@ -1,0 +1,5 @@
+case,input,expected result
+Normal,"""When is my sofa arriving? Order 4417""",Delivery queue
+Edge,Return complaining about the driver,Complaint or manual triage
+Duplicate,Same message ID twice,One routing
+Escalate,Uncovered language,"Manual triage, whatever the confidence"

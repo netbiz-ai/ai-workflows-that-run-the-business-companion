@@ -1,0 +1,6 @@
+case,input,expected result
+Normal,Small standard quote,Salesperson approves
+Edge,Three-year protection plan,At least Ben approves
+Duplicate,Status set twice,One request
+Escalate,Ben's own quote,Routed to Helen
+Refuse,Price list replaced while waiting,Back to R5.3

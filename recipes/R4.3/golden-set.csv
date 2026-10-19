@@ -1,0 +1,7 @@
+case,input,expected result
+Normal,Return request,Draft citing the returns article
+Edge,Question half covered,Draft for that half; gap marked
+Duplicate,Ticket re-enters the queue,One draft
+Refuse,"Incident A's warranty question, article withheld",No draft; flagged
+Refuse,"Draft asks ""Would you like us to book a technician visit?""",Fails: offers are checked
+Race,Arrives before R4.2 logs it,Drafts once R4.2 clears it; flags after three checks

@@ -1,0 +1,6 @@
+case,input,expected result
+Normal,"Seasonal leaver, SSO and point-of-sale","Removed, confirmed, closed"
+Edge,Empty inventory,Stopped; Owen alerted
+Edge,Supplier-portal login lent after hire,Administrator task; open until ticked
+Duplicate,Leaver saved twice,Resumes; nothing twice
+Refuse,Entered by a store manager; an administrator,Nothing removed

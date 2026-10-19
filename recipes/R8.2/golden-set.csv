@@ -1,0 +1,6 @@
+case,input,expected result
+Normal,"Reconciles, nothing disputed",Statement in the batch
+Edge,Payment received but not applied,"Held, difference shown"
+Edge,One item disputed,"""In dispute, not due""; out of the total"
+Duplicate,Run restarted after Aisha approved,No second statement
+Refuse,Exports with different cut-offs,Nothing built; Aisha alerted

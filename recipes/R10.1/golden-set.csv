@@ -1,0 +1,7 @@
+case,input,expected result
+Normal,"Online order, complete address, elevator, paid","""Ready to schedule"""
+Edge,"""Gate code 4821"" or ""key safe 19#73""","Masked before AI; ""missing details"""
+"Edge, no code word","""Entry is 4821, third floor""","Masked; flagged ""code in notes""; floor still 3"
+Edge,"AI returns ""elevator: yes""; notes say ""no elevator until November""","Rule rejects; ""missing details"""
+Duplicate,Paid-order webhook sent twice,One work order; duplicate logged
+Refuse,Address outside every zone,Held; Tom's team calls
