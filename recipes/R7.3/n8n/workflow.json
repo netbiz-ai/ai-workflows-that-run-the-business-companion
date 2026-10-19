@@ -1,0 +1,2530 @@
+{
+  "name": "R7.3 Stop and verify any change to a supplier's bank details",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "r7-3-record",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "ea062716-8046-5048-abdf-3736797544c4",
+      "name": "Step 1: R7.1 record saved",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "notes": "R7.1 calls this when it saves a record. Body: {record_id}.",
+      "notesInFlow": true,
+      "webhookId": "047cac3e-4f72-519b-b88f-0f0a6fa9763f"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "r7-3-message",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "f498cd15-a40e-5154-8d42-3c91a5a52408",
+      "name": "Step 1: Supplier message",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        200
+      ],
+      "notes": "Your AP mailbox calls this for each supplier message, and for a logged phoned or texted request. Body: {message_id}.",
+      "notesInFlow": true,
+      "webhookId": "4624e3d8-910f-5945-95ce-f5143c474f80"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "r7-3-export",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "1bf18f08-dcc5-5466-b26e-b41f8f0eba5b",
+      "name": "Step 1: New export",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        400
+      ],
+      "notes": "Called when the caller saves a new supplier export. Body: {export_id}.",
+      "notesInFlow": true,
+      "webhookId": "f111006c-5b28-59be-8a4f-021d55a7f03b"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "r7-3-callback",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "b063b210-7a72-5134-8bce-9797a3b8ca24",
+      "name": "Step 7: Call-back logged",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        900
+      ],
+      "notes": "The caller's task form calls this. Body: {supplier_id, task_id, number_dialed, outcome: confirmed | not confirmed, new_bank_account, new_phone, logged_by}.",
+      "notesInFlow": true,
+      "webhookId": "285b4453-b00b-5c88-9d6f-b1f83f6c8dbd"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "r7-3-pre-run",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "f5f9c265-c605-5db7-8c0c-097ab6457f84",
+      "name": "Pre-run check: payment run due",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        1300
+      ],
+      "notes": "Called before each payment run. Body: {run_date}.",
+      "notesInFlow": true,
+      "webhookId": "db63a97c-f4ba-55ec-b8dc-86b03b136f88"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "da0446a9-c1f5-56f9-a38d-55faac59e00b",
+              "name": "stop_flag_url",
+              "value": "https://<your stop list API>/stop_flags/R7.3",
+              "type": "string"
+            },
+            {
+              "id": "c7df1fd9-2797-5a7c-a3e3-779125a6944a",
+              "name": "review_url",
+              "value": "https://<your review list API>",
+              "type": "string"
+            },
+            {
+              "id": "633469e7-91a8-5b36-8b62-6423372aac1d",
+              "name": "mailbox_url",
+              "value": "https://<your AP mailbox API>",
+              "type": "string"
+            },
+            {
+              "id": "4b0f6d58-ca93-5db9-b706-d6831f4b4455",
+              "name": "exports_url",
+              "value": "https://<your supplier export library API>",
+              "type": "string"
+            },
+            {
+              "id": "c2460a53-6f8d-5531-b25d-f2d660f19085",
+              "name": "suppliers_url",
+              "value": "https://<your supplier list API>",
+              "type": "string"
+            },
+            {
+              "id": "49077ed5-bc42-5934-a963-be558f98e8e0",
+              "name": "register_url",
+              "value": "https://<your bank register API>",
+              "type": "string"
+            },
+            {
+              "id": "97070b86-2c21-563e-9c44-5d9f2b747659",
+              "name": "checks_url",
+              "value": "https://<your R7.3 check list API>",
+              "type": "string"
+            },
+            {
+              "id": "c624f1a6-408d-5a51-846e-1dd65edd2abf",
+              "name": "tasks_url",
+              "value": "https://<your task list API>",
+              "type": "string"
+            },
+            {
+              "id": "bf462841-3c6f-57a1-b11a-99cf02fe7126",
+              "name": "messaging_url",
+              "value": "https://<your messaging API>",
+              "type": "string"
+            },
+            {
+              "id": "cae0d768-5ddd-5024-a4d4-7096fb812e96",
+              "name": "change_phrases",
+              "value": "[\"new bank\", \"<your change-request phrases>\"]",
+              "type": "array"
+            },
+            {
+              "id": "bb75a086-f576-54d8-abf3-65ecf38f4959",
+              "name": "bank_caller",
+              "value": "<your caller, not a payment approver>",
+              "type": "string"
+            },
+            {
+              "id": "66a4d89e-e235-5957-814b-bb2df1d0299a",
+              "name": "finance_assistant",
+              "value": "<your bank-change enterer, not a payment approver>",
+              "type": "string"
+            },
+            {
+              "id": "8ebc6f7b-e8eb-5fec-b22a-57ee89714332",
+              "name": "fraud_report_to",
+              "value": "<who you report suspected fraud to>",
+              "type": "string"
+            },
+            {
+              "id": "2d2f78cf-25fe-5959-863a-b8ce5b4bf4de",
+              "name": "pre_run_reviewer",
+              "value": "<your AP owner>",
+              "type": "string"
+            },
+            {
+              "id": "3d861f9a-4195-545c-a2af-615e86987ba9",
+              "name": "kill_switch_alert",
+              "value": "<who is alerted when R7.3 is off>",
+              "type": "string"
+            },
+            {
+              "id": "5dbebb65-ddcf-55bb-a305-2a2cb00865e5",
+              "name": "workflow_owner",
+              "value": "<your workflow owner>",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "77b5dc7d-cf51-546d-acab-24eee58311d1",
+      "name": "Config",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        260,
+        600
+      ],
+      "notes": "Edit these values for your company; nothing else in the workflow hard-codes them.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "\n// Five events share one Config; this names the one that ran.\nconst t = { record: 'Step 1: R7.1 record saved', message: 'Step 1: Supplier message', export: 'Step 1: New export', callback: 'Step 7: Call-back logged', prerun: 'Pre-run check: payment run due' };\nfor (const [path, node] of Object.entries(t)) { try { if ($(node).isExecuted) return [{ json: { path } }]; } catch (e) {} }\nreturn [{ json: { path: 'none' } }];\n"
+      },
+      "id": "96b83ca7-c399-5254-a102-595ea00ca1d7",
+      "name": "Which event?",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1040,
+        600
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "28114f08-6944-5557-84fb-715d12f59ce4",
+                    "leftValue": "={{ $json.path }}",
+                    "rightValue": "record",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "record"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "287dd604-ad67-5857-9ddc-a38bd87a6c2c",
+                    "leftValue": "={{ $json.path }}",
+                    "rightValue": "message",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "message"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "522f70c1-e483-5984-98a5-b1bd7f7ce540",
+                    "leftValue": "={{ $json.path }}",
+                    "rightValue": "export",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "export"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "e1b0a37d-2f2a-54a5-9118-6a2ccc9e7761",
+                    "leftValue": "={{ $json.path }}",
+                    "rightValue": "callback",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "callback"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "2074ba45-3a97-5b0f-8c3c-aa54d3800a4a",
+                    "leftValue": "={{ $json.path }}",
+                    "rightValue": "prerun",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "prerun"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "bdd5486a-7cc4-5638-b2cb-19358749994a",
+      "name": "Event",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        1300,
+        600
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Config').item.json.review_url }}/records/{{ $('Step 1: R7.1 record saved').first().json.body.record_id }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        }
+      },
+      "id": "e89862c3-a10c-5507-8990-e7d4f99cdfc2",
+      "name": "Step 1: Read the R7.1 record",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1560,
+        0
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "\n// Step 1: an R7.1 record carries the bank details printed on the invoice.\nconst r = $('Step 1: Read the R7.1 record').first().json;\nif (!r.supplier_id) return [];\nreturn [{ json: { supplier_id: r.supplier_id, details: r.bank_account || null, phrase: null, source: 'R7.1 record', ref: r.id, record_id: r.id } }];\n"
+      },
+      "id": "88d02576-32e3-5261-b02b-3bbdba18201b",
+      "name": "Step 1: From the record",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1820,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Config').item.json.mailbox_url }}/messages/{{ $('Step 1: Supplier message').first().json.body.message_id }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        }
+      },
+      "id": "a56a508e-f3dd-5fe8-90f0-b5f171d81f51",
+      "name": "Step 1: Read the message",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1560,
+        200
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Config').item.json.suppliers_url }}/suppliers",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "_wrap",
+              "value": "1"
+            },
+            {
+              "name": "contact_email",
+              "value": "={{ $('Step 1: Read the message').first().json.from }}"
+            }
+          ]
+        }
+      },
+      "id": "f6e7a717-e5d5-55d6-9b54-8af43cf67d72",
+      "name": "Step 1: Find the sender's supplier",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1820,
+        200
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "\n// Step 1: a supplier message counts only if it holds a change-request phrase; a phrase match is a difference.\nconst cfg = $('Config').first().json;\nconst m = $('Step 1: Read the message').first().json;\nconst sup = ($('Step 1: Find the sender\\'s supplier').first().json.items || [])[0];\nconst text = `${m.subject || ''} ${m.text || ''}`.toLowerCase();\nconst phrase = cfg.change_phrases.find(p => text.includes(p.toLowerCase()));\nif (!phrase || !sup) return [];\nreturn [{ json: { supplier_id: sup.id, details: null, phrase, source: 'supplier message', ref: m.id, record_id: null } }];\n"
+      },
+      "id": "9bbb3e4f-e870-5655-be94-305a05bc97cf",
+      "name": "Step 1: From the message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2080,
+        200
+      ],
+      "notes": "A phoned or texted request is logged as a message: a trigger, never a change.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Config').item.json.exports_url }}/exports/{{ $('Step 1: New export').first().json.body.export_id }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        }
+      },
+      "id": "c8b8cd2a-2822-5ef7-b843-c72c3dde9bef",
+      "name": "Step 1: Read the export",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1560,
+        400
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "\n// Step 1: a new export: one check for each supplier in it.\nconst e = $('Step 1: Read the export').first().json;\nreturn (e.suppliers || []).map(s => ({ json: { supplier_id: s.supplier_id, details: s.bank_account || null, phrase: null,\n  source: 'export', ref: e.id, record_id: null } }));\n"
+      },
+      "id": "9150901c-05e9-58af-b717-4f5728bb6ce3",
+      "name": "Step 1: From the export",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1820,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "return { json: $json };"
+      },
+      "id": "5f21146c-2423-593b-b9c5-d700a0e95106",
+      "name": "Step 2: Checks",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2340,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Config').item.json.register_url }}/register",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "_wrap",
+              "value": "1"
+            },
+            {
+              "name": "supplier_id",
+              "value": "={{ $json.supplier_id }}"
+            }
+          ]
+        }
+      },
+      "id": "2eb0403c-451d-5a18-8100-7db58ab80ae9",
+      "name": "Step 2: Read the register",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2600,
+        200
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Config').item.json.suppliers_url }}/suppliers",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "_wrap",
+              "value": "1"
+            },
+            {
+              "name": "id",
+              "value": "={{ $('Step 2: Checks').item.json.supplier_id }}"
+            }
+          ]
+        }
+      },
+      "id": "53bd2332-60a6-5b3a-b9d6-8aec8b458fcc",
+      "name": "Step 2: Read the supplier",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2860,
+        200
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const norm = s => String(s || '').replace(/[\\s\\-]/g, '').toLowerCase();\n\n// Step 2: normalize spaces, dashes and case, then compare with the register; a phrase match is a difference.\nconst c = $('Step 2: Checks').item.json;\nconst reg = ($('Step 2: Read the register').item.json.items || [])[0] || null;\nconst sup = ($('Step 2: Read the supplier').item.json.items || [])[0] || {};\nlet differs, why;\nif (c.phrase) { differs = true; why = `change-request phrase \"${c.phrase}\"`; }\nelse if (!c.details) { differs = false; why = 'no bank details to compare'; }\nelse if (!reg) { differs = true; why = 'supplier not in the register'; }\nelse { differs = norm(c.details) !== norm(reg.bank_account); why = differs ? 'bank details differ from the register' : 'same as the register'; }\nconst today = new Date().toISOString().slice(0, 10);\nreturn { json: Object.assign({}, c, {\n  differs, why, held_before: !!sup.hold, hold_reason: sup.hold_reason || null, supplier_name: sup.name || c.supplier_id,\n  register_phone: reg ? reg.phone : null, checked_on: today,\n  key: `${c.supplier_id}:${norm(c.details)}`,\n  lift: !differs && c.source === 'export' && !!sup.hold && sup.hold_reason === 'confirmed change; awaiting export',\n  rules: { source: c.source, differs, why, held_before: !!sup.hold } }) };\n"
+      },
+      "id": "6f47b704-678a-5400-9b2c-0bcfecba443c",
+      "name": "Step 2: Rule: differs from the register?",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3120,
+        200
+      ],
+      "notes": "Rules only; there is no AI step in R7.3.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').item.json.checks_url }}/checks",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ supplier_id: $json.supplier_id, record_id: $json.record_id, source: $json.source, ref: $json.ref, differs: $json.differs, hold: $json.differs || ($json.held_before && !$json.lift), checked_on: $json.checked_on, checked_at: $now.toISO() }) }}"
+      },
+      "id": "d1e9080b-2f01-5f7f-8af2-d890cb03d289",
+      "name": "Step 3: Log the check",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3380,
+        200
+      ],
+      "notes": "The list R7.2 reads before it matches an invoice.",
+      "notesInFlow": true,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $('Step 2: Rule: differs from the register?').item.json.differs }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "id": "53334ab2-9a0f-57a4-9fab-562108335e53"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "8efa74a8-a439-5873-a8c0-eb6b52b8086e",
+      "name": "Differs?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        3640,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $('Step 2: Rule: differs from the register?').item.json.lift }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "id": "acca0753-5a93-5e3c-988c-74b00ab6f492"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "1833180d-08ef-5fc8-a839-cf626f489597",
+      "name": "Confirmed change now shown?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        3900,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $('Config').item.json.suppliers_url }}/suppliers/{{ $('Step 2: Rule: differs from the register?').item.json.supplier_id }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ hold: false, hold_reason: null }) }}"
+      },
+      "id": "5e30db21-f3e6-5706-a223-f8990e30f21d",
+      "name": "Step 8: Lift the hold",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        4160,
+        400
+      ],
+      "notes": "The export shows the change the caller confirmed and the assistant entered.",
+      "notesInFlow": true,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "return { json: { decision: 'no hold' } };"
+      },
+      "id": "58ac833d-3985-5d08-afc5-3633d4b859a5",
+      "name": "Result: no hold",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4160,
+        560
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "return { json: { decision: 'hold lifted: export shows the confirmed change' } };"
+      },
+      "id": "f3fa6002-509b-599c-bca4-1b1d4695e28d",
+      "name": "Result: hold lifted",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4420,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $('Config').item.json.suppliers_url }}/suppliers/{{ $('Step 2: Rule: differs from the register?').item.json.supplier_id }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ hold: true, hold_reason: 'bank-detail difference' }) }}"
+      },
+      "id": "d98e4a2f-4b5c-5c24-9697-7a765cd2c818",
+      "name": "Step 4: Set the hold flag",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3900,
+        0
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH reserved AS (INSERT INTO key_log (recipe, key, status) VALUES ($1, $2, 'in progress') ON CONFLICT (recipe, key) DO NOTHING RETURNING key), skipped AS (UPDATE key_log SET copies_skipped = copies_skipped + 1 WHERE recipe = $1 AND key = $2 AND NOT EXISTS (SELECT 1 FROM reserved)) SELECT (SELECT count(*) FROM reserved) = 1 AS is_new, $2::text AS key",
+        "options": {
+          "queryReplacement": "={{ [\"R7.3\", $('Step 2: Rule: differs from the register?').item.json.key] }}"
+        }
+      },
+      "id": "89c4b61a-b30b-5a91-bcd0-0f1e9c93dda2",
+      "name": "Step 5: Reserve key",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        4160,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "Key log: refuses a second copy in the same step (book Chapter 2).",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.is_new }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "id": "b2f6ed96-c136-5ea4-b8c9-cbf4c548793d"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "33579801-0d36-55bf-9d41-fc9f8eb9ac66",
+      "name": "New key?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        4420,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "return { json: { decision: 'held; open hold, no second task' } };"
+      },
+      "id": "c2f16085-396a-52ca-b8b8-41ee191935b8",
+      "name": "Result: open hold, no second task",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4680,
+        -160
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "\n// Step 6: the caller's task carries the register's number, never one from the message or invoice.\nconst c = $('Step 2: Rule: differs from the register?').item.json;\nconst cfg = $('Config').first().json;\nconst instruction = c.register_phone\n  ? `Call ${c.supplier_name} on ${c.register_phone}, the number in the bank register, to confirm its bank details. Use no number from any message or invoice. Log the number you dialed and the outcome.`\n  : `${c.supplier_name} has no number in the bank register. Take one from the contract, its official website or a previously verified document, never the invoice or a change email, then call to confirm its bank details. Log the number you dialed and the outcome.`;\nreturn { json: { assignee: cfg.bank_caller, supplier_id: c.supplier_id, supplier: c.supplier_name, phone: c.register_phone,\n  instruction, status: 'open', raised_on: c.checked_on } };\n"
+      },
+      "id": "9c4ada29-db8a-5226-81bb-2dbeac83cf32",
+      "name": "Step 6: Caller's task",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4680,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').item.json.tasks_url }}/tasks",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}"
+      },
+      "id": "79c1c0ff-c0f2-526d-8679-76a84e6b20bd",
+      "name": "Step 6: Send the caller a task",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        4940,
+        0
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE key_log SET status = $3, result = $4 WHERE recipe = $1 AND key = $2 RETURNING key",
+        "options": {
+          "queryReplacement": "={{ [\"R7.3\", $('Step 2: Rule: differs from the register?').item.json.key, \"done\", 'task sent'] }}"
+        }
+      },
+      "id": "f16d1ba3-9c67-54b7-8aca-4908a37a55ce",
+      "name": "Mark key done",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        5200,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "return { json: { decision: 'held; caller tasked' } };"
+      },
+      "id": "3987013e-75d9-5e55-98e5-fc288704163a",
+      "name": "Result: held, task sent",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        5460,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO decision_log (recipe, item, decision, rules) VALUES ($1, $2, $3, $4::jsonb) RETURNING id",
+        "options": {
+          "queryReplacement": "={{ [\"R7.3\", $('Step 2: Rule: differs from the register?').item.json.supplier_id, $json.decision, JSON.stringify($('Step 2: Rule: differs from the register?').item.json.rules)] }}"
+        }
+      },
+      "id": "6e736d2c-a9f0-53e5-9728-9303ba7012ea",
+      "name": "Decision log",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        5720,
+        200
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "Decision log: the item's ID, the decision and the rules; never the content (book Chapter 3).",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE key_log SET status = $3, result = $4 WHERE recipe = $1 AND key = $2 RETURNING key",
+        "options": {
+          "queryReplacement": "={{ [\"R7.3\", $('Step 2: Rule: differs from the register?').item.json.key, \"failed\", 'write failed: ' + (($json.error && $json.error.message) || 'unknown')] }}"
+        }
+      },
+      "id": "466b8381-4576-538a-a077-045dd6a25083",
+      "name": "Mark key failed",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        5200,
+        700
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO exception_queue (recipe, item, reason, detail, owner) VALUES ($1, $2, $3, $4, $5) RETURNING id",
+        "options": {
+          "queryReplacement": "={{ [\"R7.3\", $('Step 2: Rule: differs from the register?').item.json.supplier_id, \"write failed\", 'A check, hold or task write failed, never retried; hold the supplier by hand and check the log', $('Config').item.json.workflow_owner] }}"
+        }
+      },
+      "id": "6a0aa9b8-0532-5782-b764-e8235f362202",
+      "name": "Exception queue: write failed",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        5460,
+        700
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "Exception queue: a named person works through it (book Chapters 2 and 16).",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Config').item.json.register_url }}/register",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "_wrap",
+              "value": "1"
+            },
+            {
+              "name": "supplier_id",
+              "value": "={{ $('Step 7: Call-back logged').first().json.body.supplier_id }}"
+            }
+          ]
+        }
+      },
+      "id": "0782782a-fcc6-5dcb-b11a-7223bed94c9d",
+      "name": "Step 7: Read the register entry",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1560,
+        900
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "\n// Step 7: the caller logged the number dialed and the outcome; only the register's number counts.\nconst b = $('Step 7: Call-back logged').first().json.body;\nconst reg = ($('Step 7: Read the register entry').first().json.items || [])[0] || null;\nconst digits = s => String(s || '').replace(/\\D/g, '');\nconst onFile = reg && reg.phone ? digits(reg.phone) : null;\nconst rules = { outcome: b.outcome, number_on_file: !!onFile };\nlet route;\nif (onFile && digits(b.number_dialed) !== onFile) route = 'wrong number';\nelse if (b.outcome !== 'confirmed') route = 'not confirmed';\nelse if (b.new_bank_account || b.new_phone) route = 'change';\nelse route = 'no change';\nrules.route = route;\nconst entry = Object.assign({}, reg || { id: b.supplier_id, supplier_id: b.supplier_id });\nif (b.new_bank_account) entry.bank_account = b.new_bank_account;\nif (b.new_phone) entry.phone = b.new_phone;\nentry.verified_on = new Date().toISOString().slice(0, 10);\nentry.verified_by = b.logged_by || null;\nreturn [{ json: { route, rules, entry, register_id: entry.id } }];\n"
+      },
+      "id": "40c09ea4-56d8-5b4e-a050-d3190162b600",
+      "name": "Step 7: Rule: call-back outcome",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1820,
+        900
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "1caaae27-ddff-5829-9d20-be4bbf5b6d69",
+                    "leftValue": "={{ $json.route }}",
+                    "rightValue": "change",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "change"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "0e09430e-06a2-5d96-9757-db4badb44762",
+                    "leftValue": "={{ $json.route }}",
+                    "rightValue": "no change",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "no change"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "d5f25dc3-0843-51e6-9143-642789c6b3ac",
+                    "leftValue": "={{ $json.route }}",
+                    "rightValue": "not confirmed",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "not confirmed"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "b4a09d9c-60c3-5e23-8a6d-53f074420769",
+                    "leftValue": "={{ $json.route }}",
+                    "rightValue": "wrong number",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "wrong number"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "14bdc1d0-6927-5ac9-a647-7b2dea811b13",
+      "name": "Call-back outcome",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        2080,
+        900
+      ]
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "={{ $('Config').item.json.register_url }}/register/{{ $('Step 7: Rule: call-back outcome').first().json.register_id }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($('Step 7: Rule: call-back outcome').first().json.entry) }}"
+      },
+      "id": "efe1b730-7841-5854-962e-da663419d2bb",
+      "name": "Step 8: Save the confirmed details to the register",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2340,
+        700
+      ],
+      "notes": "Only the flow writes the register, and only after a call to the number on file. A new number is saved here too.",
+      "notesInFlow": true,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $('Config').item.json.suppliers_url }}/suppliers/{{ $('Step 7: Call-back logged').first().json.body.supplier_id }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ hold: true, hold_reason: 'confirmed change; awaiting export' }) }}"
+      },
+      "id": "ce6f7cfa-66c9-54f7-80ea-ab72500b03b2",
+      "name": "Step 8: Hold until the export shows it",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2600,
+        700
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').item.json.tasks_url }}/tasks",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ assignee: $('Config').item.json.finance_assistant, supplier_id: $('Step 7: Call-back logged').first().json.body.supplier_id, status: 'open', instruction: 'The caller confirmed a bank-detail change on the number on file. Enter it in the ledger; the hold lifts when the next export shows it.' }) }}"
+      },
+      "id": "b42f4857-8467-59d5-8b5d-509974aace57",
+      "name": "Step 8: Ask the finance assistant to enter it",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2860,
+        700
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').item.json.tasks_url }}/tasks",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ assignee: $('Config').item.json.finance_assistant, supplier_id: $('Step 7: Call-back logged').first().json.body.supplier_id, status: 'open', instruction: 'The caller confirmed no change on the number on file. Release the hold.' }) }}"
+      },
+      "id": "b0db64b1-2d6c-53d0-bd61-6a02c35f4876",
+      "name": "Step 8: Ask the finance assistant to release",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2340,
+        900
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "DELETE FROM key_log WHERE recipe = $1 AND left(key, length($2) + 1) = $2 || ':' RETURNING key",
+        "options": {
+          "queryReplacement": "={{ [\"R7.3\", $('Step 7: Call-back logged').first().json.body.supplier_id] }}"
+        }
+      },
+      "id": "183451f9-1115-5ad2-a9e3-d5a4bf620a16",
+      "name": "Step 8: Close the hold's keys",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        3120,
+        800
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "The call-back answered the hold; a later change gets its own task.",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').item.json.messaging_url }}/messages",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ to: $('Config').item.json.fraud_report_to, subject: 'Suspected payment fraud: supplier ' + $('Step 7: Call-back logged').first().json.body.supplier_id, text: 'A bank-detail change was not confirmed on the number on file. The hold stays.' }) }}"
+      },
+      "id": "a077b8ae-4aeb-57f4-b956-bf7279f96b1b",
+      "name": "Step 9: Report suspected fraud",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2340,
+        1100
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO exception_queue (recipe, item, reason, detail, owner) VALUES ($1, $2, $3, $4, $5) RETURNING id",
+        "options": {
+          "queryReplacement": "={{ [\"R7.3\", $('Step 7: Call-back logged').first().json.body.supplier_id, \"suspected fraud\", 'Change not confirmed on the number on file; hold stays', $('Config').item.json.fraud_report_to] }}"
+        }
+      },
+      "id": "87136bd5-0ecd-5e7d-bb96-76c679bd6be3",
+      "name": "Step 9: Exception queue: hold stays",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2600,
+        1100
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "Exception queue: a named person works through it (book Chapters 2 and 16).",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO exception_queue (recipe, item, reason, detail, owner) VALUES ($1, $2, $3, $4, $5) RETURNING id",
+        "options": {
+          "queryReplacement": "={{ [\"R7.3\", $('Step 7: Call-back logged').first().json.body.supplier_id, \"call to another number\", 'Logged number differs from the register; hold stays; ring the register number', $('Config').item.json.bank_caller] }}"
+        }
+      },
+      "id": "a6cf2419-2767-5b8f-b33b-9c29f864643b",
+      "name": "Exception queue: call to another number",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2340,
+        1300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "Exception queue: a named person works through it (book Chapters 2 and 16).",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO decision_log (recipe, item, decision, rules) VALUES ($1, $2, $3, $4::jsonb) RETURNING id",
+        "options": {
+          "queryReplacement": "={{ [\"R7.3\", $('Step 7: Call-back logged').first().json.body.supplier_id, 'call-back: ' + $('Step 7: Rule: call-back outcome').first().json.route, JSON.stringify($('Step 7: Rule: call-back outcome').first().json.rules)] }}"
+        }
+      },
+      "id": "ec5060ab-c8a3-55dc-bd1b-d1b09c53b43f",
+      "name": "Step 7: Decision log",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        3380,
+        1000
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "Decision log: the item's ID, the decision and the rules; never the content (book Chapter 3).",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO exception_queue (recipe, item, reason, detail, owner) VALUES ($1, $2, $3, $4, $5) RETURNING id",
+        "options": {
+          "queryReplacement": "={{ [\"R7.3\", $('Step 7: Call-back logged').first().json.body.supplier_id, \"write failed\", 'A register, hold, task or report write failed after a call-back, never retried; finish it by hand', $('Config').item.json.workflow_owner] }}"
+        }
+      },
+      "id": "a5c8b25b-823f-597a-a20f-18b132e97e5e",
+      "name": "Exception queue: call-back write failed",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        3380,
+        1200
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "Exception queue: a named person works through it (book Chapters 2 and 16).",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Config').item.json.checks_url }}/checks",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "_wrap",
+              "value": "1"
+            },
+            {
+              "name": "source",
+              "value": "export"
+            }
+          ]
+        }
+      },
+      "id": "d27e1326-c42b-5680-a2aa-5670ac996b21",
+      "name": "Pre-run: Read the export checks",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1560,
+        1500
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Config').item.json.suppliers_url }}/suppliers",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "_wrap",
+              "value": "1"
+            }
+          ]
+        }
+      },
+      "id": "2552ec8a-bc0f-579d-bb86-dd3475a9cc4e",
+      "name": "Pre-run: Read the suppliers",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1820,
+        1500
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "\n// Before each payment run: today's export check must be logged; held suppliers are listed for the caller and the AP owner.\nconst today = new Date().toISOString().slice(0, 10);\nconst checks = ($('Pre-run: Read the export checks').first().json.items || []).filter(c => c.source === 'export' && c.checked_on === today);\nconst sups = $('Pre-run: Read the suppliers').first().json.items || [];\nreturn [{ json: { logged: checks.length > 0, held: sups.filter(s => s.hold).map(s => s.name || s.id), all: sups.map(s => s.id) } }];\n"
+      },
+      "id": "33776fc0-5f5d-51f1-b079-68e850a6d5c5",
+      "name": "Pre-run: Rule: export check logged?",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2080,
+        1500
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.logged }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "id": "f50d2589-613c-506f-b2ef-8bdb4eb3a746"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "e5ce866a-55f9-502b-a414-0165edd50a03",
+      "name": "Logged?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2340,
+        1500
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').item.json.messaging_url }}/messages",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ to: [$('Config').item.json.bank_caller, $('Config').item.json.pre_run_reviewer], subject: 'Payment run check', text: 'Export check logged. Held suppliers: ' + ($('Pre-run: Rule: export check logged?').first().json.held.join(', ') || 'none') + '. Confirm no bill is from a held supplier and every bill has a logged approval. Whoever releases the run must not have approved its bills.' }) }}"
+      },
+      "id": "a3a51d30-d734-5229-a9af-d35f6a6ca2c6",
+      "name": "Pre-run: Ask the caller and AP owner to confirm",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2600,
+        1400
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').item.json.messaging_url }}/messages",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ to: $('Config').item.json.kill_switch_alert, subject: 'No R7.3 export check before the payment run', text: 'No export check is logged today, so every supplier is held until the check runs.' }) }}"
+      },
+      "id": "b09681f3-fa2d-5cc8-8c5b-2c1fe343c8ab",
+      "name": "Pre-run: Alert, R7.3 check missing",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2600,
+        1600
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "return $('Pre-run: Rule: export check logged?').first().json.all.map(id => ({ json: { id } }));"
+      },
+      "id": "5231f6e7-82c3-5bc3-9c0c-a90bdc6c25df",
+      "name": "Pre-run: Every supplier",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2860,
+        1600
+      ]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $('Config').item.json.suppliers_url }}/suppliers/{{ $json.id }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ hold: true, hold_reason: 'no export check before the payment run' }) }}"
+      },
+      "id": "ef449979-40ba-5ff8-8e3f-f93f0065311a",
+      "name": "Pre-run: Hold the supplier",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3120,
+        1600
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO exception_queue (recipe, item, reason, detail, owner) VALUES ($1, $2, $3, $4, $5) RETURNING id",
+        "options": {
+          "queryReplacement": "={{ [\"R7.3\", $json.id || 'supplier', \"write failed\", 'Pre-run hold write failed; hold this supplier by hand', $('Config').item.json.workflow_owner] }}"
+        }
+      },
+      "id": "294d8668-a4da-5bf8-ab66-1cd25224b187",
+      "name": "Exception queue: hold write failed",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        3380,
+        1700
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "Exception queue: a named person works through it (book Chapters 2 and 16).",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Config').item.json.stop_flag_url }}",
+        "options": {}
+      },
+      "id": "1f6e57e0-3a2b-5f37-96b9-f2e680751d33",
+      "name": "Stop flag: read",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        520,
+        600
+      ],
+      "notes": "Kill switch: set stopped to true in your stop list and the next run ends quietly (book Chapter 3).",
+      "notesInFlow": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.stopped === true }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "id": "29221dda-17dc-54f1-b723-acbbbb7226d6"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "5635f234-d2dd-5d57-b46b-3710356cdd64",
+      "name": "Stop flag set?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        780,
+        600
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "5ef14df2-77d5-5bc5-ba59-8c298c98a176",
+      "name": "Stopped by the stop flag",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        1040,
+        400
+      ],
+      "notes": "Ends quietly; nothing is read, written or sent.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO exception_queue (recipe, item, reason, detail, owner) VALUES ($1, $2, $3, $4, $5) RETURNING id",
+        "options": {
+          "queryReplacement": "={{ [\"R7.3\", 'run ' + $execution.id, \"stop list unreadable\", 'The stop list could not be read, so the run stopped; fix the stop list', '<your workflow owner>'] }}"
+        }
+      },
+      "id": "0d1d8c7e-f6f8-5024-8442-bcf628f85822",
+      "name": "Exception queue: stop list unreadable",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        780,
+        820
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "Exception queue: a named person works through it (book Chapters 2 and 16).",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    }
+  ],
+  "connections": {
+    "Step 1: R7.1 record saved": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 1: Supplier message": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 1: New export": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 7: Call-back logged": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pre-run check: payment run due": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Which event?": {
+      "main": [
+        [
+          {
+            "node": "Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Event": {
+      "main": [
+        [
+          {
+            "node": "Step 1: Read the R7.1 record",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Step 1: Read the message",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Step 1: Read the export",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Step 7: Read the register entry",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Pre-run: Read the export checks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 1: Read the R7.1 record": {
+      "main": [
+        [
+          {
+            "node": "Step 1: From the record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 1: Read the message": {
+      "main": [
+        [
+          {
+            "node": "Step 1: Find the sender's supplier",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 1: Find the sender's supplier": {
+      "main": [
+        [
+          {
+            "node": "Step 1: From the message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 1: Read the export": {
+      "main": [
+        [
+          {
+            "node": "Step 1: From the export",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 1: From the record": {
+      "main": [
+        [
+          {
+            "node": "Step 2: Checks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 1: From the message": {
+      "main": [
+        [
+          {
+            "node": "Step 2: Checks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 1: From the export": {
+      "main": [
+        [
+          {
+            "node": "Step 2: Checks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 2: Checks": {
+      "main": [
+        [
+          {
+            "node": "Step 2: Read the register",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 2: Read the register": {
+      "main": [
+        [
+          {
+            "node": "Step 2: Read the supplier",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 2: Read the supplier": {
+      "main": [
+        [
+          {
+            "node": "Step 2: Rule: differs from the register?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 2: Rule: differs from the register?": {
+      "main": [
+        [
+          {
+            "node": "Step 3: Log the check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 3: Log the check": {
+      "main": [
+        [
+          {
+            "node": "Differs?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark key failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Differs?": {
+      "main": [
+        [
+          {
+            "node": "Step 4: Set the hold flag",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Confirmed change now shown?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Confirmed change now shown?": {
+      "main": [
+        [
+          {
+            "node": "Step 8: Lift the hold",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Result: no hold",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 8: Lift the hold": {
+      "main": [
+        [
+          {
+            "node": "Result: hold lifted",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark key failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 4: Set the hold flag": {
+      "main": [
+        [
+          {
+            "node": "Step 5: Reserve key",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark key failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 5: Reserve key": {
+      "main": [
+        [
+          {
+            "node": "New key?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "New key?": {
+      "main": [
+        [
+          {
+            "node": "Step 6: Caller's task",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Result: open hold, no second task",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 6: Caller's task": {
+      "main": [
+        [
+          {
+            "node": "Step 6: Send the caller a task",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 6: Send the caller a task": {
+      "main": [
+        [
+          {
+            "node": "Mark key done",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark key failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark key done": {
+      "main": [
+        [
+          {
+            "node": "Result: held, task sent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Result: no hold": {
+      "main": [
+        [
+          {
+            "node": "Decision log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Result: hold lifted": {
+      "main": [
+        [
+          {
+            "node": "Decision log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Result: open hold, no second task": {
+      "main": [
+        [
+          {
+            "node": "Decision log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Result: held, task sent": {
+      "main": [
+        [
+          {
+            "node": "Decision log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark key failed": {
+      "main": [
+        [
+          {
+            "node": "Exception queue: write failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 7: Read the register entry": {
+      "main": [
+        [
+          {
+            "node": "Step 7: Rule: call-back outcome",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 7: Rule: call-back outcome": {
+      "main": [
+        [
+          {
+            "node": "Call-back outcome",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call-back outcome": {
+      "main": [
+        [
+          {
+            "node": "Step 8: Save the confirmed details to the register",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Step 8: Ask the finance assistant to release",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Step 9: Report suspected fraud",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Exception queue: call to another number",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 8: Save the confirmed details to the register": {
+      "main": [
+        [
+          {
+            "node": "Step 8: Hold until the export shows it",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Exception queue: call-back write failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 8: Hold until the export shows it": {
+      "main": [
+        [
+          {
+            "node": "Step 8: Ask the finance assistant to enter it",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Exception queue: call-back write failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 8: Ask the finance assistant to enter it": {
+      "main": [
+        [
+          {
+            "node": "Step 8: Close the hold's keys",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Exception queue: call-back write failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 8: Ask the finance assistant to release": {
+      "main": [
+        [
+          {
+            "node": "Step 8: Close the hold's keys",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Exception queue: call-back write failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 9: Report suspected fraud": {
+      "main": [
+        [
+          {
+            "node": "Step 9: Exception queue: hold stays",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Exception queue: call-back write failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 8: Close the hold's keys": {
+      "main": [
+        [
+          {
+            "node": "Step 7: Decision log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 9: Exception queue: hold stays": {
+      "main": [
+        [
+          {
+            "node": "Step 7: Decision log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Exception queue: call to another number": {
+      "main": [
+        [
+          {
+            "node": "Step 7: Decision log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pre-run: Read the export checks": {
+      "main": [
+        [
+          {
+            "node": "Pre-run: Read the suppliers",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pre-run: Read the suppliers": {
+      "main": [
+        [
+          {
+            "node": "Pre-run: Rule: export check logged?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pre-run: Rule: export check logged?": {
+      "main": [
+        [
+          {
+            "node": "Logged?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Logged?": {
+      "main": [
+        [
+          {
+            "node": "Pre-run: Ask the caller and AP owner to confirm",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Pre-run: Alert, R7.3 check missing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pre-run: Alert, R7.3 check missing": {
+      "main": [
+        [
+          {
+            "node": "Pre-run: Every supplier",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pre-run: Every supplier": {
+      "main": [
+        [
+          {
+            "node": "Pre-run: Hold the supplier",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pre-run: Hold the supplier": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Exception queue: hold write failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config": {
+      "main": [
+        [
+          {
+            "node": "Stop flag: read",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Stop flag: read": {
+      "main": [
+        [
+          {
+            "node": "Stop flag set?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Exception queue: stop list unreadable",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Stop flag set?": {
+      "main": [
+        [
+          {
+            "node": "Stopped by the stop flag",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Which event?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataSuccessExecution": "all",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "pinData": {}
+}

@@ -4,3 +4,9 @@ Edge,"""Thursday's fine, gate code 4821""","Code masked; names a day, so dispatc
 Duplicate,Same reply delivered twice,One slot request
 Escalate,"Trade account: ""fridge leaking onto the floor""",Dispatcher at once; R4.2
 Refuse,"""Cancel it and refund me today""",Dispatcher task; nothing canceled
+AI error,The AI call fails twice (companion extension),Dispatcher task with the reply; no slot offer
+Slot lookup fails,The open-slot read fails after a reschedule reply (companion extension),Dispatcher task with the reply; no slot offer
+Trade reply,"Trade account: ""Can we move it to next week?"" (companion extension)",Dispatcher at once; no AI call
+Slot set,A slot is set (companion extension),"Confirmation sent with date, window and preparation notes"
+Not delivered,The confirmation send fails (companion extension),Dispatcher task: phone the customer
+Reminders,"One job tomorrow, one in three days (companion extension)",One reminder: tomorrow's job

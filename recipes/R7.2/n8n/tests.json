@@ -1,0 +1,751 @@
+{
+ "config": {
+  "review_url": "{mocks}/review",
+  "checks_url": "{mocks}/checks",
+  "ledger_url": "{mocks}/ledger",
+  "map_url": "{mocks}/map",
+  "reservations_url": "{mocks}/reservations",
+  "approvals_url": "{mocks}/approvals",
+  "queue_url": "{mocks}/queue",
+  "messaging_url": "{mocks}/messaging",
+  "tolerance_version": "test-1",
+  "price_tolerance_pct": 2,
+  "freight_tolerance": 50,
+  "tax_rate_pct": 20,
+  "tax_rounding": 0.05,
+  "approver_to_limit": "aisha@example.test",
+  "approver_above": "tom@example.test",
+  "approver_own_items": "helen@example.test",
+  "purchasing": "purchasing@example.test",
+  "workflow_owner": "owen@example.test",
+  "ai_url": "{mocks}/anthropic/v1/messages"
+ },
+ "seed": {
+  "review": {
+   "records": {
+    "R-1": {
+     "id": "R-1",
+     "status": "ready",
+     "supplier_id": "SUP-1",
+     "supplier": "Example Cabinet Supply",
+     "invoice_number": "CS-881",
+     "order_number": "PO-1",
+     "lines": [
+      {
+       "description": "Base cabinet 60",
+       "qty": 10,
+       "unit_price": 120,
+       "amount": 1200
+      },
+      {
+       "description": "Wall unit 40",
+       "qty": 5,
+       "unit_price": 80,
+       "amount": 400
+      }
+     ],
+     "freight": 0,
+     "tax": 320,
+     "total": 1920
+    }
+   }
+  },
+  "checks": {
+   "checks": {
+    "C-1": {
+     "id": "C-1",
+     "record_id": "R-1",
+     "supplier_id": "SUP-1",
+     "hold": false
+    }
+   }
+  },
+  "ledger": {
+   "orders": {
+    "PO-1": {
+     "id": "PO-1",
+     "number": "PO-1",
+     "supplier_id": "SUP-1",
+     "raised_by": "purchasing@example.test",
+     "freight": 0,
+     "lines": [
+      {
+       "id": "L1",
+       "item": "BC-60",
+       "description": "Base cabinet, 60 cm",
+       "qty": 10,
+       "unit_price": 120
+      },
+      {
+       "id": "L2",
+       "item": "WU-40",
+       "description": "Oak wall unit, 40 cm",
+       "qty": 5,
+       "unit_price": 80
+      }
+     ]
+    }
+   },
+   "receipts": {
+    "GR-1": {
+     "id": "GR-1",
+     "order_number": "PO-1",
+     "lines": [
+      {
+       "order_line_id": "L1",
+       "qty": 10
+      },
+      {
+       "order_line_id": "L2",
+       "qty": 5
+      }
+     ]
+    }
+   }
+  },
+  "map": {
+   "map": {
+    "M1": {
+     "id": "M1",
+     "supplier_id": "SUP-1",
+     "invoice_text": "Base cabinet 60",
+     "item": "BC-60"
+    },
+    "M2": {
+     "id": "M2",
+     "supplier_id": "SUP-1",
+     "invoice_text": "Wall unit 40",
+     "item": "WU-40"
+    }
+   }
+  }
+ },
+ "cases": [
+  {
+   "case": "Normal",
+   "row": 1,
+   "input": "Every line matches",
+   "trigger": [
+    {
+     "webhook": "r7-2-ready",
+     "body": {
+      "record_id": "R-1"
+     },
+     "pause": 0.3
+    }
+   ],
+   "expect": [
+    {
+     "mock": "approvals/approvals/R-1",
+     "field": "approver",
+     "equals": "aisha@example.test"
+    },
+    {
+     "mock": "review/records/R-1",
+     "field": "match_status",
+     "equals": "matched; to approval"
+    },
+    {
+     "mock": "reservations/reservations",
+     "count": 2
+    },
+    {
+     "mock": "reservations/reservations/R-1:L1",
+     "field": "qty",
+     "equals": 10
+    },
+    {
+     "mock": "queue/items",
+     "count": 0
+    },
+    {
+     "calls": "POST /anthropic/v1/messages",
+     "count": 0
+    }
+   ]
+  },
+  {
+   "case": "Edge",
+   "row": 2,
+   "input": "Twelve billed, ten received",
+   "seed": {
+    "review": {
+     "records": {
+      "R-1": {
+       "id": "R-1",
+       "status": "ready",
+       "supplier_id": "SUP-1",
+       "supplier": "Example Cabinet Supply",
+       "invoice_number": "CS-881",
+       "order_number": "PO-1",
+       "lines": [
+        {
+         "description": "Base cabinet 60",
+         "qty": 12,
+         "unit_price": 120,
+         "amount": 1440
+        },
+        {
+         "description": "Wall unit 40",
+         "qty": 5,
+         "unit_price": 80,
+         "amount": 400
+        }
+       ],
+       "freight": 0,
+       "tax": 368,
+       "total": 2208
+      }
+     }
+    }
+   },
+   "trigger": [
+    {
+     "webhook": "r7-2-ready",
+     "body": {
+      "record_id": "R-1"
+     },
+     "pause": 0.3
+    }
+   ],
+   "expect": [
+    {
+     "mock": "review/records/R-1",
+     "field": "match_status",
+     "equals": "stopped"
+    },
+    {
+     "mock": "queue/items/1",
+     "field": "reason_code",
+     "equals": "outside tolerance"
+    },
+    {
+     "mock": "queue/items/1",
+     "field": "details",
+     "contains": "over receipt, 12 billed, 10 received"
+    },
+    {
+     "mock": "approvals/approvals",
+     "count": 0
+    },
+    {
+     "mock": "reservations/reservations",
+     "count": 0
+    }
+   ]
+  },
+  {
+   "case": "Duplicate",
+   "row": 3,
+   "input": "Two invoices for the same goods",
+   "seed": {
+    "review": {
+     "records": {
+      "R-2": {
+       "id": "R-2",
+       "status": "ready",
+       "supplier_id": "SUP-1",
+       "supplier": "Example Cabinet Supply",
+       "invoice_number": "CS-882",
+       "order_number": "PO-1",
+       "lines": [
+        {
+         "description": "Base cabinet 60",
+         "qty": 10,
+         "unit_price": 120,
+         "amount": 1200
+        },
+        {
+         "description": "Wall unit 40",
+         "qty": 5,
+         "unit_price": 80,
+         "amount": 400
+        }
+       ],
+       "freight": 0,
+       "tax": 320,
+       "total": 1920
+      }
+     }
+    },
+    "checks": {
+     "checks": {
+      "C-2": {
+       "id": "C-2",
+       "record_id": "R-2",
+       "supplier_id": "SUP-1",
+       "hold": false
+      }
+     }
+    }
+   },
+   "trigger": [
+    {
+     "webhook": "r7-2-ready",
+     "body": {
+      "record_id": "R-1"
+     },
+     "pause": 4
+    },
+    {
+     "webhook": "r7-2-ready",
+     "body": {
+      "record_id": "R-2"
+     },
+     "pause": 0.3
+    }
+   ],
+   "expect": [
+    {
+     "mock": "approvals/approvals",
+     "count": 1
+    },
+    {
+     "mock": "approvals/approvals/R-1",
+     "field": "approver",
+     "equals": "aisha@example.test"
+    },
+    {
+     "mock": "review/records/R-2",
+     "field": "match_status",
+     "equals": "stopped"
+    },
+    {
+     "mock": "queue/items/1",
+     "field": "invoice_id",
+     "equals": "R-2"
+    },
+    {
+     "mock": "queue/items/1",
+     "field": "reason_code",
+     "equals": "already invoiced"
+    }
+   ]
+  },
+  {
+   "case": "Escalate",
+   "row": 4,
+   "input": "$12,000 invoice on an order Tom raised",
+   "seed": {
+    "review": {
+     "records": {
+      "R-1": {
+       "id": "R-1",
+       "status": "ready",
+       "supplier_id": "SUP-1",
+       "supplier": "Example Cabinet Supply",
+       "invoice_number": "CS-881",
+       "order_number": "PO-1",
+       "lines": [
+        {
+         "description": "Base cabinet 60",
+         "qty": 10,
+         "unit_price": 1000,
+         "amount": 10000
+        }
+       ],
+       "freight": 0,
+       "tax": 2000,
+       "total": 12000
+      }
+     }
+    },
+    "ledger": {
+     "orders": {
+      "PO-1": {
+       "raised_by": "tom@example.test",
+       "lines": [
+        {
+         "id": "L1",
+         "item": "BC-60",
+         "description": "Base cabinet, 60 cm",
+         "qty": 10,
+         "unit_price": 1000
+        }
+       ]
+      }
+     }
+    }
+   },
+   "trigger": [
+    {
+     "webhook": "r7-2-ready",
+     "body": {
+      "record_id": "R-1"
+     },
+     "pause": 0.3
+    }
+   ],
+   "expect": [
+    {
+     "mock": "approvals/approvals/R-1",
+     "field": "approver",
+     "equals": "helen@example.test"
+    },
+    {
+     "mock": "approvals/approvals/R-1",
+     "field": "total",
+     "equals": 12000
+    }
+   ]
+  },
+  {
+   "case": "Supplier held",
+   "row": 5,
+   "input": "R7.3 holds the supplier (companion extension)",
+   "seed": {
+    "checks": {
+     "checks": {
+      "C-1": {
+       "hold": true
+      }
+     }
+    }
+   },
+   "trigger": [
+    {
+     "webhook": "r7-2-ready",
+     "body": {
+      "record_id": "R-1"
+     },
+     "pause": 0.3
+    }
+   ],
+   "expect": [
+    {
+     "mock": "queue/items/1",
+     "field": "reason_code",
+     "equals": "supplier on hold"
+    },
+    {
+     "mock": "review/records/R-1",
+     "field": "match_status",
+     "equals": "stopped"
+    },
+    {
+     "calls": "GET /ledger/orders",
+     "count": 0
+    },
+    {
+     "mock": "approvals/approvals",
+     "count": 0
+    }
+   ]
+  },
+  {
+   "case": "No receipt",
+   "row": 6,
+   "input": "Receipt not entered (companion extension)",
+   "seed": {
+    "ledger": {
+     "receipts": {
+      "GR-1": {
+       "order_number": "PO-9"
+      }
+     }
+    }
+   },
+   "trigger": [
+    {
+     "webhook": "r7-2-ready",
+     "body": {
+      "record_id": "R-1"
+     },
+     "pause": 0.3
+    }
+   ],
+   "expect": [
+    {
+     "mock": "queue/items/1",
+     "field": "reason_code",
+     "equals": "no receipt"
+    },
+    {
+     "mock": "approvals/approvals",
+     "count": 0
+    }
+   ]
+  },
+  {
+   "case": "Lookup error",
+   "row": 7,
+   "input": "The PO lookup fails three times (companion extension)",
+   "fail": [
+    {
+     "method": "GET",
+     "path": "/ledger/orders",
+     "status": 500,
+     "times": 3
+    }
+   ],
+   "trigger": [
+    {
+     "webhook": "r7-2-ready",
+     "body": {
+      "record_id": "R-1"
+     },
+     "pause": 0.3
+    }
+   ],
+   "expect": [
+    {
+     "calls": "GET /ledger/orders",
+     "count": 3
+    },
+    {
+     "mock": "queue/items/1",
+     "field": "reason_code",
+     "equals": "lookup error"
+    },
+    {
+     "mock": "review/records/R-1",
+     "field": "match_status",
+     "equals": "stopped"
+    },
+    {
+     "mock": "approvals/approvals",
+     "count": 0
+    }
+   ]
+  },
+  {
+   "case": "AI error",
+   "row": 8,
+   "input": "An unmapped line; the AI call fails three times (companion extension)",
+   "seed": {
+    "map": {
+     "map": {
+      "M2": {
+       "invoice_text": "(not this line)"
+      }
+     }
+    }
+   },
+   "fail": [
+    {
+     "method": "POST",
+     "path": "/anthropic/v1/messages",
+     "status": 529,
+     "times": 3
+    }
+   ],
+   "trigger": [
+    {
+     "webhook": "r7-2-ready",
+     "body": {
+      "record_id": "R-1"
+     },
+     "pause": 0.3
+    }
+   ],
+   "expect": [
+    {
+     "calls": "POST /anthropic/v1/messages",
+     "count": 3
+    },
+    {
+     "mock": "queue/items/1",
+     "field": "reason_code",
+     "equals": "pairing rejected"
+    },
+    {
+     "mock": "queue/items/1",
+     "field": "details",
+     "contains": "line 2 \\\"Wall unit 40\\\": AI error"
+    },
+    {
+     "mock": "approvals/approvals",
+     "count": 0
+    },
+    {
+     "mock": "reservations/reservations",
+     "count": 0
+    }
+   ]
+  },
+  {
+   "case": "Reservation fails partway",
+   "row": 9,
+   "input": "The second line's reservation write fails (companion extension)",
+   "fail": [
+    {
+     "method": "PUT",
+     "path": "/reservations/reservations/R-1:L2",
+     "status": 500,
+     "times": 1
+    }
+   ],
+   "trigger": [
+    {
+     "webhook": "r7-2-ready",
+     "body": {
+      "record_id": "R-1"
+     },
+     "pause": 0.3
+    }
+   ],
+   "expect": [
+    {
+     "calls": "PUT /reservations/reservations/R-1:L2",
+     "count": 1
+    },
+    {
+     "calls": "DELETE /reservations/reservations/R-1:L1",
+     "count": 1
+    },
+    {
+     "mock": "reservations/reservations",
+     "count": 0
+    },
+    {
+     "mock": "queue/items/1",
+     "field": "reason_code",
+     "equals": "reservation failed"
+    },
+    {
+     "mock": "approvals/approvals",
+     "count": 0
+    }
+   ]
+  },
+  {
+   "case": "Rejected",
+   "row": 10,
+   "input": "The approver rejects the invoice (companion extension)",
+   "seed": {
+    "approvals": {
+     "approvals": {
+      "R-1": {
+       "id": "R-1",
+       "invoice_id": "R-1",
+       "approver": "aisha@example.test",
+       "status": "waiting",
+       "tolerance_version": "test-1",
+       "lines": []
+      }
+     }
+    },
+    "reservations": {
+     "reservations": {
+      "R-1:L1": {
+       "id": "R-1:L1",
+       "invoice_id": "R-1",
+       "order_number": "PO-1",
+       "order_line_id": "L1",
+       "qty": 10
+      },
+      "R-1:L2": {
+       "id": "R-1:L2",
+       "invoice_id": "R-1",
+       "order_number": "PO-1",
+       "order_line_id": "L2",
+       "qty": 5
+      }
+     }
+    }
+   },
+   "trigger": [
+    {
+     "webhook": "r7-2-approval",
+     "body": {
+      "invoice_id": "R-1",
+      "decision": "rejected",
+      "decided_by": "aisha@example.test"
+     }
+    }
+   ],
+   "expect": [
+    {
+     "mock": "reservations/reservations",
+     "count": 0
+    },
+    {
+     "mock": "approvals/approvals/R-1",
+     "field": "status",
+     "equals": "rejected"
+    },
+    {
+     "sql": "select approved_by || ': ' || decision from decision_log where recipe='R7.2'",
+     "equals": "aisha@example.test: approval rejected"
+    }
+   ]
+  },
+  {
+   "case": "Write fails",
+   "row": 11,
+   "input": "The approval write fails (companion extension)",
+   "fail": [
+    {
+     "method": "PUT",
+     "path": "/approvals/approvals/R-1",
+     "status": 500,
+     "times": 1
+    }
+   ],
+   "trigger": [
+    {
+     "webhook": "r7-2-ready",
+     "body": {
+      "record_id": "R-1"
+     },
+     "pause": 0.3
+    }
+   ],
+   "expect": [
+    {
+     "calls": "PUT /approvals/approvals/R-1",
+     "count": 1
+    },
+    {
+     "sql": "select reason from exception_queue where recipe='R7.2'",
+     "equals": "write failed"
+    },
+    {
+     "sql": "select owner from exception_queue where recipe='R7.2'",
+     "equals": "owen@example.test"
+    }
+   ]
+  },
+  {
+   "case": "AI-paired line",
+   "row": 12,
+   "input": "A line the map does not cover, paired by the AI (companion extension)",
+   "needs_ai": true,
+   "seed": {
+    "map": {
+     "map": {
+      "M2": {
+       "invoice_text": "(not this line)"
+      }
+     }
+    }
+   },
+   "trigger": [
+    {
+     "webhook": "r7-2-ready",
+     "body": {
+      "record_id": "R-1"
+     },
+     "pause": 0.3
+    }
+   ],
+   "expect": [
+    {
+     "mock": "approvals/approvals/R-1",
+     "field": "approver",
+     "equals": "aisha@example.test"
+    },
+    {
+     "mock": "approvals/approvals/R-1",
+     "field": "lines",
+     "contains": "\"order_line_id\": \"L2\", \"qty\": 5, \"ai_paired\": true"
+    },
+    {
+     "mock": "reservations/reservations/R-1:L2",
+     "field": "qty",
+     "equals": 5
+    }
+   ]
+  }
+ ]
+}

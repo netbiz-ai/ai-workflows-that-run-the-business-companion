@@ -3,3 +3,7 @@ Normal,Six fresh sources,Seven rows; every source fresh or manual
 Edge,Delivery export with a renamed column,"Operations rows blank, ""format changed"""
 Duplicate,Schedule fires twice on the same files,No new version
 Escalate,Receivables total differs from control total,"Blank, ""does not reconcile""; Owen, Aisha alerted"
+Stale export,The helpdesk export did not run (companion extension),"Its rows blank, ""stale"", last good date; Owen and the data owner alerted"
+Fewer than 3,Two staff absences on the HR form (companion extension),"""Fewer than 3"", change blank"
+Rule not approved,A formula version the rule approver has not approved (companion extension),Run stops; no version written; Owen and Aisha alerted; exception queue
+Write fails,A weekly table write fails (companion extension),Version not marked written; key marked failed; exception queue: write failed; never retried

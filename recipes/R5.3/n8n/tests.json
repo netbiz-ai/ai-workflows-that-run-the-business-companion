@@ -1,0 +1,100 @@
+{
+  "config": {
+    "crm_url": "{mocks}/crm",
+    "terms_url": "{mocks}/terms",
+    "messaging_url": "{mocks}/messaging",
+    "sales_lead": "ben@example.test",
+    "price_list_owner": "aisha@example.test",
+    "ai_url": "{mocks}/anthropic/v1/messages"
+  },
+  "seed": {
+    "crm": {
+      "price_lists": {"current": {"id": "current", "version": "PL-2026-10", "valid_until": "{today+60}", "owner": "Aisha Karim",
+        "items": [{"code": "BED-Q", "name": "Queen bed frame", "unit_price": 412.5},
+                  {"code": "SOFA-L", "name": "Lounge sofa", "unit_price": 899},
+                  {"code": "PROT-1", "name": "Protection plan, per apartment per year", "unit_price": 196},
+                  {"code": "SHELF-A", "name": "Shelf unit", "unit_price": 4.15},
+                  {"code": "HOOK-B", "name": "Coat hook set", "unit_price": 10.25}]}},
+      "opportunities": {"OPP-1": {"id": "OPP-1", "revision": 1, "customer_name": "Harbour Flats Property Management", "salesperson": "maya@example.test",
+        "need": "Furnishing a refurbished apartment block before the tenants move in",
+        "lines": [{"line": 1, "code": "BED-Q", "quantity": 24, "discount_pct": 0},
+                  {"line": 2, "code": "SOFA-L", "quantity": 24, "discount_pct": 5},
+                  {"line": 3, "code": "PROT-1", "quantity": 24, "discount_pct": 0}]}},
+      "quotes": {}
+    },
+    "terms": {"libraries": {"current": {"id": "current", "version": "T-2026-09", "valid_until": "{today+90}", "owner": "Ben Hollis",
+      "terms": ["This quote is valid for 30 days.", "Payment is due within 30 days of delivery."]}}}
+  },
+  "cases": [
+    {"case": "Normal", "row": 1, "input": "Three-line quote", "needs_ai": true,
+     "trigger": [{"webhook": "r5-3-ready-to-quote", "body": {"opportunity_id": "OPP-1", "revision": 1}}],
+     "expect": [
+       {"mock": "crm/quotes", "count": 1},
+       {"mock": "crm/quotes/1", "field": "total", "equals": 35101.2},
+       {"mock": "crm/quotes/1", "field": "price_list_version", "equals": "PL-2026-10"},
+       {"mock": "crm/quotes/1", "field": "status", "equals": "awaiting approval"},
+       {"sql": "select rules->>'check' from decision_log where recipe='R5.3'", "equals": "passed"}]},
+    {"case": "Edge", "row": 2, "input": "Unrounded sum differs from rounded lines",
+     "seed": {"crm": {"opportunities": {"OPP-1": {"lines": [{"line": 1, "code": "SHELF-A", "quantity": 7, "discount_pct": 10},
+                                                            {"line": 2, "code": "HOOK-B", "quantity": 3, "discount_pct": 15}]}}}},
+     "trigger": [{"webhook": "r5-3-ready-to-quote", "body": {"opportunity_id": "OPP-1", "revision": 1}}],
+     "expect": [
+       {"sql": "select rules->>'total' from decision_log where recipe='R5.3'", "equals": "52.29"}]},
+    {"case": "Duplicate", "row": 3, "input": "\"Ready to quote\" clicked twice",
+     "trigger": [{"webhook": "r5-3-ready-to-quote", "body": {"opportunity_id": "OPP-1", "revision": 1}, "pause": 8},
+                 {"webhook": "r5-3-ready-to-quote", "body": {"opportunity_id": "OPP-1", "revision": 1}}],
+     "expect": [
+       {"calls": "GET /crm/opportunities/OPP-1", "count": 1},
+       {"sql": "select copies_skipped from key_log where recipe='R5.3'", "equals": "1"},
+       {"sql": "select count(*) from decision_log where recipe='R5.3'", "equals": "1"}]},
+    {"case": "Refuse", "row": 4, "input": "Incident D's price in the AI's text, as digits, then words", "fail": [{"method": "POST", "path": "/anthropic/v1/messages", "status": 200, "times": 1, "body": {"id": "msg_planted", "type": "message", "role": "assistant", "model": "claude-haiku-5-5", "stop_reason": "end_turn", "content": [{"type": "text", "text": "{\"cover_note\": \"Thank you for the chance to quote. The protection plan is {{line_3_unit}} per apartment per year. Optional extras: the protection plan at $185 per apartment per year.\", \"scope\": \"Optional extras: the protection plan at one hundred eighty-five dollars per apartment per year.\"}"}]}}], "trigger": [{"webhook": "r5-3-ready-to-quote", "body": {"opportunity_id": "OPP-1", "revision": 1}}], "expect": [{"mock": "crm/quotes", "count": 0}, {"mock": "crm/opportunities/OPP-1", "field": "quote_flag", "contains": "number no placeholder supplied: 185"}, {"mock": "crm/opportunities/OPP-1", "field": "quote_flag", "contains": "number in words: one, five, eighty, hundred"}, {"sql": "select reason from exception_queue where recipe='R5.3'", "equals": "no draft"}]},
+    {"case": "Stale price list", "row": 5, "input": "Price list valid until yesterday (companion extension)",
+     "seed": {"crm": {"price_lists": {"current": {"valid_until": "{today-1}"}}}},
+     "trigger": [{"webhook": "r5-3-ready-to-quote", "body": {"opportunity_id": "OPP-1", "revision": 1}}],
+     "expect": [
+       {"calls": "POST /anthropic/v1/messages", "count": 0},
+       {"mock": "crm/quotes", "count": 0},
+       {"mock": "messaging/messages", "count": 1},
+       {"mock": "messaging/messages/1", "field": "to", "equals": ["ben@example.test", "aisha@example.test"]},
+       {"sql": "select count(*) from key_log where recipe='R5.3'", "equals": "0"}]},
+    {"case": "Off-list code", "row": 6, "input": "A line whose code is not on the price list (companion extension)",
+     "seed": {"crm": {"opportunities": {"OPP-1": {"lines": [{"line": 1, "code": "BED-Q", "quantity": 24, "discount_pct": 0},
+                                                            {"line": 2, "code": "DESK-X", "name": "Reception desk", "quantity": 1, "discount_pct": 0}]}}}},
+     "trigger": [{"webhook": "r5-3-ready-to-quote", "body": {"opportunity_id": "OPP-1", "revision": 1}}],
+     "expect": [
+       {"sql": "select owner from exception_queue where recipe='R5.3' and reason='off-list line'", "equals": "ben@example.test"},
+       {"sql": "select rules->>'total' from decision_log where recipe='R5.3'", "equals": "9900"},
+       {"sql": "select rules->>'off_list_lines' from decision_log where recipe='R5.3'", "equals": "[2]"}]},
+    {"case": "AI error", "row": 7, "input": "The AI call fails twice (companion extension)",
+     "fail": [{"method": "POST", "path": "/anthropic/v1/messages", "status": 529, "times": 2}],
+     "trigger": [{"webhook": "r5-3-ready-to-quote", "body": {"opportunity_id": "OPP-1", "revision": 1}}],
+     "expect": [
+       {"calls": "POST /anthropic/v1/messages", "count": 2},
+       {"mock": "crm/quotes", "count": 0},
+       {"mock": "crm/opportunities/OPP-1", "field": "quote_flag", "contains": "No draft: AI error after one retry"},
+       {"sql": "select reason from exception_queue where recipe='R5.3'", "equals": "no draft"},
+       {"sql": "select detail like 'AI error after one retry%' from exception_queue where recipe='R5.3'", "equals": "t"}]},
+    {"case": "CRM read fails", "row": 8, "input": "The opportunity read fails three times (companion extension)",
+     "fail": [{"method": "GET", "path": "/crm/opportunities/OPP-1", "status": 500, "times": 3}],
+     "trigger": [{"webhook": "r5-3-ready-to-quote", "body": {"opportunity_id": "OPP-1", "revision": 1}}],
+     "expect": [
+       {"calls": "GET /crm/opportunities/OPP-1", "count": 3},
+       {"calls": "POST /anthropic/v1/messages", "count": 0},
+       {"sql": "select status from key_log where recipe='R5.3'", "equals": "failed"},
+       {"sql": "select reason from exception_queue where recipe='R5.3'", "equals": "write or read failed"}]},
+    {"case": "Write fails", "row": 9, "input": "The opportunity flag write fails (companion extension)",
+     "fail": [{"method": "POST", "path": "/anthropic/v1/messages", "status": 529, "times": 2},
+              {"method": "PATCH", "path": "/crm/opportunities/OPP-1", "status": 500, "times": 1}],
+     "trigger": [{"webhook": "r5-3-ready-to-quote", "body": {"opportunity_id": "OPP-1", "revision": 1}}],
+     "expect": [
+       {"calls": "PATCH /crm/opportunities/OPP-1", "count": 1},
+       {"sql": "select status from key_log where recipe='R5.3'", "equals": "failed"},
+       {"sql": "select reason from exception_queue where recipe='R5.3'", "equals": "write or read failed"}]},
+    {"case": "Expiry warning", "row": 10, "input": "Price list expires in five days (companion extension)",
+     "seed": {"crm": {"price_lists": {"current": {"valid_until": "{today+5}"}}}},
+     "trigger": [{"schedule": "Each morning: price list expiry warning"}],
+     "expect": [
+       {"mock": "messaging/messages", "count": 1},
+       {"mock": "messaging/messages/1", "field": "to", "equals": "aisha@example.test"}]}
+  ]
+}

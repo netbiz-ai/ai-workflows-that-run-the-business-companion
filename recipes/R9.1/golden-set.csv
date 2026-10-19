@@ -3,3 +3,9 @@ Normal,Complete seasonal hire,Template accounts; checklist to manager
 Edge,"AI adds ""give the alarm code""",Rejected; template checklist
 Duplicate,"Saved twice, start moved",One set of accounts; tasks moved
 Escalate,Withdrawn after accounts exist,"Aisha confirms; R9.4 ""immediate"""
+Account creation fails,The account write fails (companion extension),Key marked failed; exception queue to Owen: account creation failed; never retried
+AI error,The AI call fails on every try (companion extension),Template checklist to the manager
+Manager silent,No answer and the start is tomorrow (companion extension),Template checklist goes in the welcome pack
+Welcome pack not sent,The manager approves and the send fails (companion extension),Exception queue to Aisha: welcome pack not sent
+Incomplete hire,No template for the role (companion extension),Returned to Aisha; nothing created
+Start too near,Start in under 2 working days (companion extension),Template checklist goes in the welcome pack

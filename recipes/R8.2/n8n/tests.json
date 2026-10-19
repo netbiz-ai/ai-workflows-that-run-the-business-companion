@@ -1,0 +1,117 @@
+{
+  "config": {
+    "sharepoint_url": "{mocks}/sharepoint",
+    "crm_url": "{mocks}/crm",
+    "mail_url": "{mocks}/mail",
+    "approvals_url": "{mocks}/approvals",
+    "messaging_url": "{mocks}/messaging",
+    "ar_mailbox": "ar@example.test",
+    "ar_lead": "aisha@example.test",
+    "cutoff": "2026-09-30",
+    "statement_subject": "Statement for {{month}}: {{account_name}}",
+    "how_to_pay": "Bank transfer, quoting the invoice numbers",
+    "where_to_ask": "ar@example.test"
+  },
+  "seed": {
+    "sharepoint": {
+      "exports": {
+        "balances": {"id": "balances", "cutoff": "2026-09-30", "saved_at": "{today}", "rows": [{"account": "ACC-1", "balance": 1200}]},
+        "open-items": {"id": "open-items", "cutoff": "2026-09-30", "saved_at": "{today}",
+                       "rows": [{"account": "ACC-1", "item": "4471", "type": "invoice", "date": "2026-09-05", "due_date": "2026-10-05", "amount": 1200}]}},
+      "disputes": {}
+    },
+    "crm": {"accounts": {"ACC-1": {"id": "ACC-1", "name": "Example Property Management", "contact_name": "Pat Example",
+                                   "contact_email": "ap@example.test", "owner": "ben@example.test"}}}
+  },
+  "cases": [
+    {"case": "Normal", "row": 1, "input": "Reconciles, nothing disputed",
+     "trigger": [{"webhook": "r8-2-run-again", "body": {}}],
+     "expect": [
+       {"mock": "approvals/requests/statements-2026-09", "field": "count", "equals": 1},
+       {"mock": "approvals/requests/statements-2026-09", "field": "total_due", "equals": 1200},
+       {"mock": "approvals/requests/statements-2026-09", "field": "statements", "contains": "\"account\": \"ACC-1\""},
+       {"mock": "approvals/requests/statements-2026-09", "field": "held", "equals": []},
+       {"mock": "mail/outbox", "count": 0},
+       {"sql": "select decision from decision_log where recipe='R8.2'", "equals": "batch sent for approval"}]},
+    {"case": "Edge", "row": 2, "input": "Payment received but not applied",
+     "seed": {"sharepoint": {"exports": {"balances": {"rows": [{"account": "ACC-1", "balance": 700}]}}}},
+     "trigger": [{"webhook": "r8-2-run-again", "body": {}}],
+     "expect": [
+       {"mock": "approvals/requests/statements-2026-09", "field": "count", "equals": 0},
+       {"mock": "approvals/requests/statements-2026-09", "field": "held", "equals": [{"account": "ACC-1", "balance": 700, "open_items_total": 1200, "difference": -500}]},
+       {"mock": "mail/outbox", "count": 0}]},
+    {"case": "Edge", "row": 3, "input": "One item disputed",
+     "seed": {"sharepoint": {
+       "exports": {"open-items": {"rows": [
+         {"account": "ACC-1", "item": "4471", "type": "invoice", "date": "2026-09-05", "due_date": "2026-10-05", "amount": 800},
+         {"account": "ACC-1", "item": "4472", "type": "invoice", "date": "2026-09-12", "due_date": "2026-10-12", "amount": 400}]}},
+       "disputes": {"D-1": {"id": "D-1", "invoice": "4472", "account": "ACC-1", "status": "open", "set_by": "Ben Hollis", "why": "installation incomplete"}}}},
+     "trigger": [{"webhook": "r8-2-run-again", "body": {}}],
+     "expect": [
+       {"mock": "approvals/requests/statements-2026-09", "field": "count", "equals": 1},
+       {"mock": "approvals/requests/statements-2026-09", "field": "total_due", "equals": 800},
+       {"mock": "approvals/requests/statements-2026-09", "field": "statements", "contains": "\"item\": \"4472\", \"type\": \"invoice\", \"date\": \"2026-09-12\", \"due_date\": \"2026-10-12\", \"amount\": 400, \"status\": \"in dispute, not due\""},
+       {"mock": "approvals/requests/statements-2026-09", "field": "statements", "contains": "4472  400.00  (in dispute, not due)"},
+       {"mock": "approvals/requests/statements-2026-09", "field": "statements", "contains": "Total due: 800.00"}]},
+    {"case": "Duplicate", "row": 4, "input": "Run restarted after Aisha approved",
+     "trigger": [{"webhook": "r8-2-run-again", "body": {}, "pause": 4},
+                 {"webhook": "r8-2-batch-decision", "body": {"approved": true, "by": "Aisha Karim"}, "pause": 4},
+                 {"webhook": "r8-2-run-again", "body": {}, "pause": 4},
+                 {"webhook": "r8-2-batch-decision", "body": {"approved": true, "by": "Aisha Karim"}}],
+     "expect": [
+       {"calls": "POST /mail/outbox", "count": 1},
+       {"mock": "mail/outbox/1", "field": "to", "equals": "ap@example.test"},
+       {"sql": "select copies_skipped from key_log where recipe='R8.2' and key='ACC-1:2026-09'", "equals": "1"},
+       {"sql": "select count(*) from decision_log where recipe='R8.2' and decision='sent statement 2026-09'", "equals": "1"}]},
+    {"case": "Refuse", "row": 5, "input": "Exports with different cut-offs",
+     "seed": {"sharepoint": {"exports": {"open-items": {"cutoff": "2026-09-29"}}}},
+     "trigger": [{"webhook": "r8-2-run-again", "body": {}}],
+     "expect": [
+       {"mock": "approvals/requests", "count": 0},
+       {"calls": "POST /mail/outbox", "count": 0},
+       {"mock": "messaging/messages", "count": 1},
+       {"mock": "messaging/messages/1", "field": "to", "equals": ["aisha@example.test"]},
+       {"sql": "select decision from decision_log where recipe='R8.2'", "equals": "no run"}]},
+    {"case": "Export late", "row": 6, "input": "The balances export is not saved yet (companion extension)",
+     "fail": [{"method": "GET", "path": "/sharepoint/exports/balances", "status": 404, "times": 3}],
+     "trigger": [{"webhook": "r8-2-run-again", "body": {}}],
+     "expect": [
+       {"mock": "approvals/requests", "count": 0},
+       {"mock": "messaging/messages", "count": 1},
+       {"sql": "select rules->>'problems' from decision_log where recipe='R8.2'", "equals": "[\"balances export missing\"]"}]},
+    {"case": "Send fails", "row": 7, "input": "A send fails mid-batch (companion extension)",
+     "seed": {
+       "sharepoint": {"exports": {
+         "balances": {"rows": [{"account": "ACC-1", "balance": 1200}, {"account": "ACC-2", "balance": 300}]},
+         "open-items": {"rows": [
+           {"account": "ACC-1", "item": "4471", "type": "invoice", "date": "2026-09-05", "due_date": "2026-10-05", "amount": 1200},
+           {"account": "ACC-2", "item": "4480", "type": "invoice", "date": "2026-09-08", "due_date": "2026-10-08", "amount": 300}]}}},
+       "crm": {"accounts": {"ACC-2": {"id": "ACC-2", "name": "Example Builders", "contact_email": "accounts@builders.example.test"}}}},
+     "fail": [{"method": "POST", "path": "/mail/outbox", "status": 500, "times": 1}],
+     "trigger": [{"webhook": "r8-2-run-again", "body": {}, "pause": 4},
+                 {"webhook": "r8-2-batch-decision", "body": {"approved": true, "by": "Aisha Karim"}}],
+     "expect": [
+       {"calls": "POST /mail/outbox", "count": 2},
+       {"mock": "mail/outbox", "count": 1},
+       {"sql": "select count(*) from key_log where recipe='R8.2' and status='done'", "equals": "1"},
+       {"sql": "select count(*) from key_log where recipe='R8.2'", "equals": "1"},
+       {"sql": "select reason from exception_queue where recipe='R8.2'", "equals": "send failed"},
+       {"sql": "select count(*) from decision_log where recipe='R8.2' and decision='unsent statement 2026-09'", "equals": "1"}]},
+    {"case": "Rejected", "row": 8, "input": "Aisha rejects the batch (companion extension)",
+     "trigger": [{"webhook": "r8-2-run-again", "body": {}, "pause": 4},
+                 {"webhook": "r8-2-batch-decision", "body": {"approved": false, "by": "Aisha Karim"}}],
+     "expect": [
+       {"calls": "POST /mail/outbox", "count": 0},
+       {"sql": "select count(*) from key_log where recipe='R8.2'", "equals": "0"},
+       {"sql": "select decision from decision_log where recipe='R8.2' order by id desc limit 1", "equals": "batch rejected; nothing sent"}]},
+    {"case": "In credit", "row": 9, "input": "An account in credit (companion extension)",
+     "seed": {"sharepoint": {"exports": {
+       "balances": {"rows": [{"account": "ACC-1", "balance": -150}]},
+       "open-items": {"rows": [{"account": "ACC-1", "item": "CN-12", "type": "credit note", "date": "2026-09-20", "amount": -150}]}}}},
+     "trigger": [{"webhook": "r8-2-run-again", "body": {}}],
+     "expect": [
+       {"mock": "approvals/requests/statements-2026-09", "field": "count", "equals": 1},
+       {"mock": "approvals/requests/statements-2026-09", "field": "total_due", "equals": 0},
+       {"mock": "approvals/requests/statements-2026-09", "field": "statements", "contains": "Your account is in credit: nothing is due."}]}
+  ]
+}

@@ -1,0 +1,648 @@
+{
+ "config": {
+  "helpdesk_url": "{mocks}/helpdesk",
+  "articles_url": "{mocks}/kb",
+  "orders_url": "{mocks}/orders",
+  "draft_queues": [
+   {
+    "queue": "Warranty",
+    "article_topic": "warranty",
+    "order": false
+   },
+   {
+    "queue": "Returns",
+    "article_topic": "returns",
+    "order": true
+   },
+   {
+    "queue": "Delivery",
+    "article_topic": null,
+    "order": true
+   }
+  ],
+  "r42_recheck_seconds": 2,
+  "claim_words": [
+   "warranty",
+   "guarantee",
+   "return",
+   "refund",
+   "exchange",
+   "price",
+   "cost",
+   "charge",
+   "deliver",
+   "collect",
+   "cover"
+  ],
+  "flag_owner": "nadia@example.test",
+  "ai_url": "{mocks}/anthropic/v1/messages"
+ },
+ "seed": {
+  "helpdesk": {
+   "tickets": {
+    "T-1": {
+     "id": "T-1",
+     "message_id": "M-1",
+     "queue": "Returns",
+     "order_id": "ORD-5120",
+     "subject": "Return the table",
+     "body": "The oak table is too big for our room. Can I send it back, and how long do I have?"
+    }
+   }
+  },
+  "kb": {
+   "articles": {
+    "KB-RET-1": {
+     "id": "KB-RET-1",
+     "topic": "returns",
+     "status": "approved",
+     "review_date": "{today+90}",
+     "title": "Returns",
+     "text": "You can return most items within 30 days of delivery for a refund to the original payment method. Items must be unused and in their original packaging. We collect large items for $25."
+    },
+    "KB-WAR-1": {
+     "id": "KB-WAR-1",
+     "topic": "warranty",
+     "status": "approved",
+     "review_date": "{today+90}",
+     "title": "Dishwasher warranty",
+     "text": "Every dishwasher is covered for one year from delivery against faults in parts and labour. To claim, reply with your order number and a photo of the fault."
+    }
+   }
+  },
+  "orders": {
+   "orders": {
+    "ORD-5120": {
+     "id": "ORD-5120",
+     "item": "oak dining table",
+     "delivered": "{today-6}",
+     "status": "delivered"
+    },
+    "ORD-3301": {
+     "id": "ORD-3301",
+     "item": "dishwasher",
+     "delivered": "{today-200}",
+     "status": "delivered"
+    }
+   }
+  }
+ },
+ "cases": [
+  {
+   "case": "Normal",
+   "row": 1,
+   "input": "Return request",
+   "needs_ai": true,
+   "sql_seed": [
+    "INSERT INTO decision_log (recipe, item, decision, rules) VALUES ('R4.2', 'T-1', 'no escalation', '{\"message_id\": \"M-1\", \"keyword\": \"none\", \"attachment\": \"no\", \"ai\": {\"complaint\": \"no\", \"safety\": \"no\", \"legal\": \"no\"}}')"
+   ],
+   "trigger": [
+    {
+     "webhook": "r4-3-draft-queue",
+     "body": {
+      "ticket_id": "T-1",
+      "message_id": "M-1"
+     }
+    }
+   ],
+   "expect": [
+    {
+     "mock": "helpdesk/notes/1",
+     "field": "kind",
+     "equals": "draft"
+    },
+    {
+     "mock": "helpdesk/notes/1",
+     "field": "text",
+     "contains": "[KB-RET-1]"
+    },
+    {
+     "mock": "helpdesk/notes/1",
+     "field": "internal",
+     "equals": true
+    },
+    {
+     "sql": "select decision from decision_log where recipe='R4.3'",
+     "equals": "draft saved"
+    }
+   ]
+  },
+  {
+   "case": "Edge",
+   "row": 2,
+   "input": "Question half covered",
+   "needs_ai": true,
+   "sql_seed": [
+    "INSERT INTO decision_log (recipe, item, decision, rules) VALUES ('R4.2', 'T-1', 'no escalation', '{\"message_id\": \"M-1\", \"keyword\": \"none\", \"attachment\": \"no\", \"ai\": {\"complaint\": \"no\", \"safety\": \"no\", \"legal\": \"no\"}}')"
+   ],
+   "seed": {
+    "helpdesk": {
+     "tickets": {
+      "T-1": {
+       "body": "I want to return the oak table. How long do I have, and can your crew also take away my old table when they collect it?"
+      }
+     }
+    }
+   },
+   "trigger": [
+    {
+     "webhook": "r4-3-draft-queue",
+     "body": {
+      "ticket_id": "T-1",
+      "message_id": "M-1"
+     }
+    }
+   ],
+   "expect": [
+    {
+     "mock": "helpdesk/notes/1",
+     "field": "kind",
+     "equals": "draft"
+    },
+    {
+     "mock": "helpdesk/notes/1",
+     "field": "text",
+     "contains": "GAP"
+    },
+    {
+     "sql": "select rules->>'gap' from decision_log where recipe='R4.3'",
+     "equals": "true"
+    }
+   ]
+  },
+  {
+   "case": "Duplicate",
+   "row": 3,
+   "input": "Ticket re-enters the queue",
+   "sql_seed": [
+    "INSERT INTO decision_log (recipe, item, decision, rules) VALUES ('R4.2', 'T-1', 'no escalation', '{\"message_id\": \"M-1\", \"keyword\": \"none\", \"attachment\": \"no\", \"ai\": {\"complaint\": \"no\", \"safety\": \"no\", \"legal\": \"no\"}}')"
+   ],
+   "trigger": [
+    {
+     "webhook": "r4-3-draft-queue",
+     "body": {
+      "ticket_id": "T-1",
+      "message_id": "M-1"
+     },
+     "pause": 4
+    },
+    {
+     "webhook": "r4-3-draft-queue",
+     "body": {
+      "ticket_id": "T-1",
+      "message_id": "M-1"
+     }
+    }
+   ],
+   "expect": [
+    {
+     "calls": "POST /helpdesk/notes",
+     "count": 1
+    },
+    {
+     "sql": "select copies_skipped from key_log where recipe='R4.3'",
+     "equals": "1"
+    },
+    {
+     "sql": "select count(*) from decision_log where recipe='R4.3'",
+     "equals": "1"
+    }
+   ]
+  },
+  {
+   "case": "Refuse",
+   "row": 4,
+   "input": "Incident A's warranty question, article withheld",
+   "sql_seed": [
+    "INSERT INTO decision_log (recipe, item, decision, rules) VALUES ('R4.2', 'T-1', 'no escalation', '{\"message_id\": \"M-1\", \"keyword\": \"none\", \"attachment\": \"no\", \"ai\": {\"complaint\": \"no\", \"safety\": \"no\", \"legal\": \"no\"}}')"
+   ],
+   "seed": {
+    "helpdesk": {
+     "tickets": {
+      "T-1": {
+       "queue": "Warranty",
+       "subject": "Dishwasher fault",
+       "order_id": "ORD-3301",
+       "body": "My dishwasher from you has stopped draining. How long is the warranty, and can someone come and repair it?"
+      }
+     }
+    },
+    "kb": {
+     "articles": {
+      "KB-WAR-1": {
+       "status": "withdrawn"
+      }
+     }
+    }
+   },
+   "trigger": [
+    {
+     "webhook": "r4-3-draft-queue",
+     "body": {
+      "ticket_id": "T-1",
+      "message_id": "M-1"
+     }
+    }
+   ],
+   "expect": [
+    {
+     "calls": "POST /anthropic/v1/messages",
+     "count": 0
+    },
+    {
+     "mock": "helpdesk/notes/1",
+     "field": "kind",
+     "equals": "flag"
+    },
+    {
+     "sql": "select decision from decision_log where recipe='R4.3'",
+     "equals": "no draft: no source"
+    },
+    {
+     "sql": "select reason from exception_queue where recipe='R4.3'",
+     "equals": "no draft"
+    }
+   ]
+  },
+  {
+   "case": "Refuse",
+   "row": 5,
+   "input": "Draft asks \"Would you like us to book a technician visit?\"",
+   "sql_seed": [
+    "INSERT INTO decision_log (recipe, item, decision, rules) VALUES ('R4.2', 'T-1', 'no escalation', '{\"message_id\": \"M-1\", \"keyword\": \"none\", \"attachment\": \"no\", \"ai\": {\"complaint\": \"no\", \"safety\": \"no\", \"legal\": \"no\"}}')"
+   ],
+   "seed": {
+    "helpdesk": {
+     "tickets": {
+      "T-1": {
+       "queue": "Warranty",
+       "subject": "Dishwasher fault",
+       "order_id": "ORD-3301",
+       "body": "My dishwasher from you has stopped draining. How long is the warranty, and can someone come and repair it?"
+      }
+     }
+    }
+   },
+   "fail": [
+    {
+     "method": "POST",
+     "path": "/anthropic/v1/messages",
+     "status": 200,
+     "times": 1,
+     "body": {
+      "type": "message",
+      "role": "assistant",
+      "content": [
+       {
+        "type": "text",
+        "text": "{\"draft\": \"Your dishwasher is covered for one year from delivery against faults in parts and labour. [KB-WAR-1] Would you like us to book a technician visit? [KB-WAR-1]\"}"
+       }
+      ]
+     }
+    }
+   ],
+   "trigger": [
+    {
+     "webhook": "r4-3-draft-queue",
+     "body": {
+      "ticket_id": "T-1",
+      "message_id": "M-1"
+     }
+    }
+   ],
+   "expect": [
+    {
+     "calls": "POST /helpdesk/notes",
+     "count": 1
+    },
+    {
+     "mock": "helpdesk/notes/1",
+     "field": "kind",
+     "equals": "flag"
+    },
+    {
+     "sql": "select decision from decision_log where recipe='R4.3'",
+     "equals": "no draft: claim check failed"
+    },
+    {
+     "sql": "select detail like '%commitment word \"visit\"%' from exception_queue where recipe='R4.3'",
+     "equals": "t"
+    }
+   ]
+  },
+  {
+   "case": "Race",
+   "row": 6,
+   "input": "Arrives before R4.2 logs it",
+   "seed": {
+    "helpdesk": {
+     "tickets": {
+      "T-2": {
+       "id": "T-2",
+       "message_id": "M-2",
+       "queue": "Returns",
+       "order_id": "ORD-5120",
+       "subject": "Return",
+       "body": "Can I return the table?"
+      }
+     }
+    }
+   },
+   "fail": [
+    {
+     "method": "POST",
+     "path": "/anthropic/v1/messages",
+     "status": 200,
+     "times": 1,
+     "body": {
+      "type": "message",
+      "role": "assistant",
+      "content": [
+       {
+        "type": "text",
+        "text": "{\"draft\": \"You can return most items within 30 days of delivery for a refund to the original payment method. [KB-RET-1]\"}"
+       }
+      ]
+     }
+    }
+   ],
+   "trigger": [
+    {
+     "webhook": "r4-3-draft-queue",
+     "body": {
+      "ticket_id": "T-1",
+      "message_id": "M-1"
+     },
+     "pause": 0.5
+    },
+    {
+     "webhook": "r4-3-draft-queue",
+     "body": {
+      "ticket_id": "T-2",
+      "message_id": "M-2"
+     },
+     "pause": 1
+    },
+    {
+     "sql": "INSERT INTO decision_log (recipe, item, decision, rules) VALUES ('R4.2', 'T-1', 'no escalation', '{\"message_id\": \"M-1\", \"keyword\": \"none\", \"attachment\": \"no\", \"ai\": {\"complaint\": \"no\", \"safety\": \"no\", \"legal\": \"no\"}}')",
+     "pause": 1
+    }
+   ],
+   "expect": [
+    {
+     "sql": "select decision from decision_log where recipe='R4.3' and item='T-1'",
+     "equals": "draft saved"
+    },
+    {
+     "sql": "select decision from decision_log where recipe='R4.3' and item='T-2'",
+     "equals": "no draft: R4.2 has not logged it"
+    },
+    {
+     "sql": "select detail from exception_queue where recipe='R4.3' and item='T-2'",
+     "equals": "R4.2 has not logged it: not in R4.2's log after 3 rechecks"
+    },
+    {
+     "calls": "POST /helpdesk/notes",
+     "count": 2
+    }
+   ]
+  },
+  {
+   "case": "Escalated",
+   "row": 7,
+   "input": "R4.2 has escalated the ticket (companion extension)",
+   "sql_seed": [
+    "INSERT INTO decision_log (recipe, item, decision, rules) VALUES ('R4.2', 'T-1', 'escalated: owner notified', '{\"message_id\": \"M-1\", \"keyword\": \"none\", \"attachment\": \"no\", \"ai\": {\"complaint\": \"no\", \"safety\": \"no\", \"legal\": \"no\"}, \"fired\": \"keyword: gas smell\", \"level\": \"owner\", \"clock\": \"running\"}')"
+   ],
+   "trigger": [
+    {
+     "webhook": "r4-3-draft-queue",
+     "body": {
+      "ticket_id": "T-1",
+      "message_id": "M-1"
+     }
+    }
+   ],
+   "expect": [
+    {
+     "calls": "POST /anthropic/v1/messages",
+     "count": 0
+    },
+    {
+     "calls": "POST /helpdesk/notes",
+     "count": 0
+    },
+    {
+     "sql": "select decision from decision_log where recipe='R4.3'",
+     "equals": "no draft: escalated by R4.2"
+    }
+   ]
+  },
+  {
+   "case": "AI error",
+   "row": 8,
+   "input": "The AI call fails twice (companion extension)",
+   "sql_seed": [
+    "INSERT INTO decision_log (recipe, item, decision, rules) VALUES ('R4.2', 'T-1', 'no escalation', '{\"message_id\": \"M-1\", \"keyword\": \"none\", \"attachment\": \"no\", \"ai\": {\"complaint\": \"no\", \"safety\": \"no\", \"legal\": \"no\"}}')"
+   ],
+   "fail": [
+    {
+     "method": "POST",
+     "path": "/anthropic/v1/messages",
+     "status": 529,
+     "times": 2
+    }
+   ],
+   "trigger": [
+    {
+     "webhook": "r4-3-draft-queue",
+     "body": {
+      "ticket_id": "T-1",
+      "message_id": "M-1"
+     }
+    }
+   ],
+   "expect": [
+    {
+     "calls": "POST /anthropic/v1/messages",
+     "count": 2
+    },
+    {
+     "mock": "helpdesk/notes/1",
+     "field": "kind",
+     "equals": "flag"
+    },
+    {
+     "sql": "select decision from decision_log where recipe='R4.3'",
+     "equals": "no draft: AI error"
+    }
+   ]
+  },
+  {
+   "case": "Lookup fails",
+   "row": 9,
+   "input": "The order lookup fails twice (companion extension)",
+   "sql_seed": [
+    "INSERT INTO decision_log (recipe, item, decision, rules) VALUES ('R4.2', 'T-1', 'no escalation', '{\"message_id\": \"M-1\", \"keyword\": \"none\", \"attachment\": \"no\", \"ai\": {\"complaint\": \"no\", \"safety\": \"no\", \"legal\": \"no\"}}')"
+   ],
+   "fail": [
+    {
+     "method": "GET",
+     "path": "/orders/orders/ORD-5120",
+     "status": 500,
+     "times": 2
+    }
+   ],
+   "trigger": [
+    {
+     "webhook": "r4-3-draft-queue",
+     "body": {
+      "ticket_id": "T-1",
+      "message_id": "M-1"
+     }
+    }
+   ],
+   "expect": [
+    {
+     "calls": "GET /orders/orders/ORD-5120",
+     "count": 2
+    },
+    {
+     "calls": "POST /anthropic/v1/messages",
+     "count": 0
+    },
+    {
+     "sql": "select decision from decision_log where recipe='R4.3'",
+     "equals": "no draft: lookup failed"
+    }
+   ]
+  },
+  {
+   "case": "Article out of date",
+   "row": 10,
+   "input": "The returns article is past its review date (companion extension)",
+   "sql_seed": [
+    "INSERT INTO decision_log (recipe, item, decision, rules) VALUES ('R4.2', 'T-1', 'no escalation', '{\"message_id\": \"M-1\", \"keyword\": \"none\", \"attachment\": \"no\", \"ai\": {\"complaint\": \"no\", \"safety\": \"no\", \"legal\": \"no\"}}')"
+   ],
+   "seed": {
+    "kb": {
+     "articles": {
+      "KB-RET-1": {
+       "review_date": "{today-1}"
+      }
+     }
+    }
+   },
+   "trigger": [
+    {
+     "webhook": "r4-3-draft-queue",
+     "body": {
+      "ticket_id": "T-1",
+      "message_id": "M-1"
+     }
+    }
+   ],
+   "expect": [
+    {
+     "calls": "POST /anthropic/v1/messages",
+     "count": 0
+    },
+    {
+     "sql": "select decision || ' / ' || (rules->>'detail') from decision_log where recipe='R4.3'",
+     "equals": "no draft: no source / article past its review date"
+    }
+   ]
+  },
+  {
+   "case": "Write fails",
+   "row": 11,
+   "input": "The note write fails (companion extension)",
+   "sql_seed": [
+    "INSERT INTO decision_log (recipe, item, decision, rules) VALUES ('R4.2', 'T-1', 'no escalation', '{\"message_id\": \"M-1\", \"keyword\": \"none\", \"attachment\": \"no\", \"ai\": {\"complaint\": \"no\", \"safety\": \"no\", \"legal\": \"no\"}}')"
+   ],
+   "seed": {
+    "kb": {
+     "articles": {
+      "KB-RET-1": {
+       "status": "withdrawn"
+      }
+     }
+    }
+   },
+   "fail": [
+    {
+     "method": "POST",
+     "path": "/helpdesk/notes",
+     "status": 500,
+     "times": 1
+    }
+   ],
+   "trigger": [
+    {
+     "webhook": "r4-3-draft-queue",
+     "body": {
+      "ticket_id": "T-1",
+      "message_id": "M-1"
+     }
+    }
+   ],
+   "expect": [
+    {
+     "calls": "POST /helpdesk/notes",
+     "count": 1
+    },
+    {
+     "sql": "select status from key_log where recipe='R4.3'",
+     "equals": "failed"
+    },
+    {
+     "sql": "select reason from exception_queue where recipe='R4.3'",
+     "equals": "write failed"
+    }
+   ]
+  },
+  {
+   "case": "Draft outcome",
+   "row": 12,
+   "input": "The sender edits the draft and posts the reply (companion extension)",
+   "sql_seed": [
+    "INSERT INTO decision_log (recipe, item, decision, rules) VALUES ('R4.3', 'T-1', 'draft saved', '{\"message_id\": \"M-1\", \"note_id\": \"N-1\"}')"
+   ],
+   "seed": {
+    "helpdesk": {
+     "notes": {
+      "N-1": {
+       "id": "N-1",
+       "ticket_id": "T-1",
+       "kind": "draft",
+       "internal": true,
+       "text": "You can return most items within 30 days of delivery for a refund to the original payment method. [KB-RET-1]\n\nSources: KB-RET-1"
+      }
+     },
+     "replies": {
+      "RP-1": {
+       "id": "RP-1",
+       "ticket_id": "T-1",
+       "text": "Hello, you can return most items within 30 days of delivery for a refund to the original payment method. We will email a collection slot."
+      }
+     }
+    }
+   },
+   "trigger": [
+    {
+     "webhook": "r4-3-reply-posted",
+     "body": {
+      "ticket_id": "T-1",
+      "reply_id": "RP-1"
+     }
+    }
+   ],
+   "expect": [
+    {
+     "sql": "select decision from decision_log where recipe='R4.3' order by id desc limit 1",
+     "equals": "draft edited"
+    }
+   ]
+  }
+ ]
+}

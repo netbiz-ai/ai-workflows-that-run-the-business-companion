@@ -3,3 +3,11 @@ Normal,Every line matches,Matched; Aisha approves
 Edge,"Twelve billed, ten received",Stops: over receipt
 Duplicate,Two invoices for the same goods,Second stops: already invoiced
 Escalate,"$12,000 invoice on an order Tom raised",Helen approves
+Supplier held,R7.3 holds the supplier (companion extension),Stops: supplier on hold; no PO lookup
+No receipt,Receipt not entered (companion extension),Stops: no receipt
+Lookup error,The PO lookup fails three times (companion extension),Stops: lookup error
+AI error,An unmapped line; the AI call fails three times (companion extension),"Stops: pairing rejected, line named"
+Reservation fails partway,The second line's reservation write fails (companion extension),Reserved line released; stops: reservation failed
+Rejected,The approver rejects the invoice (companion extension),Approval logged; reservations released
+Write fails,The approval write fails (companion extension),Exception queue: write failed; never retried
+AI-paired line,"A line the map does not cover, paired by the AI (companion extension)",Matched; Aisha approves; line marked AI-paired

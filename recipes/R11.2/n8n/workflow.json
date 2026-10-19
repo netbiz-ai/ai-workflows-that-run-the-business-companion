@@ -46,6 +46,12 @@
         "assignments": {
           "assignments": [
             {
+              "id": "a970ff3b-a09f-55d8-af93-86814f4a479d",
+              "name": "stop_flag_url",
+              "value": "https://<your stop list API>/stop_flags/R11.2",
+              "type": "string"
+            },
+            {
               "id": "c7ba3903-7a0e-537d-a4d9-23ab3af5c76b",
               "name": "requests_url",
               "value": "https://<your request list API>",
@@ -163,7 +169,7 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        520,
+        1040,
         260
       ]
     },
@@ -184,7 +190,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        780,
+        1300,
         0
       ],
       "retryOnFail": true,
@@ -204,7 +210,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        1040,
+        1560,
         0
       ],
       "credentials": {
@@ -247,7 +253,7 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        1300,
+        1820,
         0
       ]
     },
@@ -258,7 +264,7 @@
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
       "position": [
-        1560,
+        2080,
         -160
       ],
       "notes": "Key already logged: this request version was checked before.",
@@ -281,7 +287,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        1560,
+        2080,
         0
       ],
       "retryOnFail": true,
@@ -305,7 +311,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        1820,
+        2340,
         0
       ],
       "retryOnFail": true,
@@ -338,7 +344,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        2080,
+        2600,
         0
       ],
       "retryOnFail": true,
@@ -379,7 +385,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        2340,
+        2860,
         0
       ],
       "retryOnFail": true,
@@ -396,7 +402,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2600,
+        3120,
         0
       ],
       "notes": "Rules decide; there is no AI step in R11.2.",
@@ -511,7 +517,7 @@
       "type": "n8n-nodes-base.switch",
       "typeVersion": 3.2,
       "position": [
-        2860,
+        3380,
         0
       ]
     },
@@ -535,7 +541,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        3120,
+        3640,
         -240
       ],
       "notes": "Starts R11.3. A write: never retried.",
@@ -562,7 +568,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        3120,
+        3640,
         -80
       ],
       "onError": "continueErrorOutput"
@@ -587,7 +593,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        3120,
+        3640,
         80
       ],
       "onError": "continueErrorOutput"
@@ -612,7 +618,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        3120,
+        3640,
         240
       ],
       "onError": "continueErrorOutput"
@@ -637,7 +643,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        3380,
+        3900,
         80
       ],
       "onError": "continueErrorOutput"
@@ -662,7 +668,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        3380,
+        3900,
         240
       ],
       "onError": "continueErrorOutput"
@@ -680,7 +686,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        3640,
+        4160,
         -80
       ],
       "credentials": {
@@ -704,7 +710,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        3900,
+        4420,
         -80
       ],
       "credentials": {
@@ -730,7 +736,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        3640,
+        4160,
         400
       ],
       "credentials": {
@@ -754,7 +760,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        3900,
+        4420,
         400
       ],
       "credentials": {
@@ -793,7 +799,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        780,
+        1300,
         520
       ],
       "retryOnFail": true,
@@ -830,7 +836,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        1040,
+        1560,
         520
       ],
       "retryOnFail": true,
@@ -847,7 +853,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1300,
+        1820,
         520
       ]
     },
@@ -864,7 +870,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        1560,
+        2080,
         520
       ],
       "credentials": {
@@ -897,9 +903,103 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        1820,
+        2340,
         520
       ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Config').item.json.stop_flag_url }}",
+        "options": {}
+      },
+      "id": "2025db75-6df8-5db7-87e4-a016d1ae4a56",
+      "name": "Stop flag: read",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        520,
+        260
+      ],
+      "notes": "Kill switch: set stopped to true in your stop list and the next run ends quietly (book Chapter 3).",
+      "notesInFlow": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.stopped === true }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "id": "804d23d9-97e8-5ce7-a3cb-b362c4c2d797"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "f19aabd3-a828-598e-9513-26751c405e4a",
+      "name": "Stop flag set?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        780,
+        260
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "8c85a974-1663-5f69-adf6-f964877dc5d5",
+      "name": "Stopped by the stop flag",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        1040,
+        60
+      ],
+      "notes": "Ends quietly; nothing is read, written or sent.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO exception_queue (recipe, item, reason, detail, owner) VALUES ($1, $2, $3, $4, $5) RETURNING id",
+        "options": {
+          "queryReplacement": "={{ [\"R11.2\", 'run ' + $execution.id, \"stop list unreadable\", 'The stop list could not be read, so the run stopped; fix the stop list', '<your workflow owner>'] }}"
+        }
+      },
+      "id": "2a3097a2-6272-5d62-be55-f64974651cd3",
+      "name": "Exception queue: stop list unreadable",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        780,
+        480
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "Exception queue: a named person works through it (book Chapters 2 and 16).",
+      "notesInFlow": true,
+      "alwaysOutputData": true
     }
   ],
   "connections": {
@@ -919,17 +1019,6 @@
         [
           {
             "node": "Config",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Config": {
-      "main": [
-        [
-          {
-            "node": "Morning backstop?",
             "type": "main",
             "index": 0
           }
@@ -1249,6 +1338,53 @@
         [
           {
             "node": "Step 11: Tell the finance reviewer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config": {
+      "main": [
+        [
+          {
+            "node": "Stop flag: read",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Stop flag: read": {
+      "main": [
+        [
+          {
+            "node": "Stop flag set?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Exception queue: stop list unreadable",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Stop flag set?": {
+      "main": [
+        [
+          {
+            "node": "Stopped by the stop flag",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Morning backstop?",
             "type": "main",
             "index": 0
           }

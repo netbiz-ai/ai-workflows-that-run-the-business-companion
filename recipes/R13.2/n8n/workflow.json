@@ -1,0 +1,1818 @@
+{
+  "name": "R13.2 Flag stale documents and pull expired ones from answers",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "weeks",
+              "weeksInterval": 1,
+              "triggerAtDay": [
+                1
+              ],
+              "triggerAtHour": 6
+            }
+          ]
+        }
+      },
+      "id": "f0419cad-6ad9-5721-b424-7e97cdc7b7e9",
+      "name": "Step 1: Each week",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "notes": "Weekly, Monday 06:00. Move it if Monday is not your first working day.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "r13-2-version-published",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "ccfd3af0-56e8-5d2c-ad58-6970db55ddf7",
+      "name": "Step 9: Major version published",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        760
+      ],
+      "notes": "Your document home calls this when a registered source publishes a version. Body: {source_id, version, major}.",
+      "notesInFlow": true,
+      "webhookId": "b335fdad-0a19-5ecb-9fed-f235ce07b49c"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "4729b812-a6fe-56b1-ba3c-89ab2d65fda3",
+              "name": "stop_flag_url",
+              "value": "https://<your stop list API>/stop_flags/R13.2",
+              "type": "string"
+            },
+            {
+              "id": "d61c4f32-9b78-5c39-bcb4-1a627752d2b4",
+              "name": "register_url",
+              "value": "https://<your source register API>",
+              "type": "string"
+            },
+            {
+              "id": "d945c15c-818b-5146-9a01-728758764559",
+              "name": "directory_url",
+              "value": "https://<your directory API>",
+              "type": "string"
+            },
+            {
+              "id": "95537be6-61c3-516b-a101-0714bc2f7966",
+              "name": "documents_url",
+              "value": "https://<your document home API>",
+              "type": "string"
+            },
+            {
+              "id": "db17464c-2849-5b89-84dd-782d9701d2df",
+              "name": "index_url",
+              "value": "https://<your answer index API>",
+              "type": "string"
+            },
+            {
+              "id": "69c20c01-0484-5fcc-bf90-b5df2388eaca",
+              "name": "messaging_url",
+              "value": "https://<your messaging API>",
+              "type": "string"
+            },
+            {
+              "id": "a02448cf-77d7-5622-bcf1-9e77beadb6c7",
+              "name": "due_within_days",
+              "value": 14,
+              "type": "number"
+            },
+            {
+              "id": "8f4c8373-365b-5900-b71c-980adb5bada6",
+              "name": "expiry_after_review_days",
+              "value": 30,
+              "type": "number"
+            },
+            {
+              "id": "f59c3b42-11d5-5c50-96b4-351be1e6cc01",
+              "name": "inactive_statuses",
+              "value": "[\"withdrawn\", \"retired\"]",
+              "type": "array"
+            },
+            {
+              "id": "b6b3f0df-7182-5fe0-8bae-6b16ac2e8092",
+              "name": "archive_folder",
+              "value": "<your archive no bought assistant can open>",
+              "type": "string"
+            },
+            {
+              "id": "354af773-5b6e-50a5-90e3-359bacf1166d",
+              "name": "owner_form_url",
+              "value": "https://<your owner form>",
+              "type": "string"
+            },
+            {
+              "id": "74567048-dc45-53b4-ae21-b89d7954c4ed",
+              "name": "register_admin",
+              "value": "<your register admin, who edits owners and dates>",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "579ee25e-e259-58b8-bcfb-63e9108520e6",
+      "name": "Config",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        260,
+        380
+      ],
+      "notes": "Edit these values for your company; nothing else in the workflow hard-codes them.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $('Step 1: Each week').isExecuted }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "id": "0419274a-3705-5c36-8aae-a5940d1c7bcd"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "32a203aa-61f1-521e-865f-8f1f88a0dd24",
+      "name": "Weekly run?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1040,
+        380
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Config').first().json.register_url }}/sources",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "_wrap",
+              "value": "1"
+            }
+          ]
+        }
+      },
+      "id": "0f310abf-1054-5823-bed8-5e3daa7fc95d",
+      "name": "Step 2: Read the register",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1300,
+        0
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Config').first().json.directory_url }}/users",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "_wrap",
+              "value": "1"
+            }
+          ]
+        }
+      },
+      "id": "6a68ec05-61af-53d0-9ee6-631597d99f8b",
+      "name": "Read the directory",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1560,
+        0
+      ],
+      "notes": "Read-only: who is active, and who is on leave.",
+      "notesInFlow": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Config').first().json.documents_url }}/files",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "_wrap",
+              "value": "1"
+            }
+          ]
+        }
+      },
+      "id": "e7109f8d-5587-5ec4-b8b0-3cbfe36e0a65",
+      "name": "Step 10: Read sharing",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1820,
+        0
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Config').first().json.index_url }}/sources",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "_wrap",
+              "value": "1"
+            }
+          ]
+        }
+      },
+      "id": "4c2bc378-a8b0-523b-8ab3-98c28b5d155f",
+      "name": "Step 10: Read the index",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2080,
+        0
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "\n// Steps 2, 4 to 7 and 10 of the book's R13.2, in order. One action per source and need;\n// the duplicate key (step 3) is source, week and action, so one source can need two actions.\nconst cfg = $('Config').first().json;\nconst rows = $('Step 2: Read the register').first().json.items || [];\nconst users = Object.fromEntries(($('Read the directory').first().json.items || []).map(u => [String(u.id).toLowerCase(), u]));\nconst files = Object.fromEntries(($('Step 10: Read sharing').first().json.items || []).map(f => [String(f.id), f]));\nconst indexed = Object.fromEntries(($('Step 10: Read the index').first().json.items || []).map(s => [String(s.id), s]));\n\nconst DAY = 86400000;\nconst iso = d => d.toISOString().slice(0, 10);\nconst day = s => new Date(String(s).slice(0, 10) + 'T00:00:00Z');\nconst today = day(new Date().toISOString());\n// ISO week, such as 2026-W43: the \"week\" in the duplicate key.\nconst t = new Date(today); t.setUTCDate(t.getUTCDate() + 3 - ((t.getUTCDay() + 6) % 7));\nconst w1 = new Date(Date.UTC(t.getUTCFullYear(), 0, 4));\nconst week = `${t.getUTCFullYear()}-W${String(1 + Math.round(((t - w1) / DAY - 3 + ((w1.getUTCDay() + 6) % 7)) / 7)).padStart(2, '0')}`;\nconst dueBy = new Date(today.getTime() + cfg.due_within_days * DAY);\nconst major = v => parseInt(String(v), 10);\nconst sameSet = (a, b) => { const x = [...new Set((a || []).map(String))].sort(), y = [...new Set((b || []).map(String))].sort(); return x.join('|') === y.join('|'); };\n\nconst actions = [];\nlet checked = 0;\nfor (const r of rows) {\n  if (cfg.inactive_statuses.includes(r.status)) continue;  // already withdrawn or retired: the owner decides (step 8)\n  checked++;\n  const base = { source: String(r.id), title: r.title, owner: r.owner || null, file_id: r.file_id || null };\n  const add = (action, extra) => actions.push(Object.assign({}, base, { action, key: `${r.id}:${week}:${action}` }, extra));\n\n  // Step 4: no owner or review date means withdrawn, with the register admin alerted.\n  if (!r.owner || !r.review_date) { add('withdraw_missing', { reason: !r.owner ? 'no owner' : 'no review date' }); continue; }\n\n  const pull = r.expiry_date ? day(r.expiry_date) : new Date(day(r.review_date).getTime() + cfg.expiry_after_review_days * DAY);\n  const expired = pull < today;\n  // Step 5: a departed owner goes to the register admin to reassign; one on vacation, to the delegate.\n  const u = users[String(r.owner).toLowerCase()];\n  const departed = !u || u.active === false;\n  const recipient = departed ? cfg.register_admin : (u.on_leave ? (r.delegate || cfg.register_admin) : r.owner);\n  if (departed) add('reassign', { reason: u ? 'owner has left' : 'owner not in the directory' });\n\n  if (expired) {\n    // Step 7: past expiry: withdraw, archive, tell the owner (or who stands in) and the register admin.\n    add('withdraw_expired', { recipient, pull_date: iso(pull), reason: 'past expiry' });\n    continue;\n  }\n  // Step 6: due within the window, or past review: remind the owner with the pull date.\n  if (!departed && day(r.review_date) <= dueBy) {\n    add('remind', { recipient, review_date: iso(day(r.review_date)), pull_date: iso(pull),\n                    reason: day(r.review_date) < today ? 'past review' : 'review due' });\n  }\n  // Step 10: stored audience against live sharing, and register version against the index.\n  if (r.status === 'current') {\n    const f = files[String(r.file_id)], ix = indexed[String(r.id)];\n    const problems = [];\n    if (!f || !sameSet(r.audience, f.shared_with)) problems.push('audience differs from sharing');\n    if (!ix || major(ix.version) !== major(r.version)) problems.push(`register version ${r.version}, index ${ix ? ix.version : 'missing'}`);\n    if (problems.length) add('mismatch', { reason: problems.join('; ') });\n  }\n}\nreturn [{ json: { week, checked, actions } }];\n"
+      },
+      "id": "95997c96-7a17-517e-8fef-84b4584f3c60",
+      "name": "Rules: steps 2, 4 to 7 and 10",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2340,
+        0
+      ],
+      "notes": "Rules decide; there is no AI step in R13.2.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO decision_log (recipe, item, decision, rules) VALUES ($1, $2, $3, $4::jsonb) RETURNING id",
+        "options": {
+          "queryReplacement": "={{ [\"R13.2\", 'week ' + $('Rules: steps 2, 4 to 7 and 10').item.json.week, 'weekly check', JSON.stringify({ sources_checked: $('Rules: steps 2, 4 to 7 and 10').item.json.checked, actions: $('Rules: steps 2, 4 to 7 and 10').item.json.actions.map(a => a.source + ': ' + a.action) })] }}",
+          "queryBatching": "independently"
+        }
+      },
+      "id": "783ec627-fefa-52f8-91fe-8bc51205e980",
+      "name": "Step 11: Log the weekly check",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2600,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "Decision log: the item's ID, the decision and the rules; never the content (book Chapter 3).",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "return $('Rules: steps 2, 4 to 7 and 10').item.json.actions.map(a => ({ json: a }));"
+      },
+      "id": "a52ad581-1b3f-5165-b8f2-1197e26a0b4f",
+      "name": "Split the actions",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2860,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH reserved AS (INSERT INTO key_log (recipe, key, status) VALUES ($1, $2, 'in progress') ON CONFLICT (recipe, key) DO NOTHING RETURNING key), skipped AS (UPDATE key_log SET copies_skipped = copies_skipped + 1 WHERE recipe = $1 AND key = $2 AND NOT EXISTS (SELECT 1 FROM reserved)) SELECT (SELECT count(*) FROM reserved) = 1 AS is_new, $2::text AS key",
+        "options": {
+          "queryReplacement": "={{ [\"R13.2\", $('Split the actions').item.json.key] }}",
+          "queryBatching": "independently"
+        }
+      },
+      "id": "467a5b0d-b901-5065-8567-a17ee9885c6a",
+      "name": "Step 3: Reserve key",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        3120,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "Key log: refuses a second copy in the same step (book Chapter 2).",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.is_new }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "id": "a9a458b8-462a-55f9-b103-4ec9da607945"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "87f73af4-54a3-5a1d-9d2b-324d7123a8c9",
+      "name": "New key?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        3380,
+        0
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "c38c0dbe-4421-5fa9-a78a-9d32239330a1",
+      "name": "Duplicate: stop",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        3640,
+        -200
+      ],
+      "notes": "This source, week and action was handled before.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "a57573a5-ac94-54e2-aeb7-c339ca4f6328",
+                    "leftValue": "={{ $('Split the actions').item.json.action }}",
+                    "rightValue": "withdraw_missing",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "withdraw_missing"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "1036e00f-fd5b-5d12-be92-b2e33485c7f6",
+                    "leftValue": "={{ $('Split the actions').item.json.action }}",
+                    "rightValue": "reassign",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "reassign"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "e60f7d32-eb89-5416-87c6-ce8abe998176",
+                    "leftValue": "={{ $('Split the actions').item.json.action }}",
+                    "rightValue": "remind",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "remind"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "a2a5423e-9431-5c52-b394-905345f689ec",
+                    "leftValue": "={{ $('Split the actions').item.json.action }}",
+                    "rightValue": "withdraw_expired",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "withdraw_expired"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "bd009fa3-cf91-513a-a30a-60e90a3302b6",
+                    "leftValue": "={{ $('Split the actions').item.json.action }}",
+                    "rightValue": "mismatch",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "mismatch"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "ebd7866d-38ed-5843-abc4-3f9d63380779",
+      "name": "Action",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        3640,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $('Config').first().json.register_url }}/sources/{{ $('Split the actions').item.json.source }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ status: 'withdrawn', withdrawn_reason: $('Split the actions').item.json.reason }) }}"
+      },
+      "id": "22b65d57-d4f4-5afc-ac16-cc3a38406acb",
+      "name": "Step 4: Set withdrawn",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3900,
+        -480
+      ],
+      "notes": "Withdrawn: R13.1 never answers from it.",
+      "notesInFlow": true,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').first().json.messaging_url }}/messages",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ to: $('Config').first().json.register_admin, subject: 'Source withdrawn: ' + ($('Split the actions').item.json.title || $('Split the actions').item.json.source), text: $('Split the actions').item.json.title + ' has ' + $('Split the actions').item.json.reason + ', so it is withdrawn and answers nothing until it has an owner and dates.' }) }}"
+      },
+      "id": "868811e7-63eb-57d4-8252-b97ebf27d797",
+      "name": "Step 4: Alert the register admin",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        4160,
+        -480
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO exception_queue (recipe, item, reason, detail, owner) VALUES ($1, $2, $3, $4, $5) RETURNING id",
+        "options": {
+          "queryReplacement": "={{ [\"R13.2\", $('Split the actions').item.json.source, \"owner left\", $('Split the actions').item.json.title + ': ' + $('Split the actions').item.json.reason + ' (' + $('Split the actions').item.json.owner + ')', $('Config').first().json.register_admin] }}",
+          "queryBatching": "independently"
+        }
+      },
+      "id": "0ecfdf44-1526-5093-9bb2-32505d39f98c",
+      "name": "Step 5: Exception queue: reassign the owner",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        3900,
+        -240
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "Exception queue: a named person works through it (book Chapters 2 and 16).",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').first().json.messaging_url }}/messages",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ to: $('Config').first().json.register_admin, subject: 'Reassign the owner: ' + $('Split the actions').item.json.title, text: $('Split the actions').item.json.title + ': ' + $('Split the actions').item.json.reason + ' (' + $('Split the actions').item.json.owner + '). Name a new owner in the register.' }) }}"
+      },
+      "id": "738de4cf-a4ac-5d7c-b16d-238cce15c176",
+      "name": "Step 5: Tell the register admin to reassign",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        4160,
+        -240
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').first().json.messaging_url }}/messages",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ to: $('Split the actions').item.json.recipient, subject: 'Review due: ' + $('Split the actions').item.json.title, text: $('Split the actions').item.json.title + ' is due for review on ' + $('Split the actions').item.json.review_date + '. It is withdrawn from answers on ' + $('Split the actions').item.json.pull_date + ' unless you renew, replace or retire it: ' + $('Config').first().json.owner_form_url }) }}"
+      },
+      "id": "0ecebb51-ca4e-52f7-a5aa-194ce3ae2c67",
+      "name": "Step 6: Remind the owner, with the pull date",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3900,
+        0
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $('Config').first().json.register_url }}/sources/{{ $('Split the actions').item.json.source }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ status: 'withdrawn', withdrawn_reason: $('Split the actions').item.json.reason }) }}"
+      },
+      "id": "835f5eaa-3ad1-51b1-be84-9e4fdf516498",
+      "name": "Step 7: Set withdrawn",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3900,
+        240
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $('Config').first().json.documents_url }}/files/{{ $('Split the actions').item.json.file_id }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ folder: $('Config').first().json.archive_folder }) }}"
+      },
+      "id": "fc3f6db7-5dc0-5c0f-b445-e6e7fa09efa8",
+      "name": "Step 7: Archive the file",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        4160,
+        240
+      ],
+      "notes": "Moves the file where no bought assistant's search can reach it.",
+      "notesInFlow": true,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').first().json.messaging_url }}/messages",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ to: $('Split the actions').item.json.recipient, cc: $('Config').first().json.register_admin, subject: 'Withdrawn: ' + $('Split the actions').item.json.title, text: $('Split the actions').item.json.title + ' passed its expiry date (' + $('Split the actions').item.json.pull_date + ') and is withdrawn and archived. Renew, replace or retire it: ' + $('Config').first().json.owner_form_url }) }}"
+      },
+      "id": "d222355e-ff75-5838-8184-b2fc3479a5a1",
+      "name": "Step 7: Tell the owner and the register admin",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        4420,
+        240
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO exception_queue (recipe, item, reason, detail, owner) VALUES ($1, $2, $3, $4, $5) RETURNING id",
+        "options": {
+          "queryReplacement": "={{ [\"R13.2\", $('Split the actions').item.json.source, \"register mismatch\", $('Split the actions').item.json.title + ': ' + $('Split the actions').item.json.reason, $('Config').first().json.register_admin] }}",
+          "queryBatching": "independently"
+        }
+      },
+      "id": "92ef1f86-5066-52a7-b965-81fbff84e649",
+      "name": "Step 10: Exception queue: mismatch",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        3900,
+        480
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "Exception queue: a named person works through it (book Chapters 2 and 16).",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').first().json.messaging_url }}/messages",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ to: $('Config').first().json.register_admin, subject: 'Register mismatch: ' + $('Split the actions').item.json.title, text: $('Split the actions').item.json.title + ': ' + $('Split the actions').item.json.reason }) }}"
+      },
+      "id": "57518b26-a0c7-5bb8-b5b2-dfd9843d9a36",
+      "name": "Step 10: Tell the register admin",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        4160,
+        480
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "content": "## Step 8: The owner renews, replaces or retires it\nA person step, through the owner form linked in every reminder and withdrawal. Only the owner's decision brings a withdrawn source back; only the register admin edits owners and dates. A published version starts step 9.",
+        "height": 200,
+        "width": 360,
+        "color": 5
+      },
+      "id": "b39b33d6-3202-5ff9-b7be-cdd780f69a6b",
+      "name": "Step 8: The owner renews, replaces or retires it",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        4680,
+        -520
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE key_log SET status = $3, result = $4 WHERE recipe = $1 AND key = $2 RETURNING key",
+        "options": {
+          "queryReplacement": "={{ [\"R13.2\", $('Split the actions').item.json.key, \"done\", $('Split the actions').item.json.action] }}",
+          "queryBatching": "independently"
+        }
+      },
+      "id": "c2cc64a2-e948-5bac-b0b7-e0c9fb2f0304",
+      "name": "Mark key done",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        4680,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO decision_log (recipe, item, decision, rules) VALUES ($1, $2, $3, $4::jsonb) RETURNING id",
+        "options": {
+          "queryReplacement": "={{ [\"R13.2\", $('Split the actions').item.json.source, $('Split the actions').item.json.action, JSON.stringify({ reason: $('Split the actions').item.json.reason, week_key: $('Split the actions').item.json.key, recipient: $('Split the actions').item.json.recipient || null, pull_date: $('Split the actions').item.json.pull_date || null })] }}",
+          "queryBatching": "independently"
+        }
+      },
+      "id": "22cf8757-d593-5379-984e-d86281d437a1",
+      "name": "Step 11: Decision log",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        4940,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "Decision log: the item's ID, the decision and the rules; never the content (book Chapter 3).",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE key_log SET status = $3, result = $4 WHERE recipe = $1 AND key = $2 RETURNING key",
+        "options": {
+          "queryReplacement": "={{ [\"R13.2\", $('Split the actions').item.json.key, \"failed\", 'write failed: ' + ($json.error && $json.error.message || 'unknown')] }}",
+          "queryBatching": "independently"
+        }
+      },
+      "id": "6323ba9a-a117-5d48-b941-866818e0e17f",
+      "name": "Mark key failed",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        4680,
+        720
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO exception_queue (recipe, item, reason, detail, owner) VALUES ($1, $2, $3, $4, $5) RETURNING id",
+        "options": {
+          "queryReplacement": "={{ [\"R13.2\", $('Split the actions').item.json.source, \"write failed\", 'Step ' + $('Split the actions').item.json.action + ' failed part way; check the source, never retried', $('Config').first().json.register_admin] }}",
+          "queryBatching": "independently"
+        }
+      },
+      "id": "db352213-9c07-5ae3-b653-ef34d00d966c",
+      "name": "Exception queue: write failed",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        4940,
+        720
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "Exception queue: a named person works through it (book Chapters 2 and 16).",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $('Step 9: Major version published').item.json.body.major === true }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "id": "d169af11-83cd-5fc5-a674-3da7c3df516c"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "38921b00-7a94-56eb-8859-e62c8fb4f26a",
+      "name": "Step 9: Major version?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1300,
+        760
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "fd7a7b13-289a-58c2-8a89-f7de84596876",
+      "name": "Minor version: no rebuild",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        1560,
+        960
+      ],
+      "notes": "Only a major version rebuilds the passages; step 10 compares major versions.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH reserved AS (INSERT INTO key_log (recipe, key, status) VALUES ($1, $2, 'in progress') ON CONFLICT (recipe, key) DO NOTHING RETURNING key), skipped AS (UPDATE key_log SET copies_skipped = copies_skipped + 1 WHERE recipe = $1 AND key = $2 AND NOT EXISTS (SELECT 1 FROM reserved)) SELECT (SELECT count(*) FROM reserved) = 1 AS is_new, $2::text AS key",
+        "options": {
+          "queryReplacement": "={{ [\"R13.2\", $('Step 9: Major version published').item.json.body.source_id + ':' + $('Step 9: Major version published').item.json.body.version + ':rebuild'] }}",
+          "queryBatching": "independently"
+        }
+      },
+      "id": "c65075e0-47c1-53cf-93cb-db1e92a68f02",
+      "name": "Step 9: Reserve key",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1560,
+        760
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "Key log: refuses a second copy in the same step (book Chapter 2).",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.is_new }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "id": "b5879b54-7b3e-5389-bdb6-f950b2ccd225"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "a6bc139d-9175-548f-a5ef-4ae1c8e6f276",
+      "name": "Step 9: New key?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1820,
+        760
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "b5264a8a-2f98-52bd-a6ea-e429d9447ee9",
+      "name": "Step 9: Duplicate: stop",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        2080,
+        960
+      ],
+      "notes": "This version was rebuilt before.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').first().json.index_url }}/rebuilds",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ source_id: $('Step 9: Major version published').item.json.body.source_id, version: $('Step 9: Major version published').item.json.body.version, remove_older_versions: true }) }}"
+      },
+      "id": "13566092-d02d-5f84-b486-d104e1a1aa30",
+      "name": "Step 9: Index: rebuild the source's passages",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2080,
+        760
+      ],
+      "notes": "The index cuts the new version at headings and removes the old version's passages.",
+      "notesInFlow": true,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE key_log SET status = $3, result = $4 WHERE recipe = $1 AND key = $2 RETURNING key",
+        "options": {
+          "queryReplacement": "={{ [\"R13.2\", $('Step 9: Major version published').item.json.body.source_id + ':' + $('Step 9: Major version published').item.json.body.version + ':rebuild', \"done\", 'rebuild requested'] }}",
+          "queryBatching": "independently"
+        }
+      },
+      "id": "797090f2-bc73-5dc1-8b9f-cf9983157bb6",
+      "name": "Step 9: Mark key done",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2340,
+        760
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO decision_log (recipe, item, decision, rules) VALUES ($1, $2, $3, $4::jsonb) RETURNING id",
+        "options": {
+          "queryReplacement": "={{ [\"R13.2\", $('Step 9: Major version published').item.json.body.source_id, 'rebuild passages', JSON.stringify({ version: $('Step 9: Major version published').item.json.body.version, major: true })] }}",
+          "queryBatching": "independently"
+        }
+      },
+      "id": "0ac56e68-2c44-50da-af7c-e7e82263f80e",
+      "name": "Step 9: Decision log",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2600,
+        760
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "Decision log: the item's ID, the decision and the rules; never the content (book Chapter 3).",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE key_log SET status = $3, result = $4 WHERE recipe = $1 AND key = $2 RETURNING key",
+        "options": {
+          "queryReplacement": "={{ [\"R13.2\", $('Step 9: Major version published').item.json.body.source_id + ':' + $('Step 9: Major version published').item.json.body.version + ':rebuild', \"failed\", 'rebuild request failed'] }}",
+          "queryBatching": "independently"
+        }
+      },
+      "id": "49c0507c-7375-599a-a4f8-cbc015496442",
+      "name": "Step 9: Mark key failed",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2340,
+        960
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO exception_queue (recipe, item, reason, detail, owner) VALUES ($1, $2, $3, $4, $5) RETURNING id",
+        "options": {
+          "queryReplacement": "={{ [\"R13.2\", $('Step 9: Major version published').item.json.body.source_id, \"write failed\", 'Index rebuild request failed; rerun it (step 10 also flags the version)', $('Config').first().json.register_admin] }}",
+          "queryBatching": "independently"
+        }
+      },
+      "id": "f92c7968-2779-5d0a-86c1-35e67e244481",
+      "name": "Step 9: Exception queue: rebuild failed",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2600,
+        960
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "Exception queue: a named person works through it (book Chapters 2 and 16).",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Config').item.json.stop_flag_url }}",
+        "options": {}
+      },
+      "id": "75d7cb22-25dd-5660-8ba9-6266f5b20107",
+      "name": "Stop flag: read",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        520,
+        380
+      ],
+      "notes": "Kill switch: set stopped to true in your stop list and the next run ends quietly (book Chapter 3).",
+      "notesInFlow": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.stopped === true }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "id": "32927b86-ecf1-5c7d-9a2c-1215a4f3b532"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "48e537a7-1af3-5fe3-90dd-28b53b81a05a",
+      "name": "Stop flag set?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        780,
+        380
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "4af153a7-e831-583a-97fb-3ff58a71ee99",
+      "name": "Stopped by the stop flag",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        1040,
+        180
+      ],
+      "notes": "Ends quietly; nothing is read, written or sent.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO exception_queue (recipe, item, reason, detail, owner) VALUES ($1, $2, $3, $4, $5) RETURNING id",
+        "options": {
+          "queryReplacement": "={{ [\"R13.2\", 'run ' + $execution.id, \"stop list unreadable\", 'The stop list could not be read, so the run stopped; fix the stop list', '<your workflow owner>'] }}"
+        }
+      },
+      "id": "72fcd24b-908d-5a7a-9d3c-dadf701c75b4",
+      "name": "Exception queue: stop list unreadable",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        780,
+        600
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "Exception queue: a named person works through it (book Chapters 2 and 16).",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    }
+  ],
+  "connections": {
+    "Step 1: Each week": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 9: Major version published": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Weekly run?": {
+      "main": [
+        [
+          {
+            "node": "Step 2: Read the register",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Step 9: Major version?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 2: Read the register": {
+      "main": [
+        [
+          {
+            "node": "Read the directory",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read the directory": {
+      "main": [
+        [
+          {
+            "node": "Step 10: Read sharing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 10: Read sharing": {
+      "main": [
+        [
+          {
+            "node": "Step 10: Read the index",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 10: Read the index": {
+      "main": [
+        [
+          {
+            "node": "Rules: steps 2, 4 to 7 and 10",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rules: steps 2, 4 to 7 and 10": {
+      "main": [
+        [
+          {
+            "node": "Step 11: Log the weekly check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 11: Log the weekly check": {
+      "main": [
+        [
+          {
+            "node": "Split the actions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split the actions": {
+      "main": [
+        [
+          {
+            "node": "Step 3: Reserve key",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 3: Reserve key": {
+      "main": [
+        [
+          {
+            "node": "New key?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "New key?": {
+      "main": [
+        [
+          {
+            "node": "Action",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Duplicate: stop",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 4: Set withdrawn": {
+      "main": [
+        [
+          {
+            "node": "Step 4: Alert the register admin",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark key failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 5: Exception queue: reassign the owner": {
+      "main": [
+        [
+          {
+            "node": "Step 5: Tell the register admin to reassign",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 7: Set withdrawn": {
+      "main": [
+        [
+          {
+            "node": "Step 7: Archive the file",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark key failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 7: Archive the file": {
+      "main": [
+        [
+          {
+            "node": "Step 7: Tell the owner and the register admin",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark key failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 10: Exception queue: mismatch": {
+      "main": [
+        [
+          {
+            "node": "Step 10: Tell the register admin",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Action": {
+      "main": [
+        [
+          {
+            "node": "Step 4: Set withdrawn",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Step 5: Exception queue: reassign the owner",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Step 6: Remind the owner, with the pull date",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Step 7: Set withdrawn",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Step 10: Exception queue: mismatch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 4: Alert the register admin": {
+      "main": [
+        [
+          {
+            "node": "Mark key done",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark key failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 5: Tell the register admin to reassign": {
+      "main": [
+        [
+          {
+            "node": "Mark key done",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark key failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 6: Remind the owner, with the pull date": {
+      "main": [
+        [
+          {
+            "node": "Mark key done",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark key failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 7: Tell the owner and the register admin": {
+      "main": [
+        [
+          {
+            "node": "Mark key done",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark key failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 10: Tell the register admin": {
+      "main": [
+        [
+          {
+            "node": "Mark key done",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark key failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark key done": {
+      "main": [
+        [
+          {
+            "node": "Step 11: Decision log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark key failed": {
+      "main": [
+        [
+          {
+            "node": "Exception queue: write failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 9: Major version?": {
+      "main": [
+        [
+          {
+            "node": "Step 9: Reserve key",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Minor version: no rebuild",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 9: Reserve key": {
+      "main": [
+        [
+          {
+            "node": "Step 9: New key?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 9: New key?": {
+      "main": [
+        [
+          {
+            "node": "Step 9: Index: rebuild the source's passages",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Step 9: Duplicate: stop",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 9: Index: rebuild the source's passages": {
+      "main": [
+        [
+          {
+            "node": "Step 9: Mark key done",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Step 9: Mark key failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 9: Mark key done": {
+      "main": [
+        [
+          {
+            "node": "Step 9: Decision log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 9: Mark key failed": {
+      "main": [
+        [
+          {
+            "node": "Step 9: Exception queue: rebuild failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config": {
+      "main": [
+        [
+          {
+            "node": "Stop flag: read",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Stop flag: read": {
+      "main": [
+        [
+          {
+            "node": "Stop flag set?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Exception queue: stop list unreadable",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Stop flag set?": {
+      "main": [
+        [
+          {
+            "node": "Stopped by the stop flag",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Weekly run?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataSuccessExecution": "all",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "pinData": {}
+}

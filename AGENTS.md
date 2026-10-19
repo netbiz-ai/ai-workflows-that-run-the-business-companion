@@ -105,7 +105,7 @@ One file per bounded AI step, named for what it does (`classify.md`, `draft-repl
 ```
 # <Recipe ID> step <n>: <what the step does>
 
-Model: Claude Haiku 5.5 (Anthropic API) in the n8n build, temperature 0; on another platform, its AI step with these same instructions and schema. Tools: none.
+Model: Claude Haiku 5.5 (Anthropic API) in the n8n build; on another platform, its AI step with these same instructions and schema. Tools: none.
 Returns: JSON only, exactly the fields below; anything else fails the rule check in step <n+1>.
 Status: draft; not yet run against the golden set.
 
@@ -158,11 +158,16 @@ The finished examples are R11.2 (rules only) and R4.1 (with an AI step): read bo
 - Rules are Code nodes. The AI never decides: an AI step is `ai_step()` (prompt text read from `prompts/`), followed by a Rule node that parses the reply with `parseAi()` and applies the book's check; the AI call's error output goes to the same place as a failed check.
 - Key log, decision log and exception queue: `w.reserve_key`, `w.finish_key`, `w.decision_log`, `w.exception` (Postgres, `patterns/duplicate-check/schema.sql`). The duplicate key is the one the book's build steps name.
 - No credentials, IDs or real addresses in the build; `golden.py` writes the reader copy with placeholders.
+- The stop flag (book Chapter 3) is added by `wf.py` after the Config node in every workflow: a GET on `stop_flag_url` returning `{"stopped": true}` ends the run quietly; an unreadable stop list stops the run with an exception-queue row. Do not build your own.
+- `ai_step()` appends the prompt file's output schema to the system prompt and fills `{{placeholders}}` in both the system prompt and the input template, so keep each prompt's schema exact: it is what the model is told.
+- n8n pitfalls: a Config field named `caller` is rejected by n8n's expression sandbox; a node name containing `{{` breaks every expression that refers to it.
 
 ### How a build is proven
 
 - `n8n/tests.json` has one case per `golden-set.csv` row, in order, with `row` matching the CSV line (header excluded), `input` matching the CSV input, and expectations that check what the book's expected result says: a status written, a queue chosen, a message sent, a row in the exception queue, a call never made.
-- Mark `"needs_ai": true` on a case whose result depends on what the model answers; it runs once the AI key is installed. A case that holds whatever the model says (duplicates, automatic senders, failure paths) must not be marked.
+- Mark `"needs_ai": true` on a case whose result depends on what the model answers. The runner fails such a case if any AI call did not return 200, so a safe fallback never passes as a model answer. A case that holds whatever the model says (duplicates, automatic senders, failure paths) must not be marked.
+- To test a rule on one specific model output (a Refuse row whose bad output a well-behaved model will not produce), inject it as a canned reply: `{"method": "POST", "path": "/anthropic/v1/messages", "status": 200, "times": N, "body": {...a Messages API response...}}` in the case's `fail` list; such a case is not `needs_ai`. Pair it with a `needs_ai` extension showing the live model refuses.
+- Every golden set also gets an automatic "Stop flag" case from the runner: no writes, no key-log or decision-log rows.
 - Extend every set with the failure paths the book's failure table names, and for AI recipes an "AI error" case (inject a 529 on `POST /anthropic/v1/messages` for every try); append each extension to `golden-set.csv` as a row whose input ends "(companion extension)".
 - Seed the mock systems with the smallest data that makes each case real; use `{today+N}` for dates; use `example.test` addresses; no Northstar personal data beyond names the book prints.
 - Run `tools/n8n/remote-test.sh R<id>` until every case that can run passes. Never weaken an expectation to make a case pass: fix the build, or report that the book's step is ambiguous.

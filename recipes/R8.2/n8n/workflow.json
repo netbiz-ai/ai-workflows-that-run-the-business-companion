@@ -1,0 +1,1503 @@
+{
+  "name": "R8.2 Prepare and send monthly statements for trade accounts",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "weeks",
+              "weeksInterval": 1,
+              "triggerAtDay": [
+                1,
+                2,
+                3,
+                4,
+                5
+              ],
+              "triggerAtHour": 9
+            }
+          ]
+        }
+      },
+      "id": "28a479eb-ae5c-5a07-acbc-1320dabfbeef",
+      "name": "Step 1: First working day of the month",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "notes": "Each weekday; set the hour to after both month-end exports are saved. Book build note: in n8n, set the workflow's \"Save successful production executions\" to \"Do not save\".",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "r8-2-run-again",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "8616aaab-0385-554c-b5ab-aeeab5402914",
+      "name": "Step 9: Run again after a release or restart",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        200
+      ],
+      "notes": "Call this to run again: after finance saves a late export, after a failed send (Owen restarts), or when Aisha releases a corrected held account (step 9). Body: {}.",
+      "notesInFlow": true,
+      "webhookId": "2d8337e4-fc0f-5cdd-9175-179669c93ab8"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "r8-2-batch-decision",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "b9119c22-7c02-54c6-9be9-efe030a18554",
+      "name": "Step 8: Aisha decides on the batch",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        600
+      ],
+      "notes": "Your approvals tool calls this when Aisha approves or rejects the batch. Body: {approved, by}.",
+      "notesInFlow": true,
+      "webhookId": "b6e37bce-f991-5e46-87e1-d55d06ab3d06"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "4be870d9-1fc8-5a39-8f6e-df4dc0acbba2",
+              "name": "stop_flag_url",
+              "value": "https://<your stop list API>/stop_flags/R8.2",
+              "type": "string"
+            },
+            {
+              "id": "b25c11a0-2c88-51dc-a08e-e49b7737aa9e",
+              "name": "sharepoint_url",
+              "value": "https://<your SharePoint lists API>",
+              "type": "string"
+            },
+            {
+              "id": "4a83f24a-7518-5c15-9779-93e2ca9072c6",
+              "name": "crm_url",
+              "value": "https://<your CRM API>",
+              "type": "string"
+            },
+            {
+              "id": "df1ae9aa-5fb7-5238-b61a-9f9dc1e97fef",
+              "name": "mail_url",
+              "value": "https://<your AR mailbox API>",
+              "type": "string"
+            },
+            {
+              "id": "a5210dd5-33a8-5a78-920c-6f5d7c283891",
+              "name": "approvals_url",
+              "value": "https://<your approvals API>",
+              "type": "string"
+            },
+            {
+              "id": "59fabcf3-3946-51bf-9556-66314cebc29d",
+              "name": "messaging_url",
+              "value": "https://<your messaging API>",
+              "type": "string"
+            },
+            {
+              "id": "789934e6-d3de-5eb4-aa0d-0ddc9463e033",
+              "name": "ar_mailbox",
+              "value": "<your shared AR mailbox>",
+              "type": "string"
+            },
+            {
+              "id": "c4b2b5dc-1fbd-5649-b3db-0c1e4311cb6d",
+              "name": "ar_lead",
+              "value": "<your AR lead, who approves the batch>",
+              "type": "string"
+            },
+            {
+              "id": "84bf00dc-2c7b-59e0-a74f-33a400373d77",
+              "name": "cutoff",
+              "value": "",
+              "type": "string"
+            },
+            {
+              "id": "5d464c6c-ec44-5040-baad-5250602da337",
+              "name": "statement_subject",
+              "value": "<your statement subject; merge fields {{month}} and {{account_name}}>",
+              "type": "string"
+            },
+            {
+              "id": "782fa7f4-3e11-59c1-abdd-51eba20aed26",
+              "name": "how_to_pay",
+              "value": "<how your customers pay>",
+              "type": "string"
+            },
+            {
+              "id": "bdec9578-32b7-58ec-a6d3-dd1724f30b22",
+              "name": "where_to_ask",
+              "value": "<where a customer asks about a statement>",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "32dd2f20-58ec-5a5b-86c2-1a3cb04b2dc0",
+      "name": "Config",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        260,
+        300
+      ],
+      "notes": "Edit these values for your company; nothing else in the workflow hard-codes them.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $('Step 8: Aisha decides on the batch').isExecuted }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "id": "70f80d59-cdae-53d6-bf38-6b99063e54ce"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "ad530494-5484-58a4-83b8-3dbdbdadfaf6",
+      "name": "Batch decision?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1040,
+        300
+      ],
+      "notes": "Config cutoff: leave blank for the last month-end; name a date only to rerun an earlier month.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "\n// Step 1: the schedule runs each weekday; only the month's first working day goes on. A run again always goes on.\nif (!$('Step 1: First working day of the month').isExecuted) return [{ json: { go: true } }];\nconst n = new Date();\nlet first = true;\nfor (let d = 1; d < n.getUTCDate(); d++) {\n  const wd = new Date(Date.UTC(n.getUTCFullYear(), n.getUTCMonth(), d)).getUTCDay();\n  if (wd !== 0 && wd !== 6) { first = false; break; }\n}\nreturn [{ json: { go: first } }];\n"
+      },
+      "id": "80c94964-c4fb-57e3-ba59-b954871b1bdd",
+      "name": "Step 1: Rule: first working day, or a run again?",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1300,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.go }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "id": "07d5ae9c-1c43-5484-9a43-34517db94229"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "c7bb94bb-22c4-5eda-a2e7-f8c314f97cd0",
+      "name": "Go?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1560,
+        200
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "ec00e3f0-73fd-5622-89f1-53db80b210ba",
+      "name": "Not the first working day",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        1820,
+        40
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Config').first().json.sharepoint_url }}/exports/balances",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        }
+      },
+      "id": "f4a64205-ea10-5711-b603-d03a0aa6528b",
+      "name": "Step 2: Read the balances export",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1820,
+        200
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Config').first().json.sharepoint_url }}/exports/open-items",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        }
+      },
+      "id": "656d7671-9a47-5f38-bd67-b2ab1d97f586",
+      "name": "Step 2: Read the open-items export",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2080,
+        200
+      ],
+      "notes": "Invoices and credit notes, not unapplied payments.",
+      "notesInFlow": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "\n// The statement month's cut-off: the last month-end, unless Config names one.\nconst cutoffFor = (cfg) => {\n  if (cfg.cutoff) return String(cfg.cutoff).slice(0, 10);\n  const n = new Date();\n  return new Date(Date.UTC(n.getUTCFullYear(), n.getUTCMonth(), 0)).toISOString().slice(0, 10);\n};\n\n// Step 2: both exports saved, at the one expected month-end cut-off.\nconst cfg = $('Config').first().json;\nconst ok = n => { const a = $(n).all(0); return a.length ? a[0].json : null; };\nconst cutoff = cutoffFor(cfg);\nconst problems = [];\nfor (const [name, node] of [['balances', 'Step 2: Read the balances export'], ['open items', 'Step 2: Read the open-items export']]) {\n  const e = ok(node);\n  if (!e || !Array.isArray(e.rows)) problems.push(name + ' export missing');\n  else if (String(e.cutoff || '').slice(0, 10) !== cutoff) problems.push(name + ' export cut-off ' + e.cutoff + ', expected ' + cutoff);\n}\nreturn [{ json: { run: problems.length === 0, problems, cutoff, month: cutoff.slice(0, 7) } }];\n"
+      },
+      "id": "54292626-3788-57f1-8292-af0bd1735964",
+      "name": "Step 2: Rule: exports present, one cut-off?",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2340,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.run }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "id": "b2ce90f6-4a78-5b02-944d-5ea8659fea98"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "3fac866a-8097-502d-a362-722941a11367",
+      "name": "Exports current?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2600,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO decision_log (recipe, item, decision, rules) VALUES ($1, $2, $3, $4::jsonb) RETURNING id",
+        "options": {
+          "queryReplacement": "={{ [\"R8.2\", 'statements ' + $('Step 2: Rule: exports present, one cut-off?').item.json.month, 'no run', JSON.stringify({ problems: $('Step 2: Rule: exports present, one cut-off?').item.json.problems })] }}"
+        }
+      },
+      "id": "2fe95114-1378-5c53-a6d8-4e0f9e53deb3",
+      "name": "Step 2: Decision log: no run",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2860,
+        440
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "Decision log: the item's ID, the decision and the rules; never the content (book Chapter 3).",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').first().json.messaging_url }}/messages",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ to: [$('Config').first().json.ar_lead], subject: 'Statements for ' + $('Step 2: Rule: exports present, one cut-off?').item.json.month + ': nothing built', text: $('Step 2: Rule: exports present, one cut-off?').item.json.problems.join('; ') }) }}"
+      },
+      "id": "69dea126-a44a-524d-8c3a-44ea54f31627",
+      "name": "Step 2: Alert Aisha",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3120,
+        440
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Config').first().json.sharepoint_url }}/disputes",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "_wrap",
+              "value": "1"
+            },
+            {
+              "name": "status",
+              "value": "open"
+            }
+          ]
+        }
+      },
+      "id": "054e2168-ec05-5df5-8ad1-1f747e8dd81a",
+      "name": "Step 4: Read the dispute list",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2860,
+        200
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Config').first().json.crm_url }}/accounts",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "_wrap",
+              "value": "1"
+            }
+          ]
+        }
+      },
+      "id": "db1d418b-442e-525f-be03-800dff698be5",
+      "name": "Read CRM contacts (for step 6)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3120,
+        200
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT key FROM key_log WHERE recipe = 'R8.2' AND key LIKE '%:' || $1",
+        "options": {
+          "queryReplacement": "={{ [$('Step 2: Rule: exports present, one cut-off?').item.json.month] }}"
+        }
+      },
+      "id": "b5ebbcb8-aacb-5b2c-a90b-93b7a5e07ad2",
+      "name": "Step 5: Read statements already sent",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        3380,
+        200
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "\n// Steps 3 to 6 of the book's R8.2, in order. Returns one batch for Aisha's approval.\nconst cfg = $('Config').first().json;\nconst g = $('Step 2: Rule: exports present, one cut-off?').first().json;\nconst balances = $('Step 2: Read the balances export').first().json.rows || [];\nconst items = $('Step 2: Read the open-items export').first().json.rows || [];\nconst disputed = new Set(($('Step 4: Read the dispute list').first().json.items || []).filter(d => d.invoice).map(d => String(d.invoice)));\nconst crm = Object.fromEntries(($('Read CRM contacts (for step 6)').first().json.items || []).map(a => [String(a.id), a]));\nconst sent = new Set($('Step 5: Read statements already sent').all().map(i => i.json.key).filter(Boolean));\nconst cents = x => Math.round(Number(x) * 100);\nconst money = c => (c / 100).toFixed(2);\nconst fill = (s, f) => String(s || '').replace(/\\{\\{(\\w+)\\}\\}/g, (_, k) => (k in f ? String(f[k]) : ''));\n\nconst accounts = [...new Set([...balances.map(b => String(b.account)), ...items.map(i => String(i.account))])];\nconst statements = [], held = [], skipped = [];\nfor (const acc of accounts) {\n  // Step 5: skip an account plus statement month already sent.\n  if (sent.has(acc + ':' + g.month)) { skipped.push(acc); continue; }\n  const b = balances.find(x => String(x.account) === acc);\n  const its = items.filter(i => String(i.account) === acc);\n  const balance = b ? cents(b.balance) : 0;\n  const openTotal = its.reduce((s, i) => s + cents(i.amount), 0);\n  // Step 3: any difference, even a cent, holds the account.\n  if (balance !== openTotal) {\n    held.push({ account: acc, balance: balance / 100, open_items_total: openTotal / 100, difference: (balance - openTotal) / 100 });\n    continue;\n  }\n  // Step 4: a disputed item is \"in dispute, not due\", outside the total; an account in credit shows nothing due.\n  const lines = its.map(i => ({ item: String(i.item), type: i.type || 'invoice', date: i.date || null, due_date: i.due_date || null,\n    amount: cents(i.amount) / 100, status: disputed.has(String(i.item)) ? 'in dispute, not due' : 'due' }));\n  const dueCents = lines.filter(l => l.status === 'due').reduce((s, l) => s + cents(l.amount), 0);\n  const totalCents = balance <= 0 || dueCents <= 0 ? 0 : dueCents;\n  // Step 6: items, total due, how to pay, where to ask.\n  const a = crm[acc] || {};\n  const text = [\n    'Statement for ' + (a.name || acc) + ', at ' + g.cutoff,\n    '',\n    ...lines.map(l => [l.date, l.type, l.item, money(cents(l.amount))].filter(Boolean).join('  ') + (l.status === 'due' ? '' : '  (in dispute, not due)')),\n    '',\n    totalCents > 0 ? 'Total due: ' + money(totalCents) : (balance < 0 ? 'Your account is in credit: nothing is due.' : 'Nothing is due.'),\n    'How to pay: ' + cfg.how_to_pay,\n    'Questions about this statement: ' + cfg.where_to_ask,\n  ].join('\\n');\n  statements.push({ account: acc, account_name: a.name || '', to: a.contact_email || '', balance: balance / 100, lines,\n    total_due: totalCents / 100, subject: fill(cfg.statement_subject, { month: g.month, account_name: a.name || acc }), text });\n}\nconst pick = statements.slice().sort(() => Math.random() - 0.5).slice(0, 5);\nreturn [{ json: { id: 'statements-' + g.month, month: g.month, cutoff: g.cutoff, status: 'pending', approver: cfg.ar_lead,\n  count: statements.length, total_due: statements.reduce((s, x) => s + cents(x.total_due), 0) / 100,\n  held, samples: pick.map(s => ({ account: s.account, total_due: s.total_due, text: s.text })),\n  skipped: skipped.length, statements }, pairedItem: 0 }];\n"
+      },
+      "id": "fa53d1b7-5e3d-5dd9-9f8a-d411f8bbf41d",
+      "name": "Rules: steps 3 to 6",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3640,
+        200
+      ],
+      "notes": "Rules decide; there is no AI step in R8.2. Nothing fixes a difference: a held account waits for Aisha.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $('Rules: steps 3 to 6').item.json.count > 0 || $('Rules: steps 3 to 6').item.json.held.length > 0 }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "id": "3b50d2ac-1767-520e-8269-15e71453b946"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "bafb9812-8a88-52be-bdbb-0d5929b821fa",
+      "name": "Anything to approve?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        3900,
+        200
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "dd726ae1-50b5-5f53-a5fa-d55ada777b7d",
+      "name": "Nothing to build",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        4160,
+        360
+      ],
+      "notes": "Every account's statement for this month was sent.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "={{ $('Config').first().json.approvals_url }}/requests/{{ $('Rules: steps 3 to 6').item.json.id }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($('Rules: steps 3 to 6').item.json) }}"
+      },
+      "id": "e67215a4-30a0-52ea-9503-77267b0ff246",
+      "name": "Step 7: Send Aisha one approval",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        4160,
+        120
+      ],
+      "notes": "Count, total due, each held account's difference and five random statements; the batch waits for her decision.",
+      "notesInFlow": true,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO decision_log (recipe, item, decision, rules) VALUES ($1, $2, $3, $4::jsonb) RETURNING id",
+        "options": {
+          "queryReplacement": "={{ [\"R8.2\", 'statements ' + $('Rules: steps 3 to 6').item.json.month, 'batch sent for approval', JSON.stringify({ count: $('Rules: steps 3 to 6').item.json.count, total_due: $('Rules: steps 3 to 6').item.json.total_due, held: $('Rules: steps 3 to 6').item.json.held, skipped: $('Rules: steps 3 to 6').item.json.skipped })] }}"
+        }
+      },
+      "id": "541be021-5311-5b82-890e-e752f428edfa",
+      "name": "Step 7: Decision log: batch",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        4420,
+        120
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "Decision log: the item's ID, the decision and the rules; never the content (book Chapter 3).",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO exception_queue (recipe, item, reason, detail, owner) VALUES ($1, $2, $3, $4, $5) RETURNING id",
+        "options": {
+          "queryReplacement": "={{ [\"R8.2\", $('Rules: steps 3 to 6').item.json.id, \"write failed\", 'The batch approval was not written; run again', $('Config').first().json.ar_lead] }}"
+        }
+      },
+      "id": "1e49c4d5-c948-5c41-bee1-8a15a1f8db39",
+      "name": "Exception queue: approval write failed",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        4420,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "Exception queue: a named person works through it (book Chapters 2 and 16).",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "\n// The statement month's cut-off: the last month-end, unless Config names one.\nconst cutoffFor = (cfg) => {\n  if (cfg.cutoff) return String(cfg.cutoff).slice(0, 10);\n  const n = new Date();\n  return new Date(Date.UTC(n.getUTCFullYear(), n.getUTCMonth(), 0)).toISOString().slice(0, 10);\n};\n\n// Step 8: Aisha's decision is on this month's batch.\nconst month = cutoffFor($('Config').first().json).slice(0, 7);\nreturn [{ json: { id: 'statements-' + month, month } }];\n"
+      },
+      "id": "44003492-13ae-5b21-b06f-0780ec377e1a",
+      "name": "Step 8: Find this month's batch",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1300,
+        600
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Config').first().json.approvals_url }}/requests/{{ $('Step 8: Find this month\\'s batch').item.json.id }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        }
+      },
+      "id": "520a6476-0f18-52d1-ad03-c5cc1f6600c1",
+      "name": "Step 8: Read the batch",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1560,
+        600
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $('Step 8: Aisha decides on the batch').item.json.body.approved === true }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "id": "623b8db9-0785-56fd-be3c-da9e1c188335"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "e963ef1c-d335-5707-ad94-7437a10e7229",
+      "name": "Step 8: Approved?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1820,
+        600
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO decision_log (recipe, item, decision, rules) VALUES ($1, $2, $3, $4::jsonb) RETURNING id",
+        "options": {
+          "queryReplacement": "={{ [\"R8.2\", 'statements ' + $('Step 8: Read the batch').item.json.month, 'batch rejected; nothing sent', JSON.stringify({ by: $('Step 8: Aisha decides on the batch').item.json.body.by || null })] }}"
+        }
+      },
+      "id": "4413a590-27b9-5fb0-9c12-ed1e43b9df6e",
+      "name": "Step 8: Decision log: rejected",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2080,
+        800
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "Decision log: the item's ID, the decision and the rules; never the content (book Chapter 3).",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "\n// Step 8: one item per approved statement, each with its key (account plus statement month).\nconst b = $('Step 8: Read the batch').first().json;\nreturn (b.statements || []).map(s => ({ json: Object.assign({}, s, { month: b.month, key: s.account + ':' + b.month }), pairedItem: 0 }));\n"
+      },
+      "id": "363f216a-ba8b-5ca5-8c45-30791da4af19",
+      "name": "Step 8: One item per statement",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2080,
+        600
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH reserved AS (INSERT INTO key_log (recipe, key, status) VALUES ($1, $2, 'in progress') ON CONFLICT (recipe, key) DO NOTHING RETURNING key), skipped AS (UPDATE key_log SET copies_skipped = copies_skipped + 1 WHERE recipe = $1 AND key = $2 AND NOT EXISTS (SELECT 1 FROM reserved)) SELECT (SELECT count(*) FROM reserved) = 1 AS is_new, $2::text AS key",
+        "options": {
+          "queryReplacement": "={{ [\"R8.2\", $('Step 8: One item per statement').item.json.key] }}"
+        }
+      },
+      "id": "a6c7d638-9ffb-56c6-b4a5-92fcf93d89fa",
+      "name": "Step 5: Reserve key",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2340,
+        600
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "Key log: refuses a second copy in the same step (book Chapter 2).",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.is_new }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "id": "e5654a14-09bf-5aed-9dc9-a59308bbc069"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "27e18c5f-4284-5820-8de1-097ec07572da",
+      "name": "New key?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2600,
+        600
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "ee94400d-fc7e-56cb-b2d7-df47bc3c21ff",
+      "name": "Duplicate: skip",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        2860,
+        460
+      ],
+      "notes": "This account's statement for the month was sent.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').first().json.mail_url }}/outbox",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ from: $('Config').first().json.ar_mailbox, to: $('Step 8: One item per statement').item.json.to, subject: $('Step 8: One item per statement').item.json.subject, text: $('Step 8: One item per statement').item.json.text }) }}"
+      },
+      "id": "4e132f5d-78b6-5c4f-99d0-5455813ad72d",
+      "name": "Step 8: Send the statement",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2860,
+        600
+      ],
+      "notes": "A write: never retried.",
+      "notesInFlow": true,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE key_log SET status = $3, result = $4 WHERE recipe = $1 AND key = $2 RETURNING key",
+        "options": {
+          "queryReplacement": "={{ [\"R8.2\", $('Step 8: One item per statement').item.json.key, \"done\", 'sent'] }}"
+        }
+      },
+      "id": "92931fcc-29bf-5220-aec0-942d5e8aefcf",
+      "name": "Mark key done",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        3120,
+        600
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO decision_log (recipe, item, decision, rules) VALUES ($1, $2, $3, $4::jsonb) RETURNING id",
+        "options": {
+          "queryReplacement": "={{ [\"R8.2\", $('Step 8: One item per statement').item.json.account, 'sent statement ' + $('Step 8: One item per statement').item.json.month, JSON.stringify({ month: $('Step 8: One item per statement').item.json.month, balance: $('Step 8: One item per statement').item.json.balance, total_due: $('Step 8: One item per statement').item.json.total_due, held: false, by: $('Step 8: Aisha decides on the batch').item.json.body.by || null })] }}"
+        }
+      },
+      "id": "76626eb5-c88e-56a8-b294-7c1283fea117",
+      "name": "Step 8: Decision log: sent",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        3380,
+        600
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "Decision log: the item's ID, the decision and the rules; never the content (book Chapter 3).",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "DELETE FROM key_log WHERE recipe = $1 AND key = $2 RETURNING key",
+        "options": {
+          "queryReplacement": "={{ [\"R8.2\", $('Step 8: One item per statement').item.json.key] }}"
+        }
+      },
+      "id": "2a932015-b2fa-539f-9e0c-d39da602f9f1",
+      "name": "Release key: logged unsent",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        3120,
+        800
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "Unsent: the next run includes this account again.",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO exception_queue (recipe, item, reason, detail, owner) VALUES ($1, $2, $3, $4, $5) RETURNING id",
+        "options": {
+          "queryReplacement": "={{ [\"R8.2\", $('Step 8: One item per statement').item.json.account, \"send failed\", 'Statement for ' + $('Step 8: One item per statement').item.json.month + ' not sent; Owen restarts the run', $('Config').first().json.ar_lead] }}"
+        }
+      },
+      "id": "80a293a5-ea77-5d32-9468-f9645435b9b4",
+      "name": "Exception queue: send failed",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        3380,
+        800
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "Exception queue: a named person works through it (book Chapters 2 and 16).",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO decision_log (recipe, item, decision, rules) VALUES ($1, $2, $3, $4::jsonb) RETURNING id",
+        "options": {
+          "queryReplacement": "={{ [\"R8.2\", $('Step 8: One item per statement').item.json.account, 'unsent statement ' + $('Step 8: One item per statement').item.json.month, JSON.stringify({ month: $('Step 8: One item per statement').item.json.month, balance: $('Step 8: One item per statement').item.json.balance })] }}"
+        }
+      },
+      "id": "5dc6f135-ecdd-5325-a628-e11bfd5a141a",
+      "name": "Decision log: unsent",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        3640,
+        800
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "Decision log: the item's ID, the decision and the rules; never the content (book Chapter 3).",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Config').item.json.stop_flag_url }}",
+        "options": {}
+      },
+      "id": "4a5f839e-a7ac-5d6b-a4ea-1de331258aa5",
+      "name": "Stop flag: read",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        520,
+        300
+      ],
+      "notes": "Kill switch: set stopped to true in your stop list and the next run ends quietly (book Chapter 3).",
+      "notesInFlow": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.stopped === true }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "id": "6173b5ca-3a83-5586-bec8-49ea36007733"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "a18cf375-5918-511c-a850-32855c058dfc",
+      "name": "Stop flag set?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        780,
+        300
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "038aa2d0-7a4b-5b55-997e-e59f7f42dbf2",
+      "name": "Stopped by the stop flag",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        1040,
+        100
+      ],
+      "notes": "Ends quietly; nothing is read, written or sent.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO exception_queue (recipe, item, reason, detail, owner) VALUES ($1, $2, $3, $4, $5) RETURNING id",
+        "options": {
+          "queryReplacement": "={{ [\"R8.2\", 'run ' + $execution.id, \"stop list unreadable\", 'The stop list could not be read, so the run stopped; fix the stop list', '<your workflow owner>'] }}"
+        }
+      },
+      "id": "ad2e1542-a1f9-5175-be57-121807141118",
+      "name": "Exception queue: stop list unreadable",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        780,
+        520
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "Exception queue: a named person works through it (book Chapters 2 and 16).",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    }
+  ],
+  "connections": {
+    "Step 1: First working day of the month": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 9: Run again after a release or restart": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 8: Aisha decides on the batch": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Batch decision?": {
+      "main": [
+        [
+          {
+            "node": "Step 8: Find this month's batch",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Step 1: Rule: first working day, or a run again?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 1: Rule: first working day, or a run again?": {
+      "main": [
+        [
+          {
+            "node": "Go?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Go?": {
+      "main": [
+        [
+          {
+            "node": "Step 2: Read the balances export",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Not the first working day",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 2: Read the balances export": {
+      "main": [
+        [
+          {
+            "node": "Step 2: Read the open-items export",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Step 2: Read the open-items export",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 2: Read the open-items export": {
+      "main": [
+        [
+          {
+            "node": "Step 2: Rule: exports present, one cut-off?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Step 2: Rule: exports present, one cut-off?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 2: Rule: exports present, one cut-off?": {
+      "main": [
+        [
+          {
+            "node": "Exports current?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Exports current?": {
+      "main": [
+        [
+          {
+            "node": "Step 4: Read the dispute list",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Step 2: Decision log: no run",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 2: Decision log: no run": {
+      "main": [
+        [
+          {
+            "node": "Step 2: Alert Aisha",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 4: Read the dispute list": {
+      "main": [
+        [
+          {
+            "node": "Read CRM contacts (for step 6)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read CRM contacts (for step 6)": {
+      "main": [
+        [
+          {
+            "node": "Step 5: Read statements already sent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 5: Read statements already sent": {
+      "main": [
+        [
+          {
+            "node": "Rules: steps 3 to 6",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rules: steps 3 to 6": {
+      "main": [
+        [
+          {
+            "node": "Anything to approve?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Anything to approve?": {
+      "main": [
+        [
+          {
+            "node": "Step 7: Send Aisha one approval",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Nothing to build",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 7: Send Aisha one approval": {
+      "main": [
+        [
+          {
+            "node": "Step 7: Decision log: batch",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Exception queue: approval write failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 8: Find this month's batch": {
+      "main": [
+        [
+          {
+            "node": "Step 8: Read the batch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 8: Read the batch": {
+      "main": [
+        [
+          {
+            "node": "Step 8: Approved?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 8: Approved?": {
+      "main": [
+        [
+          {
+            "node": "Step 8: One item per statement",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Step 8: Decision log: rejected",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 8: One item per statement": {
+      "main": [
+        [
+          {
+            "node": "Step 5: Reserve key",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 5: Reserve key": {
+      "main": [
+        [
+          {
+            "node": "New key?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "New key?": {
+      "main": [
+        [
+          {
+            "node": "Step 8: Send the statement",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Duplicate: skip",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 8: Send the statement": {
+      "main": [
+        [
+          {
+            "node": "Mark key done",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Release key: logged unsent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark key done": {
+      "main": [
+        [
+          {
+            "node": "Step 8: Decision log: sent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Release key: logged unsent": {
+      "main": [
+        [
+          {
+            "node": "Exception queue: send failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Exception queue: send failed": {
+      "main": [
+        [
+          {
+            "node": "Decision log: unsent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config": {
+      "main": [
+        [
+          {
+            "node": "Stop flag: read",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Stop flag: read": {
+      "main": [
+        [
+          {
+            "node": "Stop flag set?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Exception queue: stop list unreadable",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Stop flag set?": {
+      "main": [
+        [
+          {
+            "node": "Stopped by the stop flag",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Batch decision?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataSuccessExecution": "all",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "pinData": {}
+}

@@ -1,0 +1,2460 @@
+{
+  "name": "R5.4 Route quote approval by value and discount",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "r5-4-awaiting-approval",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "790ddf3b-692d-5d60-82ba-dd1c5b662ccf",
+      "name": "Step 1: Quote awaiting approval",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "notes": "Your CRM calls this when a quote is set \"awaiting approval\". Body: {quote_id, revision}.",
+      "notesInFlow": true,
+      "webhookId": "f2d00abb-aa0d-5f4f-af1e-44c60951def5"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "r5-4-decision",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "3430ee81-d023-57f0-b655-86adc5efb365",
+      "name": "Step 8: Decision recorded",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        600
+      ],
+      "notes": "Your CRM calls this when an approver records a decision. Body: {quote_id, revision, decision: approved|rejected, by, comment}.",
+      "notesInFlow": true,
+      "webhookId": "afa53606-4e38-5261-9497-e7b95f40717e"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 1
+            }
+          ]
+        }
+      },
+      "id": "52519959-4e72-5279-9e05-0b9f94106410",
+      "name": "Step 7: Each hour",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        1100
+      ],
+      "notes": "Step 7's deadline check.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "weeks",
+              "weeksInterval": 1,
+              "triggerAtDay": [
+                1
+              ],
+              "triggerAtHour": 7
+            }
+          ]
+        }
+      },
+      "id": "1b4c1a79-f11b-5b95-ba5d-11e5d1aa6be4",
+      "name": "Backstop: Each week",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        1400
+      ],
+      "notes": "The declared backstop where the CRM cannot lock quotes (runs each Monday).",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "f61bbae3-2ec8-5960-ad8c-96678bf79d2f",
+              "name": "stop_flag_url",
+              "value": "https://<your stop list API>/stop_flags/R5.4",
+              "type": "string"
+            },
+            {
+              "id": "c46c245f-70a1-5e87-90b4-f5a912255367",
+              "name": "crm_url",
+              "value": "https://<your CRM API>",
+              "type": "string"
+            },
+            {
+              "id": "18f7d61e-0676-5c39-87ec-c55dae377c13",
+              "name": "messaging_url",
+              "value": "https://<your messaging API>",
+              "type": "string"
+            },
+            {
+              "id": "c4e0011b-deec-5f81-8ff4-e39732f717de",
+              "name": "salesperson_limit",
+              "value": "<your salesperson's limit, after discount>",
+              "type": "string"
+            },
+            {
+              "id": "f230ceaf-4041-529a-9331-7f20e23e0433",
+              "name": "sales_lead_limit",
+              "value": "<your sales lead's limit, after discount>",
+              "type": "string"
+            },
+            {
+              "id": "7119e839-44ba-595a-9c3e-37afc2ac118e",
+              "name": "standard_discount_pct",
+              "value": "<your standard line discount, %>",
+              "type": "string"
+            },
+            {
+              "id": "a1cbf9e3-3ef3-50f9-985a-e22bbc5632f6",
+              "name": "approvers",
+              "value": "{\"salesperson\": {\"deputy\": \"<your salespeople's deputy>\", \"deadline_hours\": \"<hours>\"}, \"sales_lead\": {\"person\": \"<your sales lead>\", \"deputy\": \"<deputy>\", \"deadline_hours\": \"<hours>\"}, \"ceo\": {\"person\": \"<your owner or CEO>\", \"deputy\": \"<deputy>\", \"deadline_hours\": \"<hours>\"}}",
+              "type": "object"
+            },
+            {
+              "id": "d39a272d-51cc-5c2b-a6bb-6265ba6ff92a",
+              "name": "checklist",
+              "value": "<link to your copy of Book 1's Checklist 13.1, the quote approver's check>",
+              "type": "string"
+            },
+            {
+              "id": "0a439755-f3c8-5c4e-9eb6-7a3ce914b4b1",
+              "name": "systems_owner",
+              "value": "<your systems owner>",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "f44b80d9-d586-5fe7-955f-5ee993f057a8",
+      "name": "Config",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        260,
+        600
+      ],
+      "notes": "Edit these values for your company; nothing else in the workflow hard-codes them.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "\n// Which of the four triggers started this run.\nconst ran = n => { try { return $(n).isExecuted; } catch (e) { return false; } };\nconst event = ran('Step 1: Quote awaiting approval') ? 'route' : ran('Step 8: Decision recorded') ? 'decision'\n  : ran('Step 7: Each hour') ? 'deadlines' : 'backstop';\nreturn [{ json: { event } }];\n"
+      },
+      "id": "942a5074-9211-5ca8-a433-b8ba5e2cf082",
+      "name": "Which event?",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1040,
+        600
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "026c1847-1fdd-5b1b-8f4a-94ef67c5b50c",
+                    "leftValue": "={{ $json.event }}",
+                    "rightValue": "route",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "route"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "479e30f1-ff48-5de1-bbcc-5a088c332e87",
+                    "leftValue": "={{ $json.event }}",
+                    "rightValue": "decision",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "decision"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "cbb76975-2212-547c-a883-f70d4ec81825",
+                    "leftValue": "={{ $json.event }}",
+                    "rightValue": "deadlines",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "deadlines"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "fc57c18d-15ce-5e67-a8b0-b27ed1ff9f7f",
+                    "leftValue": "={{ $json.event }}",
+                    "rightValue": "backstop",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "backstop"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "d9e69111-5fe8-56f5-a5f4-39a141ef2c01",
+      "name": "Event",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        1300,
+        600
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH reserved AS (INSERT INTO key_log (recipe, key, status) VALUES ($1, $2, 'in progress') ON CONFLICT (recipe, key) DO NOTHING RETURNING key), skipped AS (UPDATE key_log SET copies_skipped = copies_skipped + 1 WHERE recipe = $1 AND key = $2 AND NOT EXISTS (SELECT 1 FROM reserved)) SELECT (SELECT count(*) FROM reserved) = 1 AS is_new, $2::text AS key",
+        "options": {
+          "queryReplacement": "={{ [\"R5.4\", $('Step 1: Quote awaiting approval').first().json.body.quote_id + ':' + $('Step 1: Quote awaiting approval').first().json.body.revision] }}"
+        }
+      },
+      "id": "a339d19a-53dc-55e8-b37c-410b03030b41",
+      "name": "Step 2: Reserve key",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1560,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "Key log: refuses a second copy in the same step (book Chapter 2).",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.is_new }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "id": "ca37fc0d-1b16-5fe5-b9ac-84f41c87e9b8"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "9665dd45-9e12-5c89-918c-659bbca088a6",
+      "name": "New key?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1820,
+        0
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "c43782f5-e765-5e11-bb47-a181b86fe16b",
+      "name": "Duplicate: stop",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        2080,
+        -200
+      ],
+      "notes": "This quote revision was routed before.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Config').first().json.crm_url }}/quotes/{{ $('Step 1: Quote awaiting approval').first().json.body.quote_id }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        }
+      },
+      "id": "73b63697-b9da-5637-a46d-c1b483ddd34b",
+      "name": "Read the quote",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2080,
+        0
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Config').first().json.crm_url }}/price_lists/current",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        }
+      },
+      "id": "076425ea-98a9-59e6-b511-6b808b780881",
+      "name": "Read the price list",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2340,
+        0
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "\nfunction recompute(q, list) {\n  const onList = new Set((list.items || []).map(i => i.code));\n  let cents = 0, largest = 0, offList = false, multiYear = Number(q.term_years || 0) > 1;\n  for (const l of q.lines || []) {\n    const disc = Number(l.discount_pct || 0);\n    largest = Math.max(largest, disc);\n    if (Number(l.years || 0) > 1) multiYear = true;\n    if (l.off_list || l.unit_price == null || !onList.has(l.code)) { offList = true; continue; }\n    const u = BigInt(Math.round(Number(l.unit_price) * 10000)), d = BigInt(Math.round(disc * 100));\n    cents += Number((u * BigInt(Number(l.quantity)) * (10000n - d) + 500000n) / 1000000n);\n  }\n  return { value: cents / 100, largest_discount: largest, multi_year: multiYear, off_list: offList, non_standard: q.non_standard_terms === true };\n}\nfunction listCurrent(q, list) {\n  const today = new Date().toISOString().slice(0, 10);\n  return q.price_list_version === list.version && !!list.valid_until && list.valid_until >= today;\n}\n\n// Steps 3 and 4: recompute from the CRM record; is the stamped price list still current?\nconst q = $('Read the quote').first().json, list = $('Read the price list').first().json;\nreturn [{ json: Object.assign(recompute(q, list), { current: listCurrent(q, list), stamped: q.price_list_version, list_version: list.version }) }];\n"
+      },
+      "id": "d66b5d65-0b92-566c-ae52-078ca7077fbe",
+      "name": "Step 3: Recompute from the CRM record",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2600,
+        0
+      ],
+      "notes": "Value after discount, largest line discount, multi-year, off-list and non-standard flags; never the quote text.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.current }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "id": "e017521c-ebe9-5a86-b89d-31ad53e315cc"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "6163ca36-b615-52c2-b57b-19beacd46ca6",
+      "name": "Step 4: Stamped price list current?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2860,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $('Config').first().json.crm_url }}/quotes/{{ $('Step 1: Quote awaiting approval').first().json.body.quote_id }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ status: 'back to R5.3', locked: true, return_reason: 'price list ' + $json.stamped + ' replaced by ' + $json.list_version }) }}"
+      },
+      "id": "0bad2ff0-c408-59cb-be2a-48f0b403ad7b",
+      "name": "Step 4: Send back to R5.3",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3120,
+        240
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').first().json.messaging_url }}/messages",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ to: $('Read the quote').first().json.salesperson, subject: 'Quote ' + $('Step 1: Quote awaiting approval').first().json.body.quote_id + ' back to drafting', text: 'The price list it was drafted from is no longer current; mark the opportunity ready to quote again to redraft it.' }) }}"
+      },
+      "id": "d596ff39-2430-5c95-9826-a9f35cc0a1a1",
+      "name": "Step 4: Tell the salesperson",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3380,
+        240
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "\n// Step 5: Table 5.1. Ben's own quotes go to Helen; an off-list line counts as over standard.\nconst cfg = $('Config').first().json;\nconst q = $('Read the quote').first().json;\nconst f = $('Step 3: Recompute from the CRM record').first().json;\nconst A = cfg.approvers;\nconst spLimit = Number(cfg.salesperson_limit), leadLimit = Number(cfg.sales_lead_limit), std = Number(cfg.standard_discount_pct);\nif (![spLimit, leadLimit, std].every(Number.isFinite)) throw new Error('Config: set salesperson_limit, sales_lead_limit and standard_discount_pct to numbers');\nconst overStd = f.largest_discount > std || f.off_list;\nconst term = f.multi_year || f.non_standard;\nlet level, why;\nif (q.salesperson === A.sales_lead.person) { level = 'ceo'; why = \"sales lead's own quote\"; }\nelse if (f.value > leadLimit) { level = 'ceo'; why = \"over the sales lead's limit\"; }\nelse if (f.value > spLimit) { level = 'sales_lead'; why = \"between the salesperson's and the sales lead's limits\"; }\nelse if (overStd || term) { level = 'sales_lead'; why = [f.largest_discount > std && 'discount over standard', f.off_list && 'off-list line', f.multi_year && 'multi-year', f.non_standard && 'non-standard term'].filter(Boolean).join(', '); }\nelse { level = 'salesperson'; why = \"within the salesperson's limit and standard discount\"; }\nconst approver = level === 'salesperson' ? q.salesperson : A[level].person;\nconst now = new Date();\nreturn [{ json: { level, why, approver, deputy: A[level].deputy, deadline_hours: Number(A[level].deadline_hours), requested_at: now.toISOString() } }];\n"
+      },
+      "id": "34f0408c-0d5d-5d6f-9774-5ba0f8b92c85",
+      "name": "Step 5: Rule: Table 5.1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3120,
+        0
+      ],
+      "notes": "The rule decides who approves; nobody else can.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $('Config').first().json.crm_url }}/quotes/{{ $('Step 1: Quote awaiting approval').first().json.body.quote_id }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ locked: true, approver: $json.approver, deputy: $json.deputy, approval_level: $json.level, deadline_hours: $json.deadline_hours, requested_at: $json.requested_at, escalation: 0 }) }}"
+      },
+      "id": "d75074b3-72c8-509b-8b5a-7570dc3c20ce",
+      "name": "Step 6: Lock and record the approver",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3380,
+        0
+      ],
+      "notes": "Locked where the CRM can; only approval unlocks sending.",
+      "notesInFlow": true,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').first().json.messaging_url }}/messages",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ to: $('Step 5: Rule: Table 5.1').first().json.approver, subject: 'Approve quote ' + $('Step 1: Quote awaiting approval').first().json.body.quote_id + ' revision ' + $('Step 1: Quote awaiting approval').first().json.body.revision, text: 'Value after discount ' + $('Step 3: Recompute from the CRM record').first().json.value + '; largest line discount ' + $('Step 3: Recompute from the CRM record').first().json.largest_discount + '%; ' + $('Step 5: Rule: Table 5.1').first().json.why + '. Record your decision in the CRM within ' + $('Step 5: Rule: Table 5.1').first().json.deadline_hours + ' hours.', checklist: $('Config').first().json.checklist }) }}"
+      },
+      "id": "5e57dd5e-a694-5876-b56e-b23babef5580",
+      "name": "Step 6: Send the request with Checklist 13.1",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3640,
+        0
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $('Config').first().json.crm_url }}/quotes/{{ $('Step 1: Quote awaiting approval').first().json.body.quote_id }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ status: 'returned', locked: true, return_reason: 'approval request not sent' }) }}"
+      },
+      "id": "55aeb3d0-ab23-5fd7-947f-d932bcc00887",
+      "name": "Step 6: Return the quote, locked",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3900,
+        160
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').first().json.messaging_url }}/messages",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ to: $('Config').first().json.systems_owner, subject: 'Approval request not sent: quote ' + $('Step 1: Quote awaiting approval').first().json.body.quote_id, text: 'The quote is returned and locked; check the messaging connection, then set it awaiting approval again.' }) }}"
+      },
+      "id": "b14239f2-9bf1-56b2-bfe8-945595952f3d",
+      "name": "Step 6: Tell Owen",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        4160,
+        160
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "\n// What the routing run decided, for the decision log: quote, revision, value, discount, approver.\nconst ran = n => { try { return $(n).isExecuted; } catch (e) { return false; } };\nconst f = $('Step 3: Recompute from the CRM record').first().json;\nconst t = ran('Step 5: Rule: Table 5.1') ? $('Step 5: Rule: Table 5.1').first().json : null;\nlet decision;\nif (!f.current) decision = 'back to R5.3: price list ' + f.stamped + ' is not current';\nelse if (ran('Step 6: Return the quote, locked')) decision = 'returned: approval request not sent';\nelse decision = 'routed to ' + t.approver;\nreturn [{ json: { decision, approver: null, rules: { value: f.value, largest_discount: f.largest_discount, multi_year: f.multi_year,\n  off_list: f.off_list, non_standard: f.non_standard, level: t ? t.level : null, approver: t ? t.approver : null, why: t ? t.why : null } } }];\n"
+      },
+      "id": "2a049f60-74bb-5029-b347-0d49513d1422",
+      "name": "Routing summary",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4420,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE key_log SET status = $3, result = $4 WHERE recipe = $1 AND key = $2 RETURNING key",
+        "options": {
+          "queryReplacement": "={{ [\"R5.4\", $('Step 1: Quote awaiting approval').first().json.body.quote_id + ':' + $('Step 1: Quote awaiting approval').first().json.body.revision, \"done\", $json.decision] }}"
+        }
+      },
+      "id": "6af06b56-4b72-5e2a-b149-92cfb9b8a574",
+      "name": "Mark key done",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        4680,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO decision_log (recipe, item, decision, rules) VALUES ($1, $2, $3, $4::jsonb) RETURNING id",
+        "options": {
+          "queryReplacement": "={{ [\"R5.4\", $('Step 1: Quote awaiting approval').first().json.body.quote_id + ':' + $('Step 1: Quote awaiting approval').first().json.body.revision, $('Routing summary').first().json.decision, JSON.stringify($('Routing summary').first().json.rules)] }}"
+        }
+      },
+      "id": "1666c2fe-55c4-5e5c-b5f0-ef402e0ceecc",
+      "name": "Decision log",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        4940,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "Decision log: the item's ID, the decision and the rules; never the content (book Chapter 3).",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE key_log SET status = $3, result = $4 WHERE recipe = $1 AND key = $2 RETURNING key",
+        "options": {
+          "queryReplacement": "={{ [\"R5.4\", $('Step 1: Quote awaiting approval').first().json.body.quote_id + ':' + $('Step 1: Quote awaiting approval').first().json.body.revision, \"failed\", 'write failed: ' + (($json.error && $json.error.message) || 'unknown')] }}"
+        }
+      },
+      "id": "843ccfe7-60ee-57ed-af2e-d59a2eecfc12",
+      "name": "Mark key failed",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        4420,
+        400
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO exception_queue (recipe, item, reason, detail, owner) VALUES ($1, $2, $3, $4, $5) RETURNING id",
+        "options": {
+          "queryReplacement": "={{ [\"R5.4\", $('Step 1: Quote awaiting approval').first().json.body.quote_id, \"write failed\", 'Quote status or request write failed, not retried; route by hand, then release the key', $('Config').first().json.approvers.sales_lead.person] }}"
+        }
+      },
+      "id": "7f96a287-9756-54c4-8325-bf7aa053c71c",
+      "name": "Exception queue: write failed",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        4680,
+        400
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "Exception queue: a named person works through it (book Chapters 2 and 16).",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH reserved AS (INSERT INTO key_log (recipe, key, status) VALUES ($1, $2, 'in progress') ON CONFLICT (recipe, key) DO NOTHING RETURNING key), skipped AS (UPDATE key_log SET copies_skipped = copies_skipped + 1 WHERE recipe = $1 AND key = $2 AND NOT EXISTS (SELECT 1 FROM reserved)) SELECT (SELECT count(*) FROM reserved) = 1 AS is_new, $2::text AS key",
+        "options": {
+          "queryReplacement": "={{ [\"R5.4\", 'decision:' + $('Step 8: Decision recorded').first().json.body.quote_id + ':' + $('Step 8: Decision recorded').first().json.body.revision] }}"
+        }
+      },
+      "id": "c4438855-4ff6-58fc-b39d-180932c7ba80",
+      "name": "Step 8: Reserve decision key",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1560,
+        600
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "Key log: refuses a second copy in the same step (book Chapter 2).",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.is_new }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "id": "dc7107a0-b04f-58c5-845b-c87724dd81b9"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "41cc7f09-f103-5512-a449-b18871a7c26a",
+      "name": "New decision?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1820,
+        600
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "a0304585-c43e-588f-8d8e-032696c8c6dd",
+      "name": "Duplicate decision: stop",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        2080,
+        440
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Config').first().json.crm_url }}/quotes/{{ $('Step 8: Decision recorded').first().json.body.quote_id }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        }
+      },
+      "id": "8457d7e4-dcda-5d5d-b427-32416d8b5f7f",
+      "name": "Read the quote (decision)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2080,
+        600
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Config').first().json.crm_url }}/price_lists/current",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        }
+      },
+      "id": "f5e57c16-927f-5375-83de-02bff1365ecc",
+      "name": "Read the price list (decision)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2340,
+        600
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "\nfunction recompute(q, list) {\n  const onList = new Set((list.items || []).map(i => i.code));\n  let cents = 0, largest = 0, offList = false, multiYear = Number(q.term_years || 0) > 1;\n  for (const l of q.lines || []) {\n    const disc = Number(l.discount_pct || 0);\n    largest = Math.max(largest, disc);\n    if (Number(l.years || 0) > 1) multiYear = true;\n    if (l.off_list || l.unit_price == null || !onList.has(l.code)) { offList = true; continue; }\n    const u = BigInt(Math.round(Number(l.unit_price) * 10000)), d = BigInt(Math.round(disc * 100));\n    cents += Number((u * BigInt(Number(l.quantity)) * (10000n - d) + 500000n) / 1000000n);\n  }\n  return { value: cents / 100, largest_discount: largest, multi_year: multiYear, off_list: offList, non_standard: q.non_standard_terms === true };\n}\nfunction listCurrent(q, list) {\n  const today = new Date().toISOString().slice(0, 10);\n  return q.price_list_version === list.version && !!list.valid_until && list.valid_until >= today;\n}\n\n// Step 8: only the routed approver or deputy, on the revision they were asked about, decides.\nconst q = $('Read the quote (decision)').first().json, list = $('Read the price list (decision)').first().json;\nconst d = $('Step 8: Decision recorded').first().json.body;\nconst problems = [];\nif (q.status !== 'awaiting approval') problems.push(`quote is ${q.status}, not awaiting approval`);\nif (Number(d.revision) !== Number(q.revision)) problems.push(`decision on revision ${d.revision}; the quote is now revision ${q.revision} and routes again`);\nif (![q.approver, q.deputy].includes(d.by)) problems.push(`${d.by} is not the routed approver or deputy`);\nif (!['approved', 'rejected'].includes(d.decision)) problems.push(`decision \"${d.decision}\" is not approved or rejected`);\nif (problems.length) return [{ json: { outcome: 'refuse', reason: problems.join('; ') } }];\nif (d.decision === 'approved' && !listCurrent(q, list)) return [{ json: { outcome: 'back', reason: `price list ${q.price_list_version} replaced by ${list.version} while waiting` } }];\nreturn [{ json: Object.assign({ outcome: d.decision === 'approved' ? 'approve' : 'reject' }, recompute(q, list)) }];\n"
+      },
+      "id": "78299902-2d29-52df-9a13-adea2a1a2c05",
+      "name": "Step 8: Rule: accept the decision?",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2600,
+        600
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "064952f2-838b-52a1-a85c-0c28c61507da",
+                    "leftValue": "={{ $json.outcome }}",
+                    "rightValue": "approve",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "approve"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "9a895bcc-4423-5ffb-9413-a8aa054e191d",
+                    "leftValue": "={{ $json.outcome }}",
+                    "rightValue": "reject",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "reject"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "bcaf632f-6bda-5dc7-a86c-afe1c1cfee14",
+                    "leftValue": "={{ $json.outcome }}",
+                    "rightValue": "back",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "back"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "51937e99-2627-5d84-b436-9db11df7379e",
+                    "leftValue": "={{ $json.outcome }}",
+                    "rightValue": "refuse",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "refuse"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "02c9ad49-e0ca-54b3-8980-91c0371b1a97",
+      "name": "Step 8: Outcome",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        2860,
+        600
+      ]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $('Config').first().json.crm_url }}/quotes/{{ $('Step 8: Decision recorded').first().json.body.quote_id }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ status: 'approved', locked: false, approved_by: $('Step 8: Decision recorded').first().json.body.by, approved_at: new Date().toISOString(), approved_revision: $('Read the quote (decision)').first().json.revision }) }}"
+      },
+      "id": "3622e4ff-c9cf-5eff-8250-c622958643c7",
+      "name": "Step 8: Unlock sending",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3120,
+        440
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $('Config').first().json.crm_url }}/quotes/{{ $('Step 8: Decision recorded').first().json.body.quote_id }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ status: 'returned', locked: true, rejected_by: $('Step 8: Decision recorded').first().json.body.by, comment: $('Step 8: Decision recorded').first().json.body.comment || '' }) }}"
+      },
+      "id": "7523e307-c5b9-5c83-9b4b-32340954eb3e",
+      "name": "Step 8: Return with the comment",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3120,
+        600
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $('Config').first().json.crm_url }}/quotes/{{ $('Step 8: Decision recorded').first().json.body.quote_id }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ status: 'back to R5.3', locked: true, return_reason: $json.reason }) }}"
+      },
+      "id": "0110c090-b530-5b84-9ddd-e11112a0d0fe",
+      "name": "Step 8: Send back to R5.3",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3120,
+        760
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').first().json.messaging_url }}/messages",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ to: $('Read the quote (decision)').first().json.salesperson, subject: 'Quote ' + $('Step 8: Decision recorded').first().json.body.quote_id + ' back to drafting', text: 'The price list changed while it waited for approval; mark the opportunity ready to quote again to redraft it.' }) }}"
+      },
+      "id": "f5c285a2-9e1f-5503-b090-e789ba3328c5",
+      "name": "Step 8: Tell the salesperson",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3380,
+        760
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO exception_queue (recipe, item, reason, detail, owner) VALUES ($1, $2, $3, $4, $5) RETURNING id",
+        "options": {
+          "queryReplacement": "={{ [\"R5.4\", $('Step 8: Decision recorded').first().json.body.quote_id, \"decision not accepted\", $json.reason, $('Config').first().json.approvers.sales_lead.person] }}"
+        }
+      },
+      "id": "39084c9f-5ecc-5a12-97d5-7403dd32dc4d",
+      "name": "Exception queue: decision not accepted",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        3120,
+        920
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "Exception queue: a named person works through it (book Chapters 2 and 16).",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "\nconst r = $('Step 8: Rule: accept the decision?').first().json;\nconst d = $('Step 8: Decision recorded').first().json.body;\nconst q = $('Read the quote (decision)').first().json;\nconst decision = { approve: 'approved; sending unlocked', reject: 'rejected; returned with the comment', back: 'back to R5.3: ' + r.reason, refuse: 'decision not accepted: ' + r.reason }[r.outcome];\nreturn [{ json: { decision, approver: r.outcome === 'approve' ? d.by : null,\n  rules: { revision: q.revision, value: r.value ?? null, largest_discount: r.largest_discount ?? null, by: d.by, decision: d.decision, price_list_version: q.price_list_version } } }];\n"
+      },
+      "id": "263dcfa1-8878-517f-b7ed-80d52c78ca82",
+      "name": "Decision summary",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3640,
+        600
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE key_log SET status = $3, result = $4 WHERE recipe = $1 AND key = $2 RETURNING key",
+        "options": {
+          "queryReplacement": "={{ [\"R5.4\", 'decision:' + $('Step 8: Decision recorded').first().json.body.quote_id + ':' + $('Step 8: Decision recorded').first().json.body.revision, \"done\", $json.decision] }}"
+        }
+      },
+      "id": "6bd0bb1f-3017-5007-9908-6d8972e8003b",
+      "name": "Mark decision key done",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        3900,
+        600
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO decision_log (recipe, item, decision, rules, approved_by) VALUES ($1, $2, $3, $4::jsonb, $5) RETURNING id",
+        "options": {
+          "queryReplacement": "={{ [\"R5.4\", $('Step 8: Decision recorded').first().json.body.quote_id + ':' + $('Read the quote (decision)').first().json.revision, $('Decision summary').first().json.decision, JSON.stringify($('Decision summary').first().json.rules), $('Decision summary').first().json.approver] }}"
+        }
+      },
+      "id": "5420a6fb-81eb-514e-ba2e-4fa473afd86f",
+      "name": "Step 8: Log approver, time and version",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        4160,
+        600
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "Decision log: approver, time and version; never the quote's content.",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE key_log SET status = $3, result = $4 WHERE recipe = $1 AND key = $2 RETURNING key",
+        "options": {
+          "queryReplacement": "={{ [\"R5.4\", 'decision:' + $('Step 8: Decision recorded').first().json.body.quote_id + ':' + $('Step 8: Decision recorded').first().json.body.revision, \"failed\", 'write failed: ' + (($json.error && $json.error.message) || 'unknown')] }}"
+        }
+      },
+      "id": "eddf46d5-85f3-540a-a886-979e2ad72010",
+      "name": "Mark decision key failed",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        3640,
+        1000
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO exception_queue (recipe, item, reason, detail, owner) VALUES ($1, $2, $3, $4, $5) RETURNING id",
+        "options": {
+          "queryReplacement": "={{ [\"R5.4\", $('Step 8: Decision recorded').first().json.body.quote_id, \"write failed\", 'Decision write failed, not retried; set the quote by hand, then release the key', $('Config').first().json.approvers.sales_lead.person] }}"
+        }
+      },
+      "id": "76028807-c035-571d-9648-3121a81db41a",
+      "name": "Exception queue: decision write failed",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        3900,
+        1000
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "Exception queue: a named person works through it (book Chapters 2 and 16).",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Config').first().json.crm_url }}/quotes",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "_wrap",
+              "value": "1"
+            },
+            {
+              "name": "status",
+              "value": "awaiting approval"
+            }
+          ]
+        }
+      },
+      "id": "62708b02-a76d-5dc2-9df2-a035cb17981b",
+      "name": "Read quotes awaiting approval",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1560,
+        1200
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "\n// Step 7: remind at the deadline, ask the deputy at twice it, return at three times it.\nconst quotes = $('Read quotes awaiting approval').first().json.items || [];\nconst now = Date.now();\nconst out = [];\nfor (const q of quotes) {\n  if (!q.requested_at || !q.deadline_hours || !q.approver) continue;\n  const stage = Math.min(3, Math.floor((now - new Date(q.requested_at).getTime()) / 3600000 / Number(q.deadline_hours)));\n  if (stage <= Number(q.escalation || 0)) continue;\n  const action = ['', 'remind', 'deputy', 'return'][stage];\n  out.push({ json: { quote_id: q.id, revision: q.revision, action, stage, approver: q.approver, deputy: q.deputy, salesperson: q.salesperson } });\n}\nreturn out;\n"
+      },
+      "id": "bdbd9389-f8b9-5026-9f76-36105e42d196",
+      "name": "Step 7: Rule: deadline passed?",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1820,
+        1200
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "02cfe197-273c-5bca-9cf6-d210c409f336",
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "remind",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "remind"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "be1e824f-e3c2-5d3b-870c-8705ddd24153",
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "deputy",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "deputy"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "57487390-c031-5aef-9df9-0980e4248d39",
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "return",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "return"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "91e4bc82-31c8-5854-8b0f-de22fc216c14",
+      "name": "Step 7: Action",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        2080,
+        1200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').first().json.messaging_url }}/messages",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ to: $json.approver, subject: 'Reminder: approve quote ' + $json.quote_id, text: 'The response deadline has passed. ' + $('Config').first().json.checklist }) }}"
+      },
+      "id": "c7e322f5-beb2-59f3-8b66-8846ec1c6184",
+      "name": "Step 7: Remind the approver",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2340,
+        1060
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').first().json.messaging_url }}/messages",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ to: $json.deputy, subject: 'Please approve quote ' + $json.quote_id + ' as deputy', text: 'The approver has not decided by twice the deadline. ' + $('Config').first().json.checklist }) }}"
+      },
+      "id": "007c786a-28bd-5ac1-86bc-a344e9ac289e",
+      "name": "Step 7: Ask the deputy",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2340,
+        1200
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $('Config').first().json.crm_url }}/quotes/{{ $json.quote_id }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ status: 'returned', locked: true, escalation: 3, return_reason: 'no decision by three times the deadline' }) }}"
+      },
+      "id": "23b936b1-5461-50a9-ba45-76ae12d50dda",
+      "name": "Step 7: Return the quote, locked",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2340,
+        1340
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $('Config').first().json.crm_url }}/quotes/{{ $('Step 7: Rule: deadline passed?').item.json.quote_id }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ escalation: $('Step 7: Rule: deadline passed?').item.json.stage }) }}"
+      },
+      "id": "d209c075-cd76-5aed-9613-56b38a52b418",
+      "name": "Step 7: Record the escalation",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2600,
+        1130
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').first().json.messaging_url }}/messages",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ to: $('Config').first().json.approvers.sales_lead.person, subject: 'Quote ' + $('Step 7: Rule: deadline passed?').item.json.quote_id + ' returned: no decision', text: 'No decision by three times the deadline; the quote is returned, locked.' }) }}"
+      },
+      "id": "e72cfa0c-266c-56b4-860c-da8a31b34e3f",
+      "name": "Step 7: Tell Ben",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2600,
+        1340
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO exception_queue (recipe, item, reason, detail, owner) VALUES ($1, $2, $3, $4, $5) RETURNING id",
+        "options": {
+          "queryReplacement": "={{ [\"R5.4\", $('Step 7: Rule: deadline passed?').item.json.quote_id, \"deadline action failed\", 'A reminder, deputy request or return failed, not retried; act on the quote by hand', $('Config').first().json.approvers.sales_lead.person] }}"
+        }
+      },
+      "id": "caffd9aa-f590-5ef9-b1ef-1c163b867b69",
+      "name": "Exception queue: deadline action failed",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2860,
+        1500
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "Exception queue: a named person works through it (book Chapters 2 and 16).",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Config').first().json.crm_url }}/quotes",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "_wrap",
+              "value": "1"
+            },
+            {
+              "name": "status",
+              "value": "sent"
+            }
+          ]
+        }
+      },
+      "id": "ebdacda3-08ea-5be5-8f2c-9636296af409",
+      "name": "Read quotes sent",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1560,
+        1700
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "\n// Backstop: any quote sent in the last week without approval of the revision sent.\nconst cfg = $('Config').first().json;\nconst since = Date.now() - 7 * 86400000;\nconst sent = $('Read quotes sent').first().json.items || [];\nreturn sent.filter(q => (!q.sent_at || new Date(q.sent_at).getTime() >= since) && Number(q.approved_revision) !== Number(q.revision))\n  .map(q => ({ json: { quote_id: q.id, revision: q.revision, salesperson: q.salesperson } }));\n"
+      },
+      "id": "4b526c09-bc25-5c4e-b01e-ecd44d3bcf31",
+      "name": "Rule: sent without approval?",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1820,
+        1700
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO exception_queue (recipe, item, reason, detail, owner) VALUES ($1, $2, $3, $4, $5) RETURNING id",
+        "options": {
+          "queryReplacement": "={{ [\"R5.4\", $json.quote_id, \"quote sent unapproved\", 'Quote ' + $json.quote_id + ' revision ' + $json.revision + ' was sent without approval of that revision', $('Config').first().json.approvers.sales_lead.person] }}"
+        }
+      },
+      "id": "0044e512-d364-5f28-a649-2bea9bbf5c98",
+      "name": "Exception queue: sent unapproved",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2080,
+        1700
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "Exception queue: a named person works through it (book Chapters 2 and 16).",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').first().json.messaging_url }}/messages",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ to: $('Config').first().json.approvers.sales_lead.person, subject: 'Quote sent without approval', text: 'Quote ' + $('Rule: sent without approval?').item.json.quote_id + ' was sent unapproved; call the customer.' }) }}"
+      },
+      "id": "db8e6403-57e1-53bb-99bd-4b637960ccf3",
+      "name": "Backstop: Tell Ben",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2340,
+        1700
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Config').item.json.stop_flag_url }}",
+        "options": {}
+      },
+      "id": "4c0e0201-e079-54f1-8751-291bd81406d3",
+      "name": "Stop flag: read",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        520,
+        600
+      ],
+      "notes": "Kill switch: set stopped to true in your stop list and the next run ends quietly (book Chapter 3).",
+      "notesInFlow": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.stopped === true }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "id": "1a3f8c45-17b9-56cb-b9af-3c33b2ae68b4"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "c41e3037-8ffb-5832-b671-774c461a89d0",
+      "name": "Stop flag set?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        780,
+        600
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "5f6c32cc-4f4f-5506-9b8a-e9c197b558e5",
+      "name": "Stopped by the stop flag",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        1040,
+        400
+      ],
+      "notes": "Ends quietly; nothing is read, written or sent.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO exception_queue (recipe, item, reason, detail, owner) VALUES ($1, $2, $3, $4, $5) RETURNING id",
+        "options": {
+          "queryReplacement": "={{ [\"R5.4\", 'run ' + $execution.id, \"stop list unreadable\", 'The stop list could not be read, so the run stopped; fix the stop list', '<your workflow owner>'] }}"
+        }
+      },
+      "id": "ccf73fca-f33b-5521-9ff3-f6c559c8d6f0",
+      "name": "Exception queue: stop list unreadable",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        780,
+        820
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "Exception queue: a named person works through it (book Chapters 2 and 16).",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    }
+  ],
+  "connections": {
+    "Step 1: Quote awaiting approval": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 8: Decision recorded": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 7: Each hour": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Backstop: Each week": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Which event?": {
+      "main": [
+        [
+          {
+            "node": "Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Event": {
+      "main": [
+        [
+          {
+            "node": "Step 2: Reserve key",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Step 8: Reserve decision key",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Read quotes awaiting approval",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Read quotes sent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 2: Reserve key": {
+      "main": [
+        [
+          {
+            "node": "New key?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "New key?": {
+      "main": [
+        [
+          {
+            "node": "Read the quote",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Duplicate: stop",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read the quote": {
+      "main": [
+        [
+          {
+            "node": "Read the price list",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read the price list": {
+      "main": [
+        [
+          {
+            "node": "Step 3: Recompute from the CRM record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 3: Recompute from the CRM record": {
+      "main": [
+        [
+          {
+            "node": "Step 4: Stamped price list current?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 4: Stamped price list current?": {
+      "main": [
+        [
+          {
+            "node": "Step 5: Rule: Table 5.1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Step 4: Send back to R5.3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 4: Send back to R5.3": {
+      "main": [
+        [
+          {
+            "node": "Step 4: Tell the salesperson",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark key failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 5: Rule: Table 5.1": {
+      "main": [
+        [
+          {
+            "node": "Step 6: Lock and record the approver",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 6: Lock and record the approver": {
+      "main": [
+        [
+          {
+            "node": "Step 6: Send the request with Checklist 13.1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark key failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 6: Send the request with Checklist 13.1": {
+      "main": [
+        [
+          {
+            "node": "Routing summary",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Step 6: Return the quote, locked",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 6: Return the quote, locked": {
+      "main": [
+        [
+          {
+            "node": "Step 6: Tell Owen",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark key failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 6: Tell Owen": {
+      "main": [
+        [
+          {
+            "node": "Routing summary",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark key failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 4: Tell the salesperson": {
+      "main": [
+        [
+          {
+            "node": "Routing summary",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark key failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Routing summary": {
+      "main": [
+        [
+          {
+            "node": "Mark key done",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark key done": {
+      "main": [
+        [
+          {
+            "node": "Decision log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark key failed": {
+      "main": [
+        [
+          {
+            "node": "Exception queue: write failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 8: Reserve decision key": {
+      "main": [
+        [
+          {
+            "node": "New decision?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "New decision?": {
+      "main": [
+        [
+          {
+            "node": "Read the quote (decision)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Duplicate decision: stop",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read the quote (decision)": {
+      "main": [
+        [
+          {
+            "node": "Read the price list (decision)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read the price list (decision)": {
+      "main": [
+        [
+          {
+            "node": "Step 8: Rule: accept the decision?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 8: Rule: accept the decision?": {
+      "main": [
+        [
+          {
+            "node": "Step 8: Outcome",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 8: Outcome": {
+      "main": [
+        [
+          {
+            "node": "Step 8: Unlock sending",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Step 8: Return with the comment",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Step 8: Send back to R5.3",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Exception queue: decision not accepted",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 8: Send back to R5.3": {
+      "main": [
+        [
+          {
+            "node": "Step 8: Tell the salesperson",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark decision key failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 8: Unlock sending": {
+      "main": [
+        [
+          {
+            "node": "Decision summary",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark decision key failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 8: Return with the comment": {
+      "main": [
+        [
+          {
+            "node": "Decision summary",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark decision key failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 8: Tell the salesperson": {
+      "main": [
+        [
+          {
+            "node": "Decision summary",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark decision key failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Exception queue: decision not accepted": {
+      "main": [
+        [
+          {
+            "node": "Decision summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Decision summary": {
+      "main": [
+        [
+          {
+            "node": "Mark decision key done",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark decision key done": {
+      "main": [
+        [
+          {
+            "node": "Step 8: Log approver, time and version",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark decision key failed": {
+      "main": [
+        [
+          {
+            "node": "Exception queue: decision write failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read quotes awaiting approval": {
+      "main": [
+        [
+          {
+            "node": "Step 7: Rule: deadline passed?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 7: Rule: deadline passed?": {
+      "main": [
+        [
+          {
+            "node": "Step 7: Action",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 7: Action": {
+      "main": [
+        [
+          {
+            "node": "Step 7: Remind the approver",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Step 7: Ask the deputy",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Step 7: Return the quote, locked",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 7: Remind the approver": {
+      "main": [
+        [
+          {
+            "node": "Step 7: Record the escalation",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Exception queue: deadline action failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 7: Ask the deputy": {
+      "main": [
+        [
+          {
+            "node": "Step 7: Record the escalation",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Exception queue: deadline action failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 7: Return the quote, locked": {
+      "main": [
+        [
+          {
+            "node": "Step 7: Tell Ben",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Exception queue: deadline action failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 7: Record the escalation": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Exception queue: deadline action failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 7: Tell Ben": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Exception queue: deadline action failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read quotes sent": {
+      "main": [
+        [
+          {
+            "node": "Rule: sent without approval?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rule: sent without approval?": {
+      "main": [
+        [
+          {
+            "node": "Exception queue: sent unapproved",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Exception queue: sent unapproved": {
+      "main": [
+        [
+          {
+            "node": "Backstop: Tell Ben",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config": {
+      "main": [
+        [
+          {
+            "node": "Stop flag: read",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Stop flag: read": {
+      "main": [
+        [
+          {
+            "node": "Stop flag set?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Exception queue: stop list unreadable",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Stop flag set?": {
+      "main": [
+        [
+          {
+            "node": "Stopped by the stop flag",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Which event?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataSuccessExecution": "all",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "pinData": {}
+}

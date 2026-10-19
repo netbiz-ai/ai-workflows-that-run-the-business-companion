@@ -3,3 +3,9 @@ Normal,"Seven fresh rows, two large changes",Passes; a link after every figure
 Edge,"""Fell by 6""; change is +6",Fails the direction check
 Duplicate,Corrected export rerun at 3 p.m.,First draft superseded
 Escalate,Nobody verifies by 4:45 p.m.,"Table and commentary, ""not verified"""
+AI error,The AI call fails three times (companion extension),"Table and commentary, ""no narrative this week"""
+Held back,Commentary naming a customer (companion extension),Held back from the AI; sent to Tom to read
+Verified,Tom deletes one sentence; Aisha approves the one on his measure (companion extension),Deletion logged; Tom refused on his own measure; verified narrative published with links
+Too late,A newer table version after 4 p.m. (companion extension),"No AI call; table and commentary, ""no narrative this week"""
+Write fails,The draft write fails (companion extension),Key marked failed; exception queue: write failed; never retried
+Missing measure,"Receivables row ""does not reconcile"" (companion extension)","Passes; receivables appear only as ""missing this week"""

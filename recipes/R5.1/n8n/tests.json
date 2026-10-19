@@ -1,0 +1,108 @@
+{
+  "config": {
+    "crm_url": "{mocks}/crm",
+    "mailbox_url": "{mocks}/mailbox",
+    "notes_url": "{mocks}/notes",
+    "messaging_url": "{mocks}/messaging",
+    "shared_inbox": "shared-inbox@example.test",
+    "queue_checker": "queue-checker@example.test",
+    "match_reviewer": "ben@example.test",
+    "ai_url": "{mocks}/anthropic/v1/messages"
+  },
+  "seed": {
+    "crm": {"leads": {}, "activities": {}, "attachments": {}},
+    "mailbox": {"messages": {
+      "MSG-1": {"id": "MSG-1", "from": "pm@harbourflats.example.test", "subject": "Furnishing 24 apartments",
+                "body": "Hello, I emailed on Sunday through your form as well. We are furnishing the Harbour Flats block and need beds and sofas for 24 apartments. Please call me on 555 0142. Dana Price, Harbour Flats Property Management"}
+    }},
+    "notes": {"notes": {}}
+  },
+  "cases": [
+    {"case": "Normal", "row": 1, "input": "Property manager's web form",
+     "trigger": [{"webhook": "r5-1-web-form", "body": {"submission_id": "SUB-1", "name": "Dana Price", "company": "Harbour Flats Property Management",
+                  "email": "pm@harbourflats.example.test", "phone": "555 0142", "need": "Beds and sofas for 24 apartments"}}],
+     "expect": [
+       {"mock": "crm/leads", "count": 1},
+       {"mock": "crm/leads/1", "field": "status", "equals": "new, unassigned"},
+       {"mock": "crm/leads/1", "field": "source_id", "equals": "SUB-1"},
+       {"mock": "crm/leads/1", "field": "phone", "equals": "5550142"},
+       {"mock": "crm/attachments", "count": 1},
+       {"calls": "POST /anthropic/v1/messages", "count": 0},
+       {"sql": "select decision from decision_log where recipe='R5.1'", "equals": "new lead"},
+       {"sql": "select count(*) from exception_queue where recipe='R5.1'", "equals": "0"}]},
+    {"case": "Duplicate", "row": 2, "input": "Same form twice",
+     "trigger": [{"webhook": "r5-1-web-form", "body": {"submission_id": "SUB-1", "name": "Dana Price", "company": "Harbour Flats Property Management",
+                  "email": "pm@harbourflats.example.test", "phone": "555 0142", "need": "Beds and sofas for 24 apartments"}, "pause": 3},
+                 {"webhook": "r5-1-web-form", "body": {"submission_id": "SUB-1", "name": "Dana Price", "company": "Harbour Flats Property Management",
+                  "email": "pm@harbourflats.example.test", "phone": "555 0142", "need": "Beds and sofas for 24 apartments"}}],
+     "expect": [
+       {"mock": "crm/leads", "count": 1},
+       {"calls": "POST /crm/leads", "count": 1},
+       {"sql": "select copies_skipped from key_log where recipe='R5.1'", "equals": "1"}]},
+    {"case": "Edge", "row": 3, "input": "Sunday form, Monday email, same address", "needs_ai": true,
+     "trigger": [{"webhook": "r5-1-web-form", "body": {"submission_id": "SUB-1", "name": "Dana Price", "company": "Harbour Flats Property Management",
+                  "email": "pm@harbourflats.example.test", "phone": "", "need": "Beds and sofas for 24 apartments"}, "pause": 3},
+                 {"webhook": "r5-1-inquiry-email", "body": {"message_id": "MSG-1"}}],
+     "expect": [
+       {"mock": "crm/leads", "count": 1},
+       {"mock": "crm/activities", "count": 1},
+       {"mock": "crm/activities/3", "field": "source_id", "equals": "MSG-1"},
+       {"mock": "crm/activities/3", "field": "lead_id", "equals": "1"}]},
+    {"case": "Escalate", "row": 4, "input": "Two records share the email",
+     "seed": {"crm": {"leads": {
+       "L-7": {"id": "L-7", "name": "Dana Price", "company": "Harbour Flats", "email": "pm@harbourflats.example.test", "phone": "", "status": "contacted"},
+       "L-9": {"id": "L-9", "name": "D. Price", "company": "Harbour Flats PM", "email": "pm@harbourflats.example.test", "phone": "", "status": "new, unassigned"}}}},
+     "trigger": [{"webhook": "r5-1-web-form", "body": {"submission_id": "SUB-2", "name": "Dana Price", "company": "Harbour Flats Property Management",
+                  "email": "pm@harbourflats.example.test", "phone": "", "need": "Sofas for the lobby"}}],
+     "expect": [
+       {"sql": "select reason from exception_queue where recipe='R5.1'", "equals": "CRM match unclear"},
+       {"sql": "select owner from exception_queue where recipe='R5.1'", "equals": "ben@example.test"},
+       {"mock": "crm/leads", "count": 2},
+       {"mock": "crm/activities", "count": 0}]},
+    {"case": "Refuse", "row": 5, "input": "\"Please put us on your supplier list\"", "needs_ai": true,
+     "seed": {"mailbox": {"messages": {"MSG-2": {"id": "MSG-2", "from": "sales@woodworks.example.test", "subject": "Supplier list",
+               "body": "Please put us on your supplier list. We make solid oak dining tables and can deliver nationwide. Sam Kerr, Woodworks Ltd"}}}},
+     "trigger": [{"webhook": "r5-1-inquiry-email", "body": {"message_id": "MSG-2"}}],
+     "expect": [
+       {"mock": "crm/leads", "count": 0},
+       {"mock": "crm/activities", "count": 0},
+       {"mock": "messaging/messages", "count": 1},
+       {"mock": "messaging/messages/1", "field": "to", "equals": "shared-inbox@example.test"}]},
+    {"case": "Incomplete", "row": 6, "input": "A web form with no email or phone (companion extension)",
+     "trigger": [{"webhook": "r5-1-web-form", "body": {"submission_id": "SUB-3", "name": "Dana Price", "company": "Harbour Flats Property Management",
+                  "email": "", "phone": "", "need": "Beds and sofas for 24 apartments"}}],
+     "expect": [
+       {"sql": "select reason from exception_queue where recipe='R5.1'", "equals": "incomplete inquiry"},
+       {"sql": "select owner from exception_queue where recipe='R5.1'", "equals": "queue-checker@example.test"},
+       {"sql": "select detail from exception_queue where recipe='R5.1'", "equals": "Missing or malformed: email or phone"},
+       {"mock": "crm/leads", "count": 0},
+       {"calls": "GET /crm/leads", "count": 0}]},
+    {"case": "Company name only", "row": 7, "input": "A web form whose only CRM match is the company name (companion extension)",
+     "seed": {"crm": {"leads": {
+       "L-7": {"id": "L-7", "name": "Lee Chan", "company": "Harbour Flats Property Management", "email": "lee@harbourflats.example.test", "phone": "5550199", "status": "contacted"}}}},
+     "trigger": [{"webhook": "r5-1-web-form", "body": {"submission_id": "SUB-4", "name": "Dana Price", "company": "Harbour Flats Property Management",
+                  "email": "pm@harbourflats.example.test", "phone": "", "need": "Sofas for the lobby"}}],
+     "expect": [
+       {"sql": "select reason from exception_queue where recipe='R5.1'", "equals": "CRM match unclear"},
+       {"mock": "crm/leads", "count": 1},
+       {"mock": "crm/activities", "count": 0}]},
+    {"case": "AI error", "row": 8, "input": "The AI call fails twice (companion extension)",
+     "fail": [{"method": "POST", "path": "/anthropic/v1/messages", "status": 529, "times": 2}],
+     "trigger": [{"webhook": "r5-1-inquiry-email", "body": {"message_id": "MSG-1"}}],
+     "expect": [
+       {"calls": "POST /anthropic/v1/messages", "count": 2},
+       {"sql": "select reason from exception_queue where recipe='R5.1'", "equals": "incomplete inquiry"},
+       {"sql": "select detail like 'AI error after one retry%' from exception_queue where recipe='R5.1'", "equals": "t"},
+       {"mock": "crm/leads", "count": 0},
+       {"mock": "messaging/messages", "count": 0}]},
+    {"case": "CRM write fails", "row": 9, "input": "The lead create fails (companion extension)",
+     "fail": [{"method": "POST", "path": "/crm/leads", "status": 500, "times": 1}],
+     "trigger": [{"webhook": "r5-1-web-form", "body": {"submission_id": "SUB-1", "name": "Dana Price", "company": "Harbour Flats Property Management",
+                  "email": "pm@harbourflats.example.test", "phone": "555 0142", "need": "Beds and sofas for 24 apartments"}}],
+     "expect": [
+       {"calls": "POST /crm/leads", "count": 1},
+       {"sql": "select status from key_log where recipe='R5.1'", "equals": "failed"},
+       {"sql": "select reason from exception_queue where recipe='R5.1'", "equals": "write failed"},
+       {"sql": "select owner from exception_queue where recipe='R5.1'", "equals": "ben@example.test"}]}
+  ]
+}

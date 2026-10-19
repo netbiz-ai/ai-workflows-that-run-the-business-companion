@@ -3,3 +3,5 @@ Normal,"14 jobs, one overdue, one open complaint","Full briefing, all 14; risks 
 Edge,Scheduling system down,"""Partial"", ""not available"" shown; second start tries"
 Duplicate,Schedule fires again after a full briefing,Stops; one briefing
 Refuse,Monthly AI cap reached,No run; Owen alerted
+AI error,The AI call fails (companion extension),"""Partial"" raw list posted; AI spend recorded; second start tries"
+Source credential expires,The stock-exception read is refused on both starts (companion extension),"""Not available"" on both starts"

@@ -1,0 +1,1193 @@
+{
+  "name": "R12.1 Pull the weekly figures into one dated table",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "weeks",
+              "weeksInterval": 1,
+              "triggerAtDay": [
+                4
+              ],
+              "triggerAtHour": 19,
+              "triggerAtMinute": 30
+            }
+          ]
+        }
+      },
+      "id": "75b60b4e-0ea0-5358-b600-6cb603f9f22c",
+      "name": "Step 1: Thursday 19:30",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "notes": "Thursday 7:30 p.m. in the workflow's time zone, after the save window; recheck it after each daylight-saving change.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "91d8d401-6b4c-524f-b361-66a24efe8447",
+              "name": "stop_flag_url",
+              "value": "https://<your stop list API>/stop_flags/R12.1",
+              "type": "string"
+            },
+            {
+              "id": "6765af6a-d75f-560a-86fc-ce7be80cabfc",
+              "name": "library_url",
+              "value": "https://<your file store API>",
+              "type": "string"
+            },
+            {
+              "id": "09c118c2-1c10-564c-9f4b-2a78d97c371e",
+              "name": "table_url",
+              "value": "https://<your weekly table API>",
+              "type": "string"
+            },
+            {
+              "id": "405b7a00-ccd0-5838-a0c7-23b37d5b9b44",
+              "name": "snapshots_url",
+              "value": "https://<your snapshot list API>",
+              "type": "string"
+            },
+            {
+              "id": "f9a43cd9-717e-5812-906b-9f6d1b0e0a49",
+              "name": "approved_rules_url",
+              "value": "https://<your approved rule versions list API>",
+              "type": "string"
+            },
+            {
+              "id": "d44ce961-3f73-535b-952c-adeffdd85920",
+              "name": "messaging_url",
+              "value": "https://<your messaging API>",
+              "type": "string"
+            },
+            {
+              "id": "4a7c3b89-4e97-5dc8-84bf-4b5e8a868b96",
+              "name": "cutoff_weekday",
+              "value": 4,
+              "type": "number"
+            },
+            {
+              "id": "7aa4bd7c-5b9d-5c74-83d1-b835c73d56e6",
+              "name": "cutoff_time",
+              "value": "17:00",
+              "type": "string"
+            },
+            {
+              "id": "4ef7d0a6-6c71-51d6-b87e-3888eb314433",
+              "name": "fewer_than",
+              "value": 3,
+              "type": "number"
+            },
+            {
+              "id": "5970d4e8-838e-5d53-a20a-cee5894045c8",
+              "name": "sources",
+              "value": "[{\"id\": \"<source>\", \"name\": \"<source name>\", \"export_path\": \"<path to its export>\", \"control_path\": \"<path to its control total>\", \"columns\": [\"<saved column list>\"], \"control_column\": \"<column the control total sums, or empty for the row count>\", \"manual\": false, \"data_owner\": \"<its data owner>\"}]",
+              "type": "array"
+            },
+            {
+              "id": "21b2b9cd-d4de-59c2-aa3b-dbce3daf732a",
+              "name": "measures",
+              "value": "[{\"id\": \"<measure-id>\", \"name\": \"<measure>\", \"source\": \"<source>\", \"kind\": \"<period or status>\", \"people\": false, \"formula\": {\"op\": \"<count or sum>\", \"column\": \"<column summed>\", \"where\": {\"<column>\": \"<value>\"}}, \"rule_version\": \"<approved rule version>\"}]",
+              "type": "array"
+            },
+            {
+              "id": "57a30d10-a4b2-5049-b98f-989310a031a3",
+              "name": "report_builder",
+              "value": "<your report builder>",
+              "type": "string"
+            },
+            {
+              "id": "fe2699a8-8544-5a49-8d45-0c4b3b7ee3a0",
+              "name": "rule_approver",
+              "value": "<your rule approver>",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "aee8d737-cd0a-52fd-8517-ba94661297db",
+      "name": "Config",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        260,
+        0
+      ],
+      "notes": "Edit these values for your company; nothing else in the workflow hard-codes them.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "\n// The cut-off: the latest cut-off weekday and time at or before now, in the workflow's time zone.\nconst cfg = $('Config').first().json;\nconst [h, m] = String(cfg.cutoff_time).split(':').map(Number);\nlet c = $now.set({ weekday: cfg.cutoff_weekday, hour: h, minute: m || 0, second: 0, millisecond: 0 });\nif (c > $now) c = c.minus({ weeks: 1 });\nreturn cfg.sources.map(s => ({ json: {\n  source: s.id, week: c.toISODate(), cutoff: c.toUTC().toISO(),\n  export_url: cfg.library_url + '/' + s.export_path,\n  control_url: cfg.library_url + '/' + s.control_path,\n} }));\n"
+      },
+      "id": "d3480b30-a03b-58d8-b692-2d58e949558f",
+      "name": "Step 1: List the sources",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1040,
+        0
+      ],
+      "notes": "One item per source; the cut-off is Config's weekday and time, a dated setting changed only through change control.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $json.export_url }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        }
+      },
+      "id": "bab79d82-b87b-57e1-9ab9-0834b78a02a3",
+      "name": "Read source export",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1300,
+        0
+      ],
+      "notes": "Retried three times; a file that still cannot be read makes its source stale.",
+      "notesInFlow": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Step 1: List the sources').item.json.control_url }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        }
+      },
+      "id": "ceb5b5ec-8ff0-5341-9d4e-b767ba71562f",
+      "name": "Read control total",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1560,
+        0
+      ],
+      "notes": "No control total: the source's figures are manual.",
+      "notesInFlow": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "\n// Step 2: the duplicate key is the week and a fingerprint of every file and control total.\nconst srcs = $('Step 1: List the sources').all().map(i => i.json);\nconst files = $('Read source export').all().map(i => i.json);\nconst controls = $('Read control total').all().map(i => i.json);\nconst parts = srcs.map((s, i) => {\n  const f = files[i] || {}, c = controls[i] || {};\n  const file = f.error ? 'missing' : `${f.file}|${f.created}|${(f.rows || []).length}`;\n  const total = c.error || c.total === undefined ? 'none' : c.total;\n  return `${s.source}=${file}|${total}`;\n});\nlet h = 5381;\nfor (const ch of parts.join(';')) h = ((h * 33) ^ ch.charCodeAt(0)) >>> 0;\nreturn [{ json: { week: srcs[0].week, cutoff: srcs[0].cutoff, key: `${srcs[0].week}:${h.toString(16)}`, files: parts } }];\n"
+      },
+      "id": "3e014582-44d0-55e9-b14a-44008b91f797",
+      "name": "Step 2: Fingerprint the files",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1820,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH reserved AS (INSERT INTO key_log (recipe, key, status) VALUES ($1, $2, 'in progress') ON CONFLICT (recipe, key) DO NOTHING RETURNING key), skipped AS (UPDATE key_log SET copies_skipped = copies_skipped + 1 WHERE recipe = $1 AND key = $2 AND NOT EXISTS (SELECT 1 FROM reserved)) SELECT (SELECT count(*) FROM reserved) = 1 AS is_new, $2::text AS key",
+        "options": {
+          "queryReplacement": "={{ [\"R12.1\", $json.key] }}"
+        }
+      },
+      "id": "1fb39648-09ab-565d-b1d9-c4464e591f35",
+      "name": "Step 2: Reserve key",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2080,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "Key log: refuses a second copy in the same step (book Chapter 2).",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.is_new }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "id": "e720c043-f369-5538-91f7-f3de7e554178"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "966a9770-085e-505f-8629-bbd762425410",
+      "name": "New key?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2340,
+        0
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "9a3eba22-6759-5c33-a6bd-7c259c6b3000",
+      "name": "Duplicate: stop",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        2600,
+        -200
+      ],
+      "notes": "Every file and control total matches a version already made.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Config').first().json.table_url }}/versions",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "_wrap",
+              "value": "1"
+            }
+          ]
+        }
+      },
+      "id": "30184ce3-2ce4-5271-9157-6ad6dd60f6c2",
+      "name": "Read versions",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2600,
+        0
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Config').first().json.table_url }}/weekly_table",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "_wrap",
+              "value": "1"
+            }
+          ]
+        }
+      },
+      "id": "3bcee52d-1296-5503-af0e-7420a7829956",
+      "name": "Read the weekly table",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2860,
+        0
+      ],
+      "notes": "Earlier versions: last week's figures and each measure's last good date.",
+      "notesInFlow": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Config').first().json.approved_rules_url }}/approved_rules",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "_wrap",
+              "value": "1"
+            }
+          ]
+        }
+      },
+      "id": "c9f0eb0d-549b-5413-937b-ba3071610093",
+      "name": "Read approved rule versions",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3120,
+        0
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "\n// Steps 3 to 8 of the book's R12.1, in order, with Table 12.2's statuses.\nconst cfg = $('Config').first().json;\nconst fp = $('Step 2: Fingerprint the files').first().json;\nconst table = $('Read the weekly table').first().json.items || [];\nconst versions = $('Read versions').first().json.items || [];\nconst srcs = $('Step 1: List the sources').all().map(i => i.json);\nconst files = $('Read source export').all().map(i => i.json);\nconst controls = $('Read control total').all().map(i => i.json);\nconst approved = Object.fromEntries(($('Read approved rule versions').first().json.items || []).map(r => [r.measure, r.version]));\n// The version this run writes, and the current version of an earlier week, for each change from last week.\nconst seq = v => Number(String(v.id).replace(/\\D/g, '')) || 0;\nconst ver = { version: 'V-' + (Math.max(0, ...versions.map(seq)) + 1) };\nconst written = versions.filter(v => v.status === 'written');\nconst earlier = written.filter(v => v.week < fp.week).sort((a, b) => seq(a) - seq(b)).pop();\nconst lastRows = earlier ? table.filter(r => r.version === earlier.id) : [];\nconst writtenIds = new Set(written.map(v => v.id));\nconst history = table.filter(r => writtenIds.has(r.version));\nconst cutoff = new Date(fp.cutoff);\nconst OK = ['fresh', 'manual'];\n\n// Step 6 first in code, because a stop writes nothing: each formula must be the version the rule approver approved.\nconst unapproved = cfg.measures.filter(m => approved[m.name] !== m.rule_version);\nif (unapproved.length) {\n  return [{ json: { stop: true, detail: unapproved.map(m => `${m.name}: rule ${m.rule_version}, approved ${approved[m.name] || 'none'}`).join('; ') } }];\n}\n\nconst sources = {};\nsrcs.forEach((s, i) => {\n  const def = cfg.sources.find(d => d.id === s.source);\n  const f = files[i] || {}, c = controls[i] || {};\n  const rows = Array.isArray(f.rows) ? f.rows : [];\n  const info = { id: def.id, name: def.name, data_owner: def.data_owner, file: f.file || null, link: f.link || null,\n                 created: f.created || null, row_count: rows.length, control_total: c.error ? null : (c.total ?? null) };\n  // Step 3: a fresh, non-empty export: made after the cut-off and covering data to it.\n  if (f.error || !f.created || !(new Date(f.created) > cutoff) || !f.covers_to || new Date(f.covers_to) < cutoff || !rows.length) {\n    info.status = 'stale';\n    info.reason = f.error ? 'export missing' : !rows.length ? 'export empty' : 'export older than the cut-off';\n  // Step 4: columns match the saved list.\n  } else if (JSON.stringify([...(f.columns || [])].sort()) !== JSON.stringify([...def.columns].sort())) {\n    info.status = 'format changed';\n    info.reason = `columns ${JSON.stringify(f.columns || [])}, saved list ${JSON.stringify(def.columns)}`;\n  // Step 5: totals match the control total; the manual source's rows match its typed row count.\n  } else if (info.control_total === null) {\n    info.status = 'manual';\n  } else {\n    const got = def.control_column ? rows.reduce((t, r) => t + Number(r[def.control_column] || 0), 0) : rows.length;\n    if (Math.abs(got - Number(info.control_total)) > 0.005) {\n      info.status = 'does not reconcile';\n      info.reason = `${def.control_column || 'row count'} ${got}, control total ${info.control_total}`;\n    } else {\n      info.status = def.manual ? 'manual' : 'fresh';\n    }\n  }\n  info.rows = rows;\n  sources[def.id] = info;\n});\n\n// Step 7: compute each fresh or manual measure and its change from last week.\nconst match = (r, where) => Object.entries(where || {}).every(([k, v]) => Array.isArray(v) ? v.includes(r[k]) : r[k] === v);\nconst out = [];\nconst snapshots = [];\nfor (const m of cfg.measures) {\n  const s = sources[m.source];\n  const id = `${ver.version}:${m.id}`;\n  const last = lastRows.find(r => r.measure === m.name);\n  const good = history.filter(r => r.measure === m.name && OK.includes(r.status)).map(r => r.week).sort().pop() || null;\n  const row = { id, version: ver.version, week: fp.week, measure: m.name, kind: m.kind, value: null, change: null,\n                cutoff: fp.cutoff, source: s.name, source_link: s.link, status: s.status, note: null, rule_version: m.rule_version };\n  if (!OK.includes(s.status)) {\n    row.note = s.status === 'stale' ? `stale; last good ${good || 'none'}` : s.status;\n    row.last_good = good;\n    out.push(row);\n    continue;\n  }\n  const counted = s.rows.filter(r => match(r, m.formula.where));\n  const value = m.formula.op === 'sum' ? counted.reduce((t, r) => t + Number(r[m.formula.column] || 0), 0) : counted.length;\n  const lastValue = last && OK.includes(last.status) && typeof last.value === 'number' ? last.value : null;\n  row.value = value;\n  row.change = lastValue === null ? null : Math.round((value - lastValue) * 100) / 100;\n  if (s.status === 'manual') row.note = 'manual, not reconciled';\n  // Step 8: counts of people below the limit, this week or last, print \"fewer than 3\" with the change blank.\n  const lastFew = last && (last.status === 'fewer than 3' || (typeof last.value === 'number' && last.value < cfg.fewer_than));\n  if (m.people && (value < cfg.fewer_than || lastFew)) {\n    row.value = `fewer than ${cfg.fewer_than}`;\n    row.change = null;\n    row.status = `fewer than ${cfg.fewer_than}`;\n    row.note = null;\n  } else if (m.kind === 'status') {\n    // Step 9: a status measure's link opens the snapshot of its counted rows.\n    snapshots.push({ id, version: ver.version, measure: m.name, cutoff: fp.cutoff, rows: counted });\n    row.source_link = `${cfg.snapshots_url}/snapshots/${encodeURIComponent(id)}`;\n  }\n  out.push(row);\n}\n\nconst failed = Object.values(sources).filter(s => !OK.includes(s.status))\n  .map(s => ({ source: s.name, data_owner: s.data_owner, status: s.status, reason: s.reason }));\nconst log = Object.values(sources).map(s => ({ source: s.id, file: s.file, created: s.created, rows: s.row_count, control_total: s.control_total, status: s.status }));\nreturn [{ json: { stop: false, version: ver.version, week: fp.week, cutoff: fp.cutoff, rows: out, snapshots, failed, log } }];\n"
+      },
+      "id": "7ebdeb58-70b1-50a7-8a0a-5ae41112c09f",
+      "name": "Rules: steps 3 to 8",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3380,
+        0
+      ],
+      "notes": "Rules decide; there is no AI step in R12.1.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.stop }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "id": "3ee03e78-de65-5ef8-a66d-2f2292313ea1"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "43bdbf50-87e6-5900-a755-81db62fd71ac",
+      "name": "Step 6: Rule version approved?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        4160,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').first().json.messaging_url }}/messages",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ to: [$('Config').first().json.report_builder, $('Config').first().json.rule_approver], subject: 'Weekly figures stopped: rule version not approved', text: $json.detail }) }}"
+      },
+      "id": "3443995e-af14-556f-a274-0a7542537960",
+      "name": "Step 6: Alert the builder and rule approver",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        4420,
+        -320
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO exception_queue (recipe, item, reason, detail, owner) VALUES ($1, $2, $3, $4, $5) RETURNING id",
+        "options": {
+          "queryReplacement": "={{ [\"R12.1\", $('Step 2: Fingerprint the files').first().json.week, \"rule version not approved\", $('Rules: steps 3 to 8').first().json.detail, $('Config').first().json.report_builder] }}"
+        }
+      },
+      "id": "aaf0ccb7-d53f-5cac-aa23-857ff9dabe84",
+      "name": "Exception queue: rule version not approved",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        4680,
+        -320
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "Exception queue: a named person works through it (book Chapters 2 and 16).",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "DELETE FROM key_log WHERE recipe = $1 AND key = $2 RETURNING key",
+        "options": {
+          "queryReplacement": "={{ [\"R12.1\", $('Step 2: Fingerprint the files').first().json.key] }}"
+        }
+      },
+      "id": "899715ff-31d5-5e98-a243-a3fbf3311582",
+      "name": "Release key",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        4940,
+        -320
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "No version was written, so the same files run again once the rule is approved or restored.",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "\n// Step 9: one version record, then one row per measure and one snapshot per status measure.\nconst cfg = $('Config').first().json;\nconst r = $('Rules: steps 3 to 8').first().json;\nconst items = [{ url: `${cfg.table_url}/versions`, body: { id: r.version, week: r.week, cutoff: r.cutoff, status: 'writing', files: r.log } }];\nfor (const row of r.rows) items.push({ url: `${cfg.table_url}/weekly_table`, body: row });\nfor (const s of r.snapshots) items.push({ url: `${cfg.snapshots_url}/snapshots`, body: s });\nreturn items.map(i => ({ json: i }));\n"
+      },
+      "id": "6e0a7dd5-1ed5-5cd8-816d-dcc32aa8ab3b",
+      "name": "Step 9: Rows and snapshots",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4420,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.url }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.body) }}"
+      },
+      "id": "c24a3526-4bde-5f5d-83ab-14908eb424c8",
+      "name": "Step 9: Write to the weekly table",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        4680,
+        0
+      ],
+      "notes": "A write: never retried; a failure is logged and the builder checks the table before any rerun.",
+      "notesInFlow": true,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "\n// Only a complete table is marked written; a failed write went to the exception queue instead.\nreturn $input.all().length === $('Step 9: Rows and snapshots').all().length ? [{ json: { complete: true } }] : [];\n"
+      },
+      "id": "cdf3e4c3-b8ad-5c73-bda5-5f26d17713cc",
+      "name": "All rows written?",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4940,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "\n// Step 10: one alert per failed source, to the report builder and the source's data owner.\nconst cfg = $('Config').first().json;\nconst r = $('Rules: steps 3 to 8').first().json;\nreturn r.failed.map(f => ({ json: {\n  source: f.source, reason: f.reason, status: f.status,\n  message: { to: [cfg.report_builder, f.data_owner],\n             subject: `Weekly figures ${r.week}: ${f.source} ${f.status}`,\n             text: `${f.source}: ${f.status} (${f.reason}). Its figures print blank in version ${r.version}.` } } }));\n"
+      },
+      "id": "cd7abee4-420f-5481-a339-16afd6762ee0",
+      "name": "Step 10: Each failed source",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        5200,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').first().json.messaging_url }}/messages",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.message) }}"
+      },
+      "id": "644a085c-7693-514e-a8d6-2a50e72b2cc2",
+      "name": "Step 10: Alert the builder and data owner",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        5460,
+        200
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO exception_queue (recipe, item, reason, detail, owner) VALUES ($1, $2, $3, $4, $5) RETURNING id",
+        "options": {
+          "queryReplacement": "={{ [\"R12.1\", $('Rules: steps 3 to 8').first().json.week + ':' + $('Step 10: Each failed source').item.json.source, \"source failed\", $('Step 10: Each failed source').item.json.status + ': ' + $('Step 10: Each failed source').item.json.reason, $('Config').first().json.report_builder] }}"
+        }
+      },
+      "id": "d6a63d90-8ded-5a5d-9294-867cc3368f5c",
+      "name": "Exception queue: source failed",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        5720,
+        200
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "Exception queue: a named person works through it (book Chapters 2 and 16).",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $('Config').first().json.table_url }}/versions/{{ $('Rules: steps 3 to 8').first().json.version }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ status: 'written' }) }}"
+      },
+      "id": "d9b4c578-a5c1-5eca-bbba-069193b568ef",
+      "name": "Step 11: Mark the version written",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        5200,
+        0
+      ],
+      "notes": "The latest written version is current: it starts R12.3 and feeds R12.2.",
+      "notesInFlow": true,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE key_log SET status = $3, result = $4 WHERE recipe = $1 AND key = $2 RETURNING key",
+        "options": {
+          "queryReplacement": "={{ [\"R12.1\", $('Step 2: Fingerprint the files').first().json.key, \"done\", $('Rules: steps 3 to 8').first().json.version] }}"
+        }
+      },
+      "id": "40cd3811-61dd-5445-b87f-5cd1dc8d6c56",
+      "name": "Mark key done",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        5460,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO decision_log (recipe, item, decision, rules) VALUES ($1, $2, $3, $4::jsonb) RETURNING id",
+        "options": {
+          "queryReplacement": "={{ [\"R12.1\", $('Rules: steps 3 to 8').first().json.version, 'written', JSON.stringify({ files: $('Rules: steps 3 to 8').first().json.log, figures: $('Rules: steps 3 to 8').first().json.rows.map(x => ({ measure: x.measure, value: x.value, change: x.change, status: x.status, rule_version: x.rule_version })) })] }}"
+        }
+      },
+      "id": "365437fc-5129-580a-83d7-b9f8a5baf072",
+      "name": "Decision log",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        5720,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "Decision log: the item's ID, the decision and the rules; never the content (book Chapter 3).",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE key_log SET status = $3, result = $4 WHERE recipe = $1 AND key = $2 RETURNING key",
+        "options": {
+          "queryReplacement": "={{ [\"R12.1\", $('Step 2: Fingerprint the files').first().json.key, \"failed\", 'write failed: ' + ($json.error && $json.error.message || 'unknown')] }}"
+        }
+      },
+      "id": "6844782a-c939-54c8-bdc8-c995e40bc61a",
+      "name": "Mark key failed",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        5200,
+        480
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO exception_queue (recipe, item, reason, detail, owner) VALUES ($1, $2, $3, $4, $5) RETURNING id",
+        "options": {
+          "queryReplacement": "={{ [\"R12.1\", $('Rules: steps 3 to 8').first().json.version, \"write failed\", 'A weekly table write failed; check the table before any rerun', $('Config').first().json.report_builder] }}"
+        }
+      },
+      "id": "f5b87f55-3518-54ac-8bc8-9628b28b35af",
+      "name": "Exception queue: write failed",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        5460,
+        480
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "Exception queue: a named person works through it (book Chapters 2 and 16).",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Config').item.json.stop_flag_url }}",
+        "options": {}
+      },
+      "id": "4b8e4fb1-9a09-581c-9f2a-6dd564bae086",
+      "name": "Stop flag: read",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        520,
+        0
+      ],
+      "notes": "Kill switch: set stopped to true in your stop list and the next run ends quietly (book Chapter 3).",
+      "notesInFlow": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.stopped === true }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "id": "feba87ed-990d-5167-b615-9062ba7d287d"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "ef271200-57e5-511a-b0fc-38bdc1132ace",
+      "name": "Stop flag set?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        780,
+        0
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "b807197d-e14a-5846-a82b-3f46f09b53cc",
+      "name": "Stopped by the stop flag",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        1040,
+        -200
+      ],
+      "notes": "Ends quietly; nothing is read, written or sent.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO exception_queue (recipe, item, reason, detail, owner) VALUES ($1, $2, $3, $4, $5) RETURNING id",
+        "options": {
+          "queryReplacement": "={{ [\"R12.1\", 'run ' + $execution.id, \"stop list unreadable\", 'The stop list could not be read, so the run stopped; fix the stop list', '<your workflow owner>'] }}"
+        }
+      },
+      "id": "5f8db582-925c-5566-ba8f-d1db547b55fe",
+      "name": "Exception queue: stop list unreadable",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        780,
+        220
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "Exception queue: a named person works through it (book Chapters 2 and 16).",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    }
+  ],
+  "connections": {
+    "Step 1: Thursday 19:30": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 1: List the sources": {
+      "main": [
+        [
+          {
+            "node": "Read source export",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read source export": {
+      "main": [
+        [
+          {
+            "node": "Read control total",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read control total": {
+      "main": [
+        [
+          {
+            "node": "Step 2: Fingerprint the files",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 2: Fingerprint the files": {
+      "main": [
+        [
+          {
+            "node": "Step 2: Reserve key",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 2: Reserve key": {
+      "main": [
+        [
+          {
+            "node": "New key?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "New key?": {
+      "main": [
+        [
+          {
+            "node": "Read versions",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Duplicate: stop",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read versions": {
+      "main": [
+        [
+          {
+            "node": "Read the weekly table",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read the weekly table": {
+      "main": [
+        [
+          {
+            "node": "Read approved rule versions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read approved rule versions": {
+      "main": [
+        [
+          {
+            "node": "Rules: steps 3 to 8",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rules: steps 3 to 8": {
+      "main": [
+        [
+          {
+            "node": "Step 6: Rule version approved?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 6: Rule version approved?": {
+      "main": [
+        [
+          {
+            "node": "Step 6: Alert the builder and rule approver",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Step 9: Rows and snapshots",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 6: Alert the builder and rule approver": {
+      "main": [
+        [
+          {
+            "node": "Exception queue: rule version not approved",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Exception queue: rule version not approved": {
+      "main": [
+        [
+          {
+            "node": "Release key",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 9: Rows and snapshots": {
+      "main": [
+        [
+          {
+            "node": "Step 9: Write to the weekly table",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 9: Write to the weekly table": {
+      "main": [
+        [
+          {
+            "node": "All rows written?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark key failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "All rows written?": {
+      "main": [
+        [
+          {
+            "node": "Step 10: Each failed source",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Step 11: Mark the version written",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 10: Each failed source": {
+      "main": [
+        [
+          {
+            "node": "Step 10: Alert the builder and data owner",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 10: Alert the builder and data owner": {
+      "main": [
+        [
+          {
+            "node": "Exception queue: source failed",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark key failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 11: Mark the version written": {
+      "main": [
+        [
+          {
+            "node": "Mark key done",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark key failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark key done": {
+      "main": [
+        [
+          {
+            "node": "Decision log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark key failed": {
+      "main": [
+        [
+          {
+            "node": "Exception queue: write failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config": {
+      "main": [
+        [
+          {
+            "node": "Stop flag: read",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Stop flag: read": {
+      "main": [
+        [
+          {
+            "node": "Stop flag set?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Exception queue: stop list unreadable",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Stop flag set?": {
+      "main": [
+        [
+          {
+            "node": "Stopped by the stop flag",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Step 1: List the sources",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataSuccessExecution": "all",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "pinData": {}
+}

@@ -1,0 +1,514 @@
+{
+  "config": {
+    "scheduling_url": "{mocks}/scheduling",
+    "crews_url": "{mocks}/crews",
+    "helpdesk_url": "{mocks}/helpdesk",
+    "overdue_url": "{mocks}/overdue",
+    "stock_url": "{mocks}/stock",
+    "budget_url": "{mocks}/budget",
+    "messaging_url": "{mocks}/messaging",
+    "dispatch_channel": "dispatch",
+    "systems_owner": "owen@example.test",
+    "address_words": [
+      "floor",
+      "unit",
+      "apartment",
+      "flat",
+      "suite",
+      "street",
+      "road",
+      "avenue",
+      "lane"
+    ],
+    "mask_token": "[masked]",
+    "ai_url": "{mocks}/anthropic/v1/messages"
+  },
+  "seed": {
+    "scheduling": {
+      "work_orders": {
+        "J-01": {
+          "id": "J-01",
+          "slot_date": "{today+1}",
+          "window": "10:00-12:00",
+          "address": "1 Test Street, Unit 1",
+          "notes": ""
+        },
+        "J-02": {
+          "id": "J-02",
+          "slot_date": "{today+1}",
+          "window": "12:00-14:00",
+          "address": "2 Test Street, Unit 2",
+          "notes": ""
+        },
+        "J-03": {
+          "id": "J-03",
+          "slot_date": "{today+1}",
+          "window": "14:00-16:00",
+          "address": "3 Test Street, Unit 3",
+          "notes": ""
+        },
+        "J-04": {
+          "id": "J-04",
+          "slot_date": "{today+1}",
+          "window": "08:00-10:00",
+          "address": "4 Test Street, Unit 4",
+          "notes": ""
+        },
+        "J-05": {
+          "id": "J-05",
+          "slot_date": "{today+1}",
+          "window": "10:00-12:00",
+          "address": "5 Test Street, Unit 5",
+          "notes": "Customer asks for a call 30 minutes before arrival."
+        },
+        "J-06": {
+          "id": "J-06",
+          "slot_date": "{today+1}",
+          "window": "12:00-14:00",
+          "address": "6 Test Street, Unit 6",
+          "notes": ""
+        },
+        "J-07": {
+          "id": "J-07",
+          "slot_date": "{today+1}",
+          "window": "14:00-16:00",
+          "address": "7 Test Street, Unit 7",
+          "notes": ""
+        },
+        "J-08": {
+          "id": "J-08",
+          "slot_date": "{today+1}",
+          "window": "08:00-10:00",
+          "address": "8 Test Street, Unit 8",
+          "notes": ""
+        },
+        "J-09": {
+          "id": "J-09",
+          "slot_date": "{today+1}",
+          "window": "10:00-12:00",
+          "address": "9 Test Street, Unit 9",
+          "notes": "Gate code 4821 at the side entrance."
+        },
+        "J-10": {
+          "id": "J-10",
+          "slot_date": "{today+1}",
+          "window": "12:00-14:00",
+          "address": "10 Test Street, Unit 10",
+          "notes": ""
+        },
+        "J-11": {
+          "id": "J-11",
+          "slot_date": "{today+1}",
+          "window": "14:00-16:00",
+          "address": "11 Test Street, Unit 11",
+          "notes": ""
+        },
+        "J-12": {
+          "id": "J-12",
+          "slot_date": "{today+1}",
+          "window": "08:00-10:00",
+          "address": "12 Test Street, Unit 12",
+          "notes": ""
+        },
+        "J-13": {
+          "id": "J-13",
+          "slot_date": "{today+1}",
+          "window": "10:00-12:00",
+          "address": "13 Test Street, Unit 13",
+          "notes": ""
+        },
+        "J-14": {
+          "id": "J-14",
+          "slot_date": "{today+1}",
+          "window": "12:00-14:00",
+          "address": "14 Test Street, Unit 14",
+          "notes": ""
+        }
+      }
+    },
+    "crews": {
+      "assignments": {
+        "A-1": {
+          "id": "A-1",
+          "job_id": "J-01",
+          "date": "{today+1}",
+          "crew": "Crew A"
+        },
+        "A-2": {
+          "id": "A-2",
+          "job_id": "J-02",
+          "date": "{today+1}",
+          "crew": "Crew A"
+        },
+        "A-3": {
+          "id": "A-3",
+          "job_id": "J-03",
+          "date": "{today+1}",
+          "crew": "Crew A"
+        },
+        "A-4": {
+          "id": "A-4",
+          "job_id": "J-04",
+          "date": "{today+1}",
+          "crew": "Crew A"
+        },
+        "A-5": {
+          "id": "A-5",
+          "job_id": "J-05",
+          "date": "{today+1}",
+          "crew": "Crew A"
+        },
+        "A-6": {
+          "id": "A-6",
+          "job_id": "J-06",
+          "date": "{today+1}",
+          "crew": "Crew A"
+        },
+        "A-7": {
+          "id": "A-7",
+          "job_id": "J-07",
+          "date": "{today+1}",
+          "crew": "Crew A"
+        },
+        "A-8": {
+          "id": "A-8",
+          "job_id": "J-08",
+          "date": "{today+1}",
+          "crew": "Crew B"
+        },
+        "A-9": {
+          "id": "A-9",
+          "job_id": "J-09",
+          "date": "{today+1}",
+          "crew": "Crew B"
+        },
+        "A-10": {
+          "id": "A-10",
+          "job_id": "J-10",
+          "date": "{today+1}",
+          "crew": "Crew B"
+        },
+        "A-11": {
+          "id": "A-11",
+          "job_id": "J-11",
+          "date": "{today+1}",
+          "crew": "Crew B"
+        },
+        "A-12": {
+          "id": "A-12",
+          "job_id": "J-12",
+          "date": "{today+1}",
+          "crew": "Crew B"
+        },
+        "A-13": {
+          "id": "A-13",
+          "job_id": "J-13",
+          "date": "{today+1}",
+          "crew": "Crew B"
+        },
+        "A-14": {
+          "id": "A-14",
+          "job_id": "J-14",
+          "date": "{today+1}",
+          "crew": "Crew B"
+        }
+      }
+    },
+    "helpdesk": {
+      "tickets": {
+        "T-7": {
+          "id": "T-7",
+          "job_id": "J-07",
+          "status": "open",
+          "subject": "Complaint",
+          "body": "The last delivery scratched our floor; please send a careful crew."
+        }
+      }
+    },
+    "overdue": {
+      "items": {
+        "O-3": {
+          "id": "O-3",
+          "job_id": "J-03",
+          "description": "Installation follow-up overdue since last week"
+        }
+      }
+    },
+    "stock": {
+      "exceptions": {}
+    },
+    "budget": {
+      "days": {}
+    }
+  },
+  "cases": [
+    {
+      "case": "Normal",
+      "row": 1,
+      "input": "14 jobs, one overdue, one open complaint",
+      "needs_ai": true,
+      "trigger": [
+        {
+          "schedule": "Step 1: Each working afternoon"
+        }
+      ],
+      "expect": [
+        {
+          "mock": "messaging/messages/briefing-{today}-1",
+          "field": "kind",
+          "equals": "full"
+        },
+        {
+          "mock": "messaging/messages/briefing-{today}-1",
+          "field": "text",
+          "contains": "J-01:"
+        },
+        {
+          "mock": "messaging/messages/briefing-{today}-1",
+          "field": "text",
+          "contains": "J-14:"
+        },
+        {
+          "mock": "messaging/messages/briefing-{today}-1",
+          "field": "text",
+          "contains": "Risks (unchecked):"
+        },
+        {
+          "mock": "budget/days/{today}",
+          "field": "full_briefing_posted",
+          "equals": true
+        }
+      ]
+    },
+    {
+      "case": "Edge",
+      "row": 2,
+      "input": "Scheduling system down",
+      "fail": [
+        {
+          "method": "GET",
+          "path": "/scheduling/work_orders",
+          "status": 503,
+          "times": 2
+        }
+      ],
+      "trigger": [
+        {
+          "schedule": "Step 1: Each working afternoon",
+          "pause": 4
+        },
+        {
+          "schedule": "Step 1: Second start"
+        }
+      ],
+      "expect": [
+        {
+          "mock": "messaging/messages/briefing-{today}-1",
+          "field": "text",
+          "contains": "Partial dispatch briefing"
+        },
+        {
+          "mock": "messaging/messages/briefing-{today}-1",
+          "field": "text",
+          "contains": "Sources not available: work orders"
+        },
+        {
+          "mock": "messaging/messages/briefing-{today}-2",
+          "field": "kind",
+          "equals": "partial"
+        },
+        {
+          "calls": "GET /scheduling/work_orders",
+          "count": 2
+        },
+        {
+          "mock": "budget/days/{today}",
+          "field": "starts",
+          "equals": 2
+        },
+        {
+          "mock": "budget/days/{today}",
+          "field": "full_briefing_posted",
+          "equals": false
+        }
+      ]
+    },
+    {
+      "case": "Duplicate",
+      "row": 3,
+      "input": "Schedule fires again after a full briefing",
+      "seed": {
+        "budget": {
+          "days": {
+            "{today}": {
+              "id": "{today}",
+              "starts": 1,
+              "full_briefing_posted": true,
+              "ai_spend": 0.01
+            }
+          }
+        }
+      },
+      "trigger": [
+        {
+          "schedule": "Step 1: Second start"
+        }
+      ],
+      "expect": [
+        {
+          "mock": "messaging/messages",
+          "count": 0
+        },
+        {
+          "calls": "GET /scheduling/work_orders",
+          "count": 0
+        },
+        {
+          "calls": "POST /anthropic/v1/messages",
+          "count": 0
+        },
+        {
+          "calls": "PUT /budget/days/{today}",
+          "count": 0
+        }
+      ]
+    },
+    {
+      "case": "Refuse",
+      "row": 4,
+      "input": "Monthly AI cap reached",
+      "seed": {
+        "budget": {
+          "days": {
+            "{today}": {
+              "id": "{today}",
+              "starts": 0,
+              "full_briefing_posted": false,
+              "ai_spend": 70
+            }
+          }
+        }
+      },
+      "trigger": [
+        {
+          "schedule": "Step 1: Each working afternoon"
+        }
+      ],
+      "expect": [
+        {
+          "mock": "messaging/messages",
+          "count": 1
+        },
+        {
+          "mock": "messaging/messages/1",
+          "field": "to",
+          "equals": "owen@example.test"
+        },
+        {
+          "calls": "GET /scheduling/work_orders",
+          "count": 0
+        },
+        {
+          "calls": "POST /anthropic/v1/messages",
+          "count": 0
+        },
+        {
+          "calls": "PUT /budget/days/{today}",
+          "count": 0
+        }
+      ]
+    },
+    {
+      "case": "AI error",
+      "row": 5,
+      "input": "The AI call fails (companion extension)",
+      "fail": [
+        {
+          "method": "POST",
+          "path": "/anthropic/v1/messages",
+          "status": 529,
+          "times": 1
+        }
+      ],
+      "trigger": [
+        {
+          "schedule": "Step 1: Each working afternoon"
+        }
+      ],
+      "expect": [
+        {
+          "mock": "messaging/messages/briefing-{today}-1",
+          "field": "kind",
+          "equals": "partial"
+        },
+        {
+          "mock": "messaging/messages/briefing-{today}-1",
+          "field": "text",
+          "contains": "Why partial: AI error"
+        },
+        {
+          "mock": "messaging/messages/briefing-{today}-1",
+          "field": "text",
+          "contains": "J-14 | "
+        },
+        {
+          "calls": "POST /anthropic/v1/messages",
+          "count": 1
+        },
+        {
+          "mock": "budget/days/{today}",
+          "field": "ai_spend",
+          "equals": 0
+        },
+        {
+          "mock": "budget/days/{today}",
+          "field": "full_briefing_posted",
+          "equals": false
+        }
+      ]
+    },
+    {
+      "case": "Source credential expires",
+      "row": 6,
+      "input": "The stock-exception read is refused on both starts (companion extension)",
+      "fail": [
+        {
+          "method": "GET",
+          "path": "/stock/exceptions",
+          "status": 401,
+          "times": 2
+        }
+      ],
+      "trigger": [
+        {
+          "schedule": "Step 1: Each working afternoon",
+          "pause": 4
+        },
+        {
+          "schedule": "Step 1: Second start"
+        }
+      ],
+      "expect": [
+        {
+          "mock": "messaging/messages/briefing-{today}-1",
+          "field": "text",
+          "contains": "Sources not available: stock exceptions"
+        },
+        {
+          "mock": "messaging/messages/briefing-{today}-2",
+          "field": "text",
+          "contains": "Sources not available: stock exceptions"
+        },
+        {
+          "mock": "messaging/messages/briefing-{today}-2",
+          "field": "text",
+          "contains": "no further start today"
+        },
+        {
+          "calls": "GET /stock/exceptions",
+          "count": 2
+        }
+      ]
+    }
+  ]
+}

@@ -31,7 +31,7 @@ import json
 import os
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import parse_qs, unquote, urlparse
 
 LOCK = threading.Lock()
 STORE: dict = {}
@@ -75,16 +75,16 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(data)
 
-    def _injected_failure(self, method: str, path: str) -> int | None:
+    def _injected_failure(self, method: str, path: str) -> dict | None:
         for f in FAILS:
             if f["method"] == method and path.startswith(f["path"]) and f["times"] > 0:
                 f["times"] -= 1
-                return int(f["status"])
+                return f
         return None
 
     def _handle(self, method: str) -> None:
         url = urlparse(self.path)
-        parts = [p for p in url.path.split("/") if p]
+        parts = [unquote(p) for p in url.path.split("/") if p]
         body = self._body() if method in ("POST", "PUT", "PATCH") else None
         with LOCK:
             if url.path == "/health":
@@ -98,13 +98,17 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send(200, CALLS)
             if url.path == "/_fail" and method == "POST":
                 FAILS.append({"method": body["method"].upper(), "path": body["path"],
-                              "status": int(body.get("status", 500)), "times": int(body.get("times", 1))})
+                              "status": int(body.get("status", 500)), "times": int(body.get("times", 1)),
+                              "body": body.get("body")})
                 return self._send(200, {"ok": True})
 
             CALLS.append({"method": method, "path": url.path, "query": url.query, "body": body})
-            status = self._injected_failure(method, url.path)
-            if status:
-                return self._send(status, {"error": "injected failure"})
+            injected = self._injected_failure(method, url.path)
+            if injected:
+                CALLS[-1]["status"] = injected["status"]
+                # A "body" turns the injection into a canned reply, such as a fixed AI answer.
+                body_out = injected["body"] if injected["body"] is not None else {"error": "injected failure"}
+                return self._send(injected["status"], body_out)
             if url.path == "/anthropic/v1/messages" and method == "POST":
                 return self._forward_anthropic(body)
             if len(parts) < 2:
@@ -122,7 +126,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send(200, table[rid]) if rid in table else self._send(404, {"error": "not found"})
             if method == "POST" and rid is None:
                 rec = dict(body or {}) if isinstance(body, dict) else {"value": body}
-                rec.setdefault("id", str(next(IDS)))
+                if "id" not in rec:
+                    rec["id"] = str(next(IDS))
                 table[str(rec["id"])] = rec
                 return self._send(201, rec)
             if method == "PUT" and rid:
@@ -149,8 +154,10 @@ class Handler(BaseHTTPRequestHandler):
                      "anthropic-version": self.headers.get("anthropic-version", "2023-06-01")})
         try:
             with urllib.request.urlopen(req, timeout=60) as r:
+                CALLS[-1]["status"] = r.status
                 return self._send(r.status, json.loads(r.read()))
         except urllib.error.HTTPError as e:
+            CALLS[-1]["status"] = e.code
             try:
                 payload = json.loads(e.read())
             except ValueError:

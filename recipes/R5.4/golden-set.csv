@@ -4,3 +4,13 @@ Edge,Three-year protection plan,At least Ben approves
 Duplicate,Status set twice,One request
 Escalate,Ben's own quote,Routed to Helen
 Refuse,Price list replaced while waiting,Back to R5.3
+Request not sent,Sending the approval request fails (companion extension),"Returned, locked; Owen told"
+Deadline passed,No decision by the deadline (companion extension),Approver reminded
+Deputy asked,No decision by twice the deadline (companion extension),Deputy asked
+Returned at three times,No decision by three times the deadline (companion extension),"Returned, locked; Ben told"
+Approved,The routed approver approves (companion extension),"Approver, time and version logged; sending unlocked"
+Rejected,The approver rejects with a comment (companion extension),Returned with the comment
+Not the approver,Someone not routed records an approval (companion extension),Not accepted; still locked; exception queue
+Price list replaced before approval,Approved after the price list changed (companion extension),"Back to R5.3, not unlocked"
+Sent unapproved,A quote sent without approval (companion extension),Exception queue and a message to Ben
+Write fails,The lock write fails (companion extension),Key marked failed; exception queue: write failed; no request sent

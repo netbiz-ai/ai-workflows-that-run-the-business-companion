@@ -5,3 +5,12 @@ Restart,Dispute closed yesterday,Resumes at its paused stage
 Duplicate,Flow run twice the same morning,One reminder
 Refuse,"Dispute logged by Ben, or agreed hold","Stopped, reason logged"
 Escalate,Dispute logged while a final notice awaits approval,Not sent
+Export stale,Yesterday's export (companion extension),"Nothing sent; ""no run"" logged; Aisha alerted"
+Export missing,No export saved today (companion extension),"Nothing sent; ""no run"" logged; Aisha alerted"
+No mailbox check,R8.3 logged no mailbox check today (companion extension),"Nothing sent; ""no run"" logged; Aisha alerted"
+Send fails,The AR mailbox refuses the send (companion extension),Logged unsent; exception queue: send failed; the stage stays due; never retried
+Missing contact,No AR contact in the CRM (companion extension),Held by step 8; exception queue; Aisha alerted
+List write fails,"Reminder list write fails after a send, then a second run (companion extension)",Key marked failed; exception queue: write failed; the second run sends nothing
+Final notice due,Final notice falls due (companion extension),Not sent; Aisha's approval requested
+Final notice approved,Aisha approves a final notice (companion extension),Final notice sent; Aisha's handoff opened
+Pause date passed,"A promise-to-pay pause whose date passed yesterday, unpaid (companion extension)",Resumes at its paused stage

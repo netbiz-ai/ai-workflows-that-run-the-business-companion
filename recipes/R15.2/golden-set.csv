@@ -3,3 +3,9 @@ Normal,Forecast 15 a week; 25 free,Cleared
 Edge,"Fits the window, not week one",Held
 Duplicate,"Brief re-marked ""ready""",One check
 Escalate,Live week at 90%,Next wave held
+Stale export,Slot export two days old (companion extension),Held; Owen told; exception queue
+Export format changed,Slot export with no week columns (companion extension),Held; Owen told; exception queue
+No forecast,A week with no forecast (companion extension),Held; to Tom; exception queue
+Recheck,Held brief; Tom adds crew time and the morning export fits (companion extension),Cleared
+Live and fitting,Live weeks at 80% or less (companion extension),Clearance dated again; no message
+Write fails,Capacity status write fails (companion extension),Key marked failed; exception queue: write failed; never retried

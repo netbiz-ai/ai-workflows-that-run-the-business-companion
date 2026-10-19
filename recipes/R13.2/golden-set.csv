@@ -4,3 +4,10 @@ Edge,New source without a review date,Not indexed; Owen alerted
 Duplicate,Weekly run fires twice,No second reminder
 Refuse,"Last year's expense policy, past expiry","Withdrawn; R13.1 says ""I don't know"""
 Escalate,Owner has left,Owen reassigns
+Vacation,"Owner on vacation, review due (companion extension)",One reminder to the delegate
+Two actions,"One source past expiry and another due, in one run (companion extension)",One withdrawal and one reminder; each key logged
+Index rebuild failed,Index still holds the previous major version (companion extension),Exception queue: register mismatch; Owen alerted
+Audience differs from sharing,Expense policy folder narrowed to finance (companion extension),Exception queue: register mismatch; Owen alerted
+Major version,Vehicle rule publishes version 3.0 (companion extension),Passages rebuilt once
+Minor version,Vehicle rule publishes version 2.1 (companion extension),No rebuild
+Write fails,The withdrawal write fails (companion extension),Key marked failed; exception queue: write failed; never retried

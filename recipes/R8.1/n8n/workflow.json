@@ -1,0 +1,2170 @@
+{
+  "name": "R8.1 Send staged overdue reminders that stop on payment or dispute",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "weeks",
+              "weeksInterval": 1,
+              "triggerAtDay": [
+                1,
+                2,
+                3,
+                4,
+                5
+              ],
+              "triggerAtHour": 7
+            }
+          ]
+        }
+      },
+      "id": "30ed21bd-43bd-5972-86d7-13ce56c9dbdc",
+      "name": "Step 1: Each working morning after the export is due",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "notes": "Monday to Friday; set the hour to after your open-invoice export is due.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "r8-1-final-notice-decision",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "ac083727-9be3-5340-a1b1-9e87be1fa235",
+      "name": "Step 9: Aisha decides on a final notice",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        400
+      ],
+      "notes": "Your approvals tool calls this when Aisha decides on a final notice. Body: {invoice, approved, by}.",
+      "notesInFlow": true,
+      "webhookId": "afca015e-b816-57bd-9358-bc897d82d12c"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "0a53c5b3-c142-5c53-93ca-dc8734b3ede5",
+              "name": "stop_flag_url",
+              "value": "https://<your stop list API>/stop_flags/R8.1",
+              "type": "string"
+            },
+            {
+              "id": "9fb943a4-d0a8-501f-b2cc-9a5771bf0c3f",
+              "name": "sharepoint_url",
+              "value": "https://<your SharePoint lists API>",
+              "type": "string"
+            },
+            {
+              "id": "d713cdd7-b650-5cb4-8091-f87d9209e161",
+              "name": "crm_url",
+              "value": "https://<your CRM API>",
+              "type": "string"
+            },
+            {
+              "id": "b95634d7-8256-557b-9586-6fe3a643ec45",
+              "name": "mail_url",
+              "value": "https://<your AR mailbox API>",
+              "type": "string"
+            },
+            {
+              "id": "8a8156ef-e66e-558b-9508-96744652f76b",
+              "name": "approvals_url",
+              "value": "https://<your approvals API>",
+              "type": "string"
+            },
+            {
+              "id": "aa647a5f-a634-585d-9796-024e7b8309c1",
+              "name": "messaging_url",
+              "value": "https://<your messaging API>",
+              "type": "string"
+            },
+            {
+              "id": "5d0aeb3f-8fab-5ac6-871e-af3d44366592",
+              "name": "ar_mailbox",
+              "value": "<your shared AR mailbox>",
+              "type": "string"
+            },
+            {
+              "id": "e92482de-a0de-5c0b-9fb5-28c2bb87684f",
+              "name": "ar_lead",
+              "value": "<your AR lead, who approves final notices>",
+              "type": "string"
+            },
+            {
+              "id": "190ecd17-2f31-5a3a-b314-a15e306e4615",
+              "name": "stage_days",
+              "value": "{\"courtesy_before_due\": \"<days before due>\", \"first_after_due\": \"<days after due>\", \"second_after_first\": \"<days after the first>\", \"final_after_second\": \"<days after the second>\"}",
+              "type": "object"
+            },
+            {
+              "id": "711e1447-478a-5fbe-9e25-832650c7c4b8",
+              "name": "templates",
+              "value": "{\"courtesy reminder\": {\"subject\": \"<your reviewed subject>\", \"text\": \"<your reviewed courtesy reminder; merge fields {{invoice}}, {{amount}}, {{due_date}}, {{contact_name}}, {{account_name}}>\"}, \"first overdue reminder\": {\"subject\": \"<your reviewed subject>\", \"text\": \"<your reviewed first overdue reminder>\"}, \"second overdue reminder\": {\"subject\": \"<your reviewed subject>\", \"text\": \"<your reviewed second overdue reminder>\"}, \"final notice\": {\"subject\": \"<your reviewed subject>\", \"text\": \"<your reviewed final notice>\"}}",
+              "type": "object"
+            },
+            {
+              "id": "d76f677a-c492-5dda-84f8-77ac37726331",
+              "name": "template_version",
+              "value": "<your template version>",
+              "type": "string"
+            },
+            {
+              "id": "558e7d97-07dc-5bf1-b173-05121ab773f7",
+              "name": "r8_3_runs",
+              "value": false,
+              "type": "boolean"
+            },
+            {
+              "id": "cd082e4d-70f7-5c56-8e2a-e9d1748846b0",
+              "name": "unlinked_hold_hours",
+              "value": 24,
+              "type": "number"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "0f518e1b-8607-5969-b34b-fba9772c9f11",
+      "name": "Config",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        260,
+        200
+      ],
+      "notes": "Edit these values for your company; nothing else in the workflow hard-codes them.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $('Step 9: Aisha decides on a final notice').isExecuted }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "id": "52e170d2-2b4a-5582-8dfb-0923d5c348ed"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "cbe5294a-7367-5899-ab03-e4c033c9b560",
+      "name": "Final-notice decision?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1040,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $('Step 9: Aisha decides on a final notice').item.json.body.approved === true }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "id": "7d0ab455-fcf0-5454-9097-4dd99f28cedd"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "077589a1-f45d-5d84-b7c4-d4f4e6125499",
+      "name": "Step 9: Approved?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1300,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO decision_log (recipe, item, decision, rules) VALUES ($1, $2, $3, $4::jsonb) RETURNING id",
+        "options": {
+          "queryReplacement": "={{ [\"R8.1\", String($('Step 9: Aisha decides on a final notice').item.json.body.invoice), 'final notice not approved; waits a day', JSON.stringify({ by: $('Step 9: Aisha decides on a final notice').item.json.body.by || null })] }}"
+        }
+      },
+      "id": "8a3e66c5-38db-59ab-a3b2-675510d7ffda",
+      "name": "Step 9: Decision log: not approved",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1560,
+        560
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "Decision log: the item's ID, the decision and the rules; never the content (book Chapter 3).",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Config').first().json.sharepoint_url }}/exports/open-invoices",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        }
+      },
+      "id": "b4f6a3ce-f1a4-5094-9638-dbe08cebd6f7",
+      "name": "Step 2: Read today's export",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1560,
+        200
+      ],
+      "notes": "A missing export arrives on the error output and fails the step 2 rule.",
+      "notesInFlow": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $('Config').first().json.r8_3_runs === true }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "id": "c2d85bb4-b859-5b40-b36e-4d713369d2a2"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "5f6d3920-b0a3-5ff7-99b1-11db1c185596",
+      "name": "Where R8.3 runs?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1820,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Config').first().json.sharepoint_url }}/status/mailbox-check",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        }
+      },
+      "id": "b484533c-4db9-5ac8-8bc5-a8f559745279",
+      "name": "Step 2: Read the mailbox check (R8.3)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2080,
+        80
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT count(*)::int AS count FROM exception_queue WHERE recipe = 'R8.3' AND reason = 'unlinked item' AND status = 'open' AND created_at < now() - make_interval(hours => $1::int)",
+        "options": {
+          "queryReplacement": "={{ [$('Config').first().json.unlinked_hold_hours] }}"
+        }
+      },
+      "id": "b8074a3d-4d2e-5fa6-a2fe-2b1468d4518d",
+      "name": "Step 2: Count unreviewed unlinked items (R8.3)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2340,
+        80
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "\n// Step 2: today's export, and where R8.3 runs its mailbox check today; otherwise no run.\nconst cfg = $('Config').first().json;\nconst today = new Date().toISOString().slice(0, 10);\n// A read that failed has no item on its success output.\nconst ok = n => { const a = $(n).all(0); return a.length ? a[0].json : null; };\nconst exp = ok(\"Step 2: Read today's export\");\nconst problems = [];\nif (!exp || exp.error || !Array.isArray(exp.rows)) problems.push('export missing');\nelse if (String(exp.saved_at || '').slice(0, 10) !== today) problems.push('export old: saved ' + exp.saved_at);\nlet hold_final = false;\nif (cfg.r8_3_runs) {\n  const st = ok('Step 2: Read the mailbox check (R8.3)');\n  if (!st || st.error || String(st.last_check || '').slice(0, 10) !== today) problems.push('R8.3 logged no mailbox check today');\n  hold_final = Number($('Step 2: Count unreviewed unlinked items (R8.3)').first().json.count || 0) > 0;\n}\nreturn [{ json: { run: problems.length === 0, problems, hold_final, today } }];\n"
+      },
+      "id": "bfd87ab5-ec53-5169-8e23-9c0c95dcebff",
+      "name": "Step 2: Rule: export and intake current?",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2600,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.run }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "id": "2afab8c7-ddaf-546d-a2cf-ec8115bb66ce"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "0b0bfce4-e7d1-53a1-893d-aec133f3499a",
+      "name": "Run today?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2860,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO decision_log (recipe, item, decision, rules) VALUES ($1, $2, $3, $4::jsonb) RETURNING id",
+        "options": {
+          "queryReplacement": "={{ [\"R8.1\", 'run ' + $('Step 2: Rule: export and intake current?').item.json.today, 'no run', JSON.stringify({ problems: $('Step 2: Rule: export and intake current?').item.json.problems })] }}"
+        }
+      },
+      "id": "7cbf6d3c-6ed0-5cc1-afc7-05e578c3ba11",
+      "name": "Step 2: Decision log: no run",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        3120,
+        440
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "Decision log: the item's ID, the decision and the rules; never the content (book Chapter 3).",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').first().json.messaging_url }}/messages",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ to: [$('Config').first().json.ar_lead], subject: 'R8.1 reminders: no run today', text: 'Nothing was sent: ' + $('Step 2: Rule: export and intake current?').item.json.problems.join('; ') }) }}"
+      },
+      "id": "e1d566ab-4f5b-5970-855a-072aefa34810",
+      "name": "Step 2: Alert Aisha",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3380,
+        440
+      ],
+      "notes": "Ends cleanly: nothing is sent.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Config').first().json.sharepoint_url }}/reminders",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "_wrap",
+              "value": "1"
+            }
+          ]
+        }
+      },
+      "id": "c1f9e1b4-998d-5674-8658-654d5448ab4f",
+      "name": "Step 3: Read the reminder list",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3120,
+        200
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Config').first().json.sharepoint_url }}/disputes",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "_wrap",
+              "value": "1"
+            },
+            {
+              "name": "status",
+              "value": "open"
+            }
+          ]
+        }
+      },
+      "id": "c3a9f8a9-1192-5855-8c38-befcba21f31b",
+      "name": "Step 5: Read the dispute list",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3380,
+        200
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Config').first().json.sharepoint_url }}/holds",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "_wrap",
+              "value": "1"
+            }
+          ]
+        }
+      },
+      "id": "d6bd48c3-f0ed-5ebd-8f63-914f7e75b0db",
+      "name": "Step 5: Read the hold list",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3640,
+        200
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Config').first().json.crm_url }}/accounts",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "_wrap",
+              "value": "1"
+            }
+          ]
+        }
+      },
+      "id": "7da5e9ba-9a59-52bb-9685-319285b3f64c",
+      "name": "Read CRM contacts (for step 7)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3900,
+        200
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "\n// Steps 3 to 5 of the book's R8.1, in order; step 9 reruns 4 and 5 before an approved final notice sends.\nconst cfg = $('Config').first().json;\nconst A = 'Step 9: Aisha decides on a final notice';\nconst decision = $(A).isExecuted ? $(A).first().json.body : null;\nconst gate = $('Step 2: Rule: export and intake current?').first().json;\nconst today = gate.today;\nconst rows = $(\"Step 2: Read today's export\").first().json.rows || [];\nconst list = Object.fromEntries(($('Step 3: Read the reminder list').first().json.items || []).map(r => [String(r.id), r]));\nconst disputes = ($('Step 5: Read the dispute list').first().json.items || []).filter(d => !d.until || d.until >= today);\nconst holds = ($('Step 5: Read the hold list').first().json.items || []).filter(h => !h.until || h.until >= today);\nconst crm = Object.fromEntries(($('Read CRM contacts (for step 7)').first().json.items || []).map(a => [String(a.id), a]));\nconst sd = cfg.stage_days;\nconst day = (d, n) => new Date(Date.parse(d + 'T00:00:00Z') + Number(n) * 86400000).toISOString().slice(0, 10);\nconst covers = (e, r) => e.invoice ? String(e.invoice) === String(r.invoice) : String(e.account) === String(r.account);\n\n// Table 8.1: a new invoice starts at the courtesy reminder, or at the first overdue reminder once its due date has passed.\nfunction firstStage(r) {\n  return today < r.due_date\n    ? { stage: 'courtesy reminder', due_on: day(r.due_date, -sd.courtesy_before_due) }\n    : { stage: 'first overdue reminder', due_on: day(r.due_date, sd.first_after_due) };\n}\nfunction nextStage(stage, r) {\n  if (stage === 'courtesy reminder') return { stage: 'first overdue reminder', due_on: day(r.due_date, sd.first_after_due) };\n  if (stage === 'first overdue reminder') return { stage: 'second overdue reminder', due_on: day(today, sd.second_after_first) };\n  if (stage === 'second overdue reminder') return { stage: 'final notice', due_on: day(today, sd.final_after_second) };\n  return { stage: 'handoff', due_on: today };\n}\nfunction stopFor(r) {\n  const amount = Number(r.amount), open = Number(r.open_amount);\n  const chase = holds.some(h => h.type === 'chase' && covers(h, r));\n  // Step 4: paid, part-paid or a negative amount stops; a part payment or negative amount goes to Aisha.\n  if (open === 0) return { reason: 'paid', tell: false };\n  if (open < 0) return { reason: 'negative open amount', tell: true };\n  if (open < amount && !chase) return { reason: 'part-paid', tell: true };\n  // Step 5: an open dispute, or a hold other than \"chase\", on the invoice or its account.\n  const d = disputes.find(e => covers(e, r));\n  if (d) return { reason: (d.invoice ? 'open dispute' : 'open dispute on the account') + (d.set_by ? ', set by ' + d.set_by : ''), tell: false };\n  const h = holds.find(e => e.type !== 'chase' && covers(e, r));\n  if (h) return { reason: 'hold: ' + (h.type || 'hold') + (h.set_by ? ', set by ' + h.set_by : ''), tell: false };\n  return null;\n}\n\nconst out = [];\nconst emit = (r, o) => {\n  const a = crm[String(r.account)] || {};\n  out.push({ json: Object.assign({ invoice: String(r.invoice), account: String(r.account), amount: r.amount, open_amount: r.open_amount,\n    due_date: r.due_date, contact_name: a.contact_name || '', contact_email: a.contact_email || '', account_name: a.name || '' }, o), pairedItem: 0 });\n};\nconst targets = decision ? rows.filter(r => String(r.invoice) === String(decision.invoice)) : rows;\nif (decision && !targets.length) {\n  out.push({ json: { outcome: 'wait', invoice: String(decision.invoice), decision: \"final notice not sent: invoice not in today's export\" }, pairedItem: 0 });\n}\nfor (const r of targets) {\n  const rec = list[String(r.invoice)];\n  const cur = rec ? { stage: rec.stage, due_on: rec.due_on } : firstStage(r);\n  if (cur.stage === 'handoff') continue;\n  const base = { id: String(r.invoice), invoice: String(r.invoice), account: String(r.account), stage: cur.stage, due_on: cur.due_on };\n  const s = stopFor(r);\n  const stopItem = (prefix) => emit(r, { outcome: 'stop', stage: cur.stage, reason: s.reason, tell: s.tell, decision: prefix + s.reason,\n    record: Object.assign({}, base, { status: 'stopped', reason: s.reason, stopped_on: today }) });\n  const sendItem = (decisionText) => {\n    const next = nextStage(cur.stage, r);\n    emit(r, { outcome: 'send', stage: cur.stage, key: r.invoice + ':' + cur.stage, decision: decisionText, next,\n      approved_by: decision ? (decision.by || null) : null,\n      record: Object.assign({}, base, next, { status: 'active', reason: null, last_sent: today, last_stage: cur.stage }) });\n  };\n  if (decision) {\n    // Step 9: an approved final notice sends only if steps 2, 4 and 5 still pass.\n    if (cur.stage !== 'final notice') { emit(r, { outcome: 'wait', stage: cur.stage, decision: 'final notice not sent: none awaiting approval' }); continue; }\n    if (s) { stopItem('final notice not sent; stopped: '); continue; }\n    if (gate.hold_final) { emit(r, { outcome: 'wait', stage: cur.stage, decision: 'final notice held: an unlinked reply over a day old is unreviewed' }); continue; }\n    sendItem('sent final notice');\n    continue;\n  }\n  if (s) {\n    if (!rec || rec.status !== 'stopped' || rec.reason !== s.reason) stopItem('stopped: ');\n    continue;\n  }\n  if (cur.due_on > today) {\n    // Step 3: a new invoice is added at its first stage; a stop that has ended resumes at its paused stage.\n    if (!rec || rec.status === 'stopped') emit(r, { outcome: 'list', stage: cur.stage, record: Object.assign({}, base, { status: 'active', reason: null }) });\n    continue;\n  }\n  if (cur.stage === 'final notice') {\n    if (gate.hold_final) emit(r, { outcome: 'wait', stage: cur.stage, decision: 'final notice held: an unlinked reply over a day old is unreviewed' });\n    else emit(r, { outcome: 'final', stage: cur.stage, decision: 'final notice: approval requested', approval_id: r.invoice + '-' + today,\n      record: Object.assign({}, base, { status: 'active', reason: null }) });\n    continue;\n  }\n  sendItem('sent ' + cur.stage);\n}\nreturn out;\n"
+      },
+      "id": "9b7fc0f1-e462-5cea-afe3-19eccd6c91bb",
+      "name": "Rules: steps 3 to 5",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4160,
+        200
+      ],
+      "notes": "Stop rules run before any send; there is no AI step in R8.1.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "20908c3e-03aa-5f8c-b340-3c65e12d8213",
+                    "leftValue": "={{ $json.outcome }}",
+                    "rightValue": "send",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "send"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "da1d8ccf-4ccc-5d9e-9ed1-ed9a9971c752",
+                    "leftValue": "={{ $json.outcome }}",
+                    "rightValue": "final",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "final"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "892b5e24-6ed2-58e4-b7b6-a5bd0a929905",
+                    "leftValue": "={{ $json.outcome }}",
+                    "rightValue": "stop",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "stop"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "f0e235bb-f180-5a63-93a7-836231f030de",
+                    "leftValue": "={{ $json.outcome }}",
+                    "rightValue": "list",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "list"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "422acb7f-3fea-5b70-a125-bb4bf09333ea",
+                    "leftValue": "={{ $json.outcome }}",
+                    "rightValue": "wait",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "wait"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "552c7a13-9fc8-5c44-befb-7ec99b242518",
+      "name": "Outcome",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        4420,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH reserved AS (INSERT INTO key_log (recipe, key, status) VALUES ($1, $2, 'in progress') ON CONFLICT (recipe, key) DO NOTHING RETURNING key), skipped AS (UPDATE key_log SET copies_skipped = copies_skipped + 1 WHERE recipe = $1 AND key = $2 AND NOT EXISTS (SELECT 1 FROM reserved)) SELECT (SELECT count(*) FROM reserved) = 1 AS is_new, $2::text AS key",
+        "options": {
+          "queryReplacement": "={{ [\"R8.1\", $('Rules: steps 3 to 5').item.json.key] }}"
+        }
+      },
+      "id": "8d1b5e50-ace1-5e56-9f3e-911dceaced10",
+      "name": "Step 6: Reserve key",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        4680,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "Key log: refuses a second copy in the same step (book Chapter 2).",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.is_new }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "id": "675ba81b-741e-5a98-8d1b-ea0f5e5f151f"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "7a97ee79-f817-557d-92fc-7d47bb877765",
+      "name": "New key?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        4940,
+        0
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "be36d412-8ae9-528a-8d55-0a83184cc312",
+      "name": "Duplicate: skip",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        5200,
+        -160
+      ],
+      "notes": "This invoice number plus stage is in the key log.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "\n// Step 7: fill the stage's template from the export and the CRM only.\nconst cfg = $('Config').first().json;\nconst r = $('Rules: steps 3 to 5').item.json;\nconst t = (cfg.templates || {})[r.stage] || {};\nconst fields = { invoice: r.invoice, amount: Number(r.open_amount).toFixed(2), due_date: r.due_date,\n  contact_name: r.contact_name, account_name: r.account_name };\nconst used = [...new Set(((t.subject || '') + ' ' + (t.text || '')).match(/\\{\\{(\\w+)\\}\\}/g) || [])].map(s => s.slice(2, -2));\nconst fill = s => String(s || '').replace(/\\{\\{(\\w+)\\}\\}/g, (_, k) => (k in fields ? String(fields[k] ?? '') : ''));\nreturn { json: { to: r.contact_email, subject: fill(t.subject), text: fill(t.text), used, fields, template_version: cfg.template_version } };\n"
+      },
+      "id": "4434ce60-a840-5057-8a86-b14e30170897",
+      "name": "Step 7: Fill the template",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        5200,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "\n// Step 8: the number and amount shown match the export, and no field is blank; otherwise hold.\nconst r = $('Rules: steps 3 to 5').item.json;\nconst m = $json;\nconst problems = [];\nif (!m.to) problems.push('no AR contact in the CRM');\nif (!m.subject || !m.text) problems.push('no template for ' + r.stage);\nfor (const k of m.used) {\n  if (!(k in m.fields)) problems.push('unknown field ' + k);\n  else if (String(m.fields[k] ?? '').trim() === '') problems.push('blank field ' + k);\n}\nconst shown = m.subject + '\\n' + m.text;\nif (!shown.includes(r.invoice)) problems.push('invoice number not shown');\nif (!shown.includes(Number(r.open_amount).toFixed(2))) problems.push('amount does not match the export');\nreturn { json: Object.assign({}, m, { ok: problems.length === 0, problems }) };\n"
+      },
+      "id": "c095e5a8-48a7-5d47-8c3b-bae2f91d1c93",
+      "name": "Step 8: Rule: number, amount and no blank field",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        5460,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.ok }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "id": "f7b4862d-7819-5697-b4b2-281ee572f055"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "f032c492-4099-55f8-bffc-400d06f2f709",
+      "name": "Step 8: Passes?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        5720,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $('Rules: steps 3 to 5').item.json.outcome }}",
+              "rightValue": "final",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              },
+              "id": "c2bb0c2e-cba7-537b-8306-065f8d632a03"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "260d9df8-8bbf-5170-b3bb-a18f7e9d83f8",
+      "name": "Final notice?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        5980,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "={{ $('Config').first().json.approvals_url }}/requests/{{ $('Rules: steps 3 to 5').item.json.approval_id }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ id: $('Rules: steps 3 to 5').item.json.approval_id, invoice: $('Rules: steps 3 to 5').item.json.invoice, account: $('Rules: steps 3 to 5').item.json.account, approver: $('Config').first().json.ar_lead, status: 'pending', to: $('Step 8: Rule: number, amount and no blank field').item.json.to, subject: $('Step 8: Rule: number, amount and no blank field').item.json.subject, text: $('Step 8: Rule: number, amount and no blank field').item.json.text, template_version: $('Step 8: Rule: number, amount and no blank field').item.json.template_version }) }}"
+      },
+      "id": "a2323c62-c4bc-5a0a-9c18-5f151311e8eb",
+      "name": "Step 9: Ask Aisha to approve the final notice",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        6240,
+        -160
+      ],
+      "notes": "Unapproved, the final notice waits a day: tomorrow's run asks again.",
+      "notesInFlow": true,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').first().json.mail_url }}/outbox",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ from: $('Config').first().json.ar_mailbox, to: $('Step 8: Rule: number, amount and no blank field').item.json.to, subject: $('Step 8: Rule: number, amount and no blank field').item.json.subject, text: $('Step 8: Rule: number, amount and no blank field').item.json.text }) }}"
+      },
+      "id": "d642442b-f736-50a1-9ad0-d8c5b1a3cc44",
+      "name": "Step 9: Send from the AR mailbox",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        6240,
+        80
+      ],
+      "notes": "A write: never retried.",
+      "notesInFlow": true,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "={{ $('Config').first().json.sharepoint_url }}/reminders/{{ $('Rules: steps 3 to 5').item.json.invoice }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($('Rules: steps 3 to 5').item.json.record) }}"
+      },
+      "id": "338761c6-6520-5a07-905f-b83f35cd4e53",
+      "name": "Step 10: Set the next stage and date",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        6500,
+        80
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $('Rules: steps 3 to 5').item.json.next.stage }}",
+              "rightValue": "handoff",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              },
+              "id": "81e6d87b-4e90-505b-b5c3-97a4b142294b"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "c857fa19-2988-50f1-a659-f94a252183de",
+      "name": "After the final notice?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        6760,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "={{ $('Config').first().json.sharepoint_url }}/handoffs/{{ $('Rules: steps 3 to 5').item.json.invoice }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ id: $('Rules: steps 3 to 5').item.json.invoice, invoice: $('Rules: steps 3 to 5').item.json.invoice, account: $('Rules: steps 3 to 5').item.json.account, owner: $('Config').first().json.ar_lead, status: 'open', opened_on: $now.toISODate() }) }}"
+      },
+      "id": "91dd54b2-4376-5e2c-9dfd-5ce4d5472014",
+      "name": "Step 10: Open Aisha's handoff",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        7020,
+        0
+      ],
+      "notes": "Nothing more is sent; Aisha decides: a call, a credit stop, a write-off.",
+      "notesInFlow": true,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE key_log SET status = $3, result = $4 WHERE recipe = $1 AND key = $2 RETURNING key",
+        "options": {
+          "queryReplacement": "={{ [\"R8.1\", $('Rules: steps 3 to 5').item.json.key, \"done\", 'sent ' + $('Rules: steps 3 to 5').item.json.stage] }}"
+        }
+      },
+      "id": "ab4f68e4-0f7a-50ba-82fd-13b78e251904",
+      "name": "Mark key done",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        7280,
+        80
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "={{ $('Config').first().json.sharepoint_url }}/reminders/{{ $('Rules: steps 3 to 5').item.json.invoice }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($('Rules: steps 3 to 5').item.json.record) }}"
+      },
+      "id": "b56710bf-5efb-583c-92f7-f4fd67231d35",
+      "name": "Steps 4 and 5: Record the stop",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        4680,
+        360
+      ],
+      "notes": "The stage is kept: a closed dispute or an ended hold resumes at its paused stage.",
+      "notesInFlow": true,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $('Rules: steps 3 to 5').item.json.tell === true }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "id": "6dce79e4-7065-55be-a99c-1444162e12d7"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "663870dd-99b9-552f-821c-e330165a3747",
+      "name": "Tell Aisha?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        4940,
+        360
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').first().json.messaging_url }}/messages",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ to: [$('Config').first().json.ar_lead], subject: 'Invoice ' + $('Rules: steps 3 to 5').item.json.invoice + ' stopped: ' + $('Rules: steps 3 to 5').item.json.reason, text: 'Reminders stopped. Log a dispute or a \"chase\" hold for invoice ' + $('Rules: steps 3 to 5').item.json.invoice + ' (open ' + $('Rules: steps 3 to 5').item.json.open_amount + ' of ' + $('Rules: steps 3 to 5').item.json.amount + ').' }) }}"
+      },
+      "id": "283f5f93-8a6b-589a-92ca-1dff1b698d30",
+      "name": "Step 4: Tell Aisha",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        5200,
+        280
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "={{ $('Config').first().json.sharepoint_url }}/reminders/{{ $('Rules: steps 3 to 5').item.json.invoice }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($('Rules: steps 3 to 5').item.json.record) }}"
+      },
+      "id": "0be22fbb-eae5-5181-b8c5-31dd17a026b7",
+      "name": "Step 3: Add to the reminder list",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        4680,
+        560
+      ],
+      "notes": "A new invoice at its first stage, or a resumed invoice not yet due.",
+      "notesInFlow": true,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO decision_log (recipe, item, decision, rules) VALUES ($1, $2, $3, $4::jsonb) RETURNING id",
+        "options": {
+          "queryReplacement": "={{ [\"R8.1\", $('Rules: steps 3 to 5').item.json.invoice, $('Rules: steps 3 to 5').item.json.decision, JSON.stringify({ stage: $('Rules: steps 3 to 5').item.json.stage, reason: $('Rules: steps 3 to 5').item.json.reason || null, next_stage: ($('Rules: steps 3 to 5').item.json.next || {}).stage || null, next_date: ($('Rules: steps 3 to 5').item.json.next || {}).due_on || null, approved_by: $('Rules: steps 3 to 5').item.json.approved_by || null, template_version: $('Config').first().json.template_version })] }}"
+        }
+      },
+      "id": "25da2fc8-3181-58c3-8dc1-1d221ed12532",
+      "name": "Step 10: Decision log",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        7540,
+        280
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "Decision log: the item's ID, the decision and the rules; never the content (book Chapter 3).",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "DELETE FROM key_log WHERE recipe = $1 AND key = $2 RETURNING key",
+        "options": {
+          "queryReplacement": "={{ [\"R8.1\", $('Rules: steps 3 to 5').item.json.key || ''] }}"
+        }
+      },
+      "id": "0b326d72-76f7-5c15-8d47-11e416870fc8",
+      "name": "Step 8: Release key: held",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        5980,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "The stage stays due; the next run checks it again once the CRM is fixed.",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO exception_queue (recipe, item, reason, detail, owner) VALUES ($1, $2, $3, $4, $5) RETURNING id",
+        "options": {
+          "queryReplacement": "={{ [\"R8.1\", $('Rules: steps 3 to 5').item.json.invoice, \"held: template check\", $('Step 8: Rule: number, amount and no blank field').item.json.problems.join('; '), $('Config').first().json.ar_lead] }}"
+        }
+      },
+      "id": "f6f7d31f-5205-5b3a-bd39-685065f2908c",
+      "name": "Exception queue: held by step 8",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        6240,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "Exception queue: a named person works through it (book Chapters 2 and 16).",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').first().json.messaging_url }}/messages",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ to: [$('Config').first().json.ar_lead], subject: 'Reminder held: invoice ' + $('Rules: steps 3 to 5').item.json.invoice, text: $('Step 8: Rule: number, amount and no blank field').item.json.problems.join('; ') }) }}"
+      },
+      "id": "41c9aae8-538c-55e6-924a-8779e98e4a07",
+      "name": "Step 8: Alert Aisha",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        6500,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO decision_log (recipe, item, decision, rules) VALUES ($1, $2, $3, $4::jsonb) RETURNING id",
+        "options": {
+          "queryReplacement": "={{ [\"R8.1\", $('Rules: steps 3 to 5').item.json.invoice, 'held: ' + $('Rules: steps 3 to 5').item.json.stage, JSON.stringify({ stage: $('Rules: steps 3 to 5').item.json.stage, problems: $('Step 8: Rule: number, amount and no blank field').item.json.problems, template_version: $('Config').first().json.template_version })] }}"
+        }
+      },
+      "id": "2f6b2d1e-7ed7-5eb6-b803-f2d1d5bf62c7",
+      "name": "Step 8: Decision log: held",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        6760,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "Decision log: the item's ID, the decision and the rules; never the content (book Chapter 3).",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "DELETE FROM key_log WHERE recipe = $1 AND key = $2 RETURNING key",
+        "options": {
+          "queryReplacement": "={{ [\"R8.1\", $('Rules: steps 3 to 5').item.json.key] }}"
+        }
+      },
+      "id": "7cd416f4-2fca-5c93-a9df-6534d6920b09",
+      "name": "Release key: the stage stays due",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        6500,
+        520
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO exception_queue (recipe, item, reason, detail, owner) VALUES ($1, $2, $3, $4, $5) RETURNING id",
+        "options": {
+          "queryReplacement": "={{ [\"R8.1\", $('Rules: steps 3 to 5').item.json.invoice, \"send failed\", 'Not sent: ' + $('Rules: steps 3 to 5').item.json.stage + '; it stays due for the next run', $('Config').first().json.ar_lead] }}"
+        }
+      },
+      "id": "ea4bcb21-a50a-5d1c-9b51-5a9cc86613c4",
+      "name": "Exception queue: send failed",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        6760,
+        520
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "Exception queue: a named person works through it (book Chapters 2 and 16).",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO decision_log (recipe, item, decision, rules) VALUES ($1, $2, $3, $4::jsonb) RETURNING id",
+        "options": {
+          "queryReplacement": "={{ [\"R8.1\", $('Rules: steps 3 to 5').item.json.invoice, 'unsent: ' + $('Rules: steps 3 to 5').item.json.stage, JSON.stringify({ stage: $('Rules: steps 3 to 5').item.json.stage, template_version: $('Config').first().json.template_version })] }}"
+        }
+      },
+      "id": "8fd33a1a-a43d-5e8f-879b-e3224c7fc145",
+      "name": "Decision log: unsent",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        7020,
+        520
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "Decision log: the item's ID, the decision and the rules; never the content (book Chapter 3).",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE key_log SET status = $3, result = $4 WHERE recipe = $1 AND key = $2 RETURNING key",
+        "options": {
+          "queryReplacement": "={{ [\"R8.1\", $('Rules: steps 3 to 5').item.json.key, \"failed\", 'sent; reminder list write failed'] }}"
+        }
+      },
+      "id": "49e4ab89-47c0-5a2a-801b-c025ae17ec23",
+      "name": "Mark key failed",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        7020,
+        720
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO exception_queue (recipe, item, reason, detail, owner) VALUES ($1, $2, $3, $4, $5) RETURNING id",
+        "options": {
+          "queryReplacement": "={{ [\"R8.1\", $('Rules: steps 3 to 5').item.json.invoice, \"write failed\", 'Reminder list or approval write failed; check the invoice before the next run', $('Config').first().json.ar_lead] }}"
+        }
+      },
+      "id": "6439fd04-25b6-534f-80d4-3a4df3ccc7a0",
+      "name": "Exception queue: write failed",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        7280,
+        720
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "Exception queue: a named person works through it (book Chapters 2 and 16).",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Config').item.json.stop_flag_url }}",
+        "options": {}
+      },
+      "id": "b76af86d-57c3-5464-8bb9-f7ff0bd46952",
+      "name": "Stop flag: read",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        520,
+        200
+      ],
+      "notes": "Kill switch: set stopped to true in your stop list and the next run ends quietly (book Chapter 3).",
+      "notesInFlow": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.stopped === true }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "id": "2a76fa95-de85-5254-8a21-72a377228b33"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "ca7a68a4-bce6-5607-9f87-2fdbb3989fff",
+      "name": "Stop flag set?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        780,
+        200
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "fd2b006f-e304-5ae8-bb47-e12874d08cdf",
+      "name": "Stopped by the stop flag",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        1040,
+        0
+      ],
+      "notes": "Ends quietly; nothing is read, written or sent.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO exception_queue (recipe, item, reason, detail, owner) VALUES ($1, $2, $3, $4, $5) RETURNING id",
+        "options": {
+          "queryReplacement": "={{ [\"R8.1\", 'run ' + $execution.id, \"stop list unreadable\", 'The stop list could not be read, so the run stopped; fix the stop list', '<your workflow owner>'] }}"
+        }
+      },
+      "id": "89492951-ed84-52c1-9687-a2145590a746",
+      "name": "Exception queue: stop list unreadable",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        780,
+        420
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "Exception queue: a named person works through it (book Chapters 2 and 16).",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    }
+  ],
+  "connections": {
+    "Step 1: Each working morning after the export is due": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 9: Aisha decides on a final notice": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Final-notice decision?": {
+      "main": [
+        [
+          {
+            "node": "Step 9: Approved?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Step 2: Read today's export",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 9: Approved?": {
+      "main": [
+        [
+          {
+            "node": "Step 2: Read today's export",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Step 9: Decision log: not approved",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 2: Read today's export": {
+      "main": [
+        [
+          {
+            "node": "Where R8.3 runs?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Where R8.3 runs?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Where R8.3 runs?": {
+      "main": [
+        [
+          {
+            "node": "Step 2: Read the mailbox check (R8.3)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Step 2: Rule: export and intake current?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 2: Read the mailbox check (R8.3)": {
+      "main": [
+        [
+          {
+            "node": "Step 2: Count unreviewed unlinked items (R8.3)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Step 2: Count unreviewed unlinked items (R8.3)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 2: Count unreviewed unlinked items (R8.3)": {
+      "main": [
+        [
+          {
+            "node": "Step 2: Rule: export and intake current?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 2: Rule: export and intake current?": {
+      "main": [
+        [
+          {
+            "node": "Run today?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run today?": {
+      "main": [
+        [
+          {
+            "node": "Step 3: Read the reminder list",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Step 2: Decision log: no run",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 2: Decision log: no run": {
+      "main": [
+        [
+          {
+            "node": "Step 2: Alert Aisha",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 3: Read the reminder list": {
+      "main": [
+        [
+          {
+            "node": "Step 5: Read the dispute list",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 5: Read the dispute list": {
+      "main": [
+        [
+          {
+            "node": "Step 5: Read the hold list",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 5: Read the hold list": {
+      "main": [
+        [
+          {
+            "node": "Read CRM contacts (for step 7)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read CRM contacts (for step 7)": {
+      "main": [
+        [
+          {
+            "node": "Rules: steps 3 to 5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rules: steps 3 to 5": {
+      "main": [
+        [
+          {
+            "node": "Outcome",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Outcome": {
+      "main": [
+        [
+          {
+            "node": "Step 6: Reserve key",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Step 7: Fill the template",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Steps 4 and 5: Record the stop",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Step 3: Add to the reminder list",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Step 10: Decision log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 6: Reserve key": {
+      "main": [
+        [
+          {
+            "node": "New key?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "New key?": {
+      "main": [
+        [
+          {
+            "node": "Step 7: Fill the template",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Duplicate: skip",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 7: Fill the template": {
+      "main": [
+        [
+          {
+            "node": "Step 8: Rule: number, amount and no blank field",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 8: Rule: number, amount and no blank field": {
+      "main": [
+        [
+          {
+            "node": "Step 8: Passes?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 8: Passes?": {
+      "main": [
+        [
+          {
+            "node": "Final notice?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Step 8: Release key: held",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Final notice?": {
+      "main": [
+        [
+          {
+            "node": "Step 9: Ask Aisha to approve the final notice",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Step 9: Send from the AR mailbox",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 9: Send from the AR mailbox": {
+      "main": [
+        [
+          {
+            "node": "Step 10: Set the next stage and date",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Release key: the stage stays due",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 10: Set the next stage and date": {
+      "main": [
+        [
+          {
+            "node": "After the final notice?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark key failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "After the final notice?": {
+      "main": [
+        [
+          {
+            "node": "Step 10: Open Aisha's handoff",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark key done",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 10: Open Aisha's handoff": {
+      "main": [
+        [
+          {
+            "node": "Mark key done",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark key failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Steps 4 and 5: Record the stop": {
+      "main": [
+        [
+          {
+            "node": "Tell Aisha?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Exception queue: write failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tell Aisha?": {
+      "main": [
+        [
+          {
+            "node": "Step 4: Tell Aisha",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Step 10: Decision log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark key done": {
+      "main": [
+        [
+          {
+            "node": "Step 10: Decision log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 9: Ask Aisha to approve the final notice": {
+      "main": [
+        [
+          {
+            "node": "Step 10: Decision log",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Exception queue: write failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 4: Tell Aisha": {
+      "main": [
+        [
+          {
+            "node": "Step 10: Decision log",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Exception queue: write failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 8: Release key: held": {
+      "main": [
+        [
+          {
+            "node": "Exception queue: held by step 8",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Exception queue: held by step 8": {
+      "main": [
+        [
+          {
+            "node": "Step 8: Alert Aisha",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 8: Alert Aisha": {
+      "main": [
+        [
+          {
+            "node": "Step 8: Decision log: held",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Release key: the stage stays due": {
+      "main": [
+        [
+          {
+            "node": "Exception queue: send failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Exception queue: send failed": {
+      "main": [
+        [
+          {
+            "node": "Decision log: unsent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark key failed": {
+      "main": [
+        [
+          {
+            "node": "Exception queue: write failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 3: Add to the reminder list": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Exception queue: write failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config": {
+      "main": [
+        [
+          {
+            "node": "Stop flag: read",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Stop flag: read": {
+      "main": [
+        [
+          {
+            "node": "Stop flag set?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Exception queue: stop list unreadable",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Stop flag set?": {
+      "main": [
+        [
+          {
+            "node": "Stopped by the stop flag",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Final-notice decision?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataSuccessExecution": "all",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "pinData": {}
+}

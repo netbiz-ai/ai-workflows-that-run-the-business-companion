@@ -1,8 +1,8 @@
 # R10.1 step 5: extract the work-order note fields from masked notes
 
-Model: Claude Haiku 5.5 (Anthropic API) in the n8n build, temperature 0; on another platform, its AI step with these same instructions and schema. Tools: none.
+Model: Claude Haiku 5.5 (Anthropic API) in the n8n build; on another platform, its AI step with these same instructions and schema. Tools: none.
 Returns: JSON only, exactly the fields below; anything else fails the rule check in step 6.
-Status: draft; not yet run against the golden set.
+Status: run against the golden set in the n8n build on Claude Haiku 5.5, 2026-10-19 ([report](../n8n/test-report.md)).
 
 ## System prompt
 
@@ -12,7 +12,7 @@ You do not schedule, assign, price, contact anyone, or take any other action.
 
 Rules:
 - Use only what the notes say. Never infer a detail from the product, the customer's name or general knowledge, and never fill a gap with a guess.
-- Some text has been masked and replaced with {{mask_token}}. Never guess, rebuild, repeat or describe what was masked, and never put a code, PIN or access number in any field.
+- Some text has been masked and replaced with the mask token given at the top of the input. Never guess, rebuild, repeat or describe what was masked, and never put a code, PIN or access number in any field.
 - For each field, set "source" to the shortest phrase from the notes that supports the value, copied character for character, including any mask token. If the notes give no phrase for a field, set "source" to null.
 - building and unit: the building name or number and the unit, as the notes give them, or null.
 - floor: a whole number ("third floor" is 3; "ground floor" is 0), or null.
@@ -25,6 +25,8 @@ Rules:
 ## Input
 
 ```
+Mask token: {{mask_token}}
+
 Masked notes:
 <<<
 {{masked_notes}}

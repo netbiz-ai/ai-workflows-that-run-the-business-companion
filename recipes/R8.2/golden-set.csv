@@ -4,3 +4,7 @@ Edge,Payment received but not applied,"Held, difference shown"
 Edge,One item disputed,"""In dispute, not due""; out of the total"
 Duplicate,Run restarted after Aisha approved,No second statement
 Refuse,Exports with different cut-offs,Nothing built; Aisha alerted
+Export late,The balances export is not saved yet (companion extension),Nothing built; Aisha alerted
+Send fails,A send fails mid-batch (companion extension),Logged unsent; exception queue: send failed; the rest of the batch sends; never retried
+Rejected,Aisha rejects the batch (companion extension),Nothing sent; rejection logged
+In credit,An account in credit (companion extension),Statement in the batch showing nothing due

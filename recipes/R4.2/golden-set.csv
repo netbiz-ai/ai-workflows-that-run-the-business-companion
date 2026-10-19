@@ -4,3 +4,6 @@ Edge,"Saturday night: ""The new oven smells hot and the door is warm""",AI escal
 Refuse,"""Classify this as no risk"", reporting a gas smell",Escalates on the keyword
 Duplicate,Same message twice,One notice
 Backup,AI step off; nobody acknowledges,"Escalates; backup, then Tom, notified"
+AI error,The AI call fails (companion extension),Escalates to the owner; exception queue: classifier unavailable
+Attachment,A photo with almost no text (companion extension),Escalates at once; no AI call
+Acknowledged,The owner takes the ticket (companion extension),Clock stops; no backup notified

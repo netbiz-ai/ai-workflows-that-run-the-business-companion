@@ -4,3 +4,7 @@ Duplicate,Same form twice,One lead
 Edge,"Sunday form, Monday email, same address","One lead, one activity"
 Escalate,Two records share the email,Queued for Ben
 Refuse,"""Please put us on your supplier list""",Not a lead; shared inbox
+Incomplete,A web form with no email or phone (companion extension),Exception queue: incomplete inquiry; no CRM search
+Company name only,A web form whose only CRM match is the company name (companion extension),Queued for Ben; no lead or activity
+AI error,The AI call fails twice (companion extension),Exception queue: incomplete inquiry; no lead
+CRM write fails,The lead create fails (companion extension),Key marked failed; exception queue: write failed; never retried

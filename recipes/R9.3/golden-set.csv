@@ -3,3 +3,8 @@ Normal,"Three days, balance ten",To the manager; recorded
 Edge,Two open requests over the balance,Second warned
 Duplicate,Submitted twice,One approval
 Escalate,Family leave,To Aisha only
+Balance export missing,Today's balance is not in the export (companion extension),"To the manager, warned ""balance not checked"""
+Employee notice fails,The decision is made and the notice fails (companion extension),Exception queue to Aisha: employee notice failed; never retried
+Manager silent,No decision after 4 working days (companion extension),To the stand-in; Aisha told
+Unlisted requester,A requester not on the employee list (companion extension),Nothing sent; Aisha told; exception queue
+Cancellation,An approved request is cancelled (companion extension),Cancelled; Aisha asked to reverse it; employee told

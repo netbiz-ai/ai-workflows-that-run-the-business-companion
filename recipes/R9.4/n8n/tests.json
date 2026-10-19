@@ -1,0 +1,126 @@
+{
+  "config": {
+    "leavers_url": "{mocks}/leavers",
+    "inventory_url": "{mocks}/inventory",
+    "directory_url": "{mocks}/directory",
+    "pos_url": "{mocks}/pos",
+    "tasks_url": "{mocks}/tasks",
+    "evidence_url": "{mocks}/evidence",
+    "itsm_url": "{mocks}/itsm",
+    "messaging_url": "{mocks}/messaging",
+    "leaver_list_owner": "aisha@example.test",
+    "access_owner": "owen@example.test"
+  },
+  "seed": {
+    "leavers": {"leavers": {
+      "L-1": {"id": "L-1", "employee_id": "E-1", "name": "Seasonal Leaver", "last_day": "{today}", "last_time": "17:30",
+              "immediate": false, "entered_by": "aisha@example.test", "manager": "manager@example.test"}
+    }},
+    "inventory": {"items": {
+      "I-SSO": {"id": "I-SSO", "person_id": "E-1", "kind": "sso account", "system": "directory", "account": "u-e1"},
+      "I-POS": {"id": "I-POS", "person_id": "E-1", "kind": "app", "system": "point of sale", "connection": "pos", "account": "pos-e1"}
+    }},
+    "directory": {"users": {"u-e1": {"id": "u-e1", "enabled": true}}},
+    "pos": {"users": {"pos-e1": {"id": "pos-e1", "active": true}}}
+  },
+  "cases": [
+    {"case": "Normal", "row": 1, "input": "Seasonal leaver, SSO and point-of-sale",
+     "trigger": [{"schedule": "Step 1: Daily leaver check after closing", "pause": 3},
+                 {"webhook": "r9-4-close", "body": {"case_id": "E-1-{today}", "by": "owen@example.test"}}],
+     "expect": [
+       {"mock": "directory/users/u-e1", "field": "enabled", "equals": false},
+       {"mock": "directory/sign_in_revocations", "count": 1},
+       {"mock": "pos/users/pos-e1", "field": "active", "equals": false},
+       {"mock": "evidence/items/E-1-{today}-I-SSO", "field": "status", "equals": "confirmed"},
+       {"mock": "evidence/items/E-1-{today}-I-POS", "field": "status", "equals": "confirmed"},
+       {"mock": "evidence/cases/E-1-{today}", "field": "status", "equals": "closed"},
+       {"mock": "evidence/cases/E-1-{today}", "field": "closed_by", "equals": "owen@example.test"},
+       {"sql": "select status from key_log where recipe='R9.4'", "equals": "done"},
+       {"sql": "select string_agg(decision, ', ' order by id) from decision_log where recipe='R9.4'", "equals": "every item confirmed; to the access owner, closed"}]},
+    {"case": "Edge", "row": 2, "input": "Empty inventory",
+     "seed": {"leavers": {"leavers": {"L-1": {"employee_id": "E-9"}}}},
+     "trigger": [{"schedule": "Step 1: Daily leaver check after closing"}],
+     "expect": [
+       {"calls": "PATCH /directory/users/u-e1", "count": 0},
+       {"mock": "evidence/cases", "count": 0},
+       {"calls": "POST /messaging/messages", "count": 1},
+       {"sql": "select reason || ' / ' || detail || ' / ' || owner from exception_queue where recipe='R9.4'", "equals": "inventory not valid / inventory empty; nothing removed / owen@example.test"}]},
+    {"case": "Edge", "row": 3, "input": "Supplier-portal login lent after hire",
+     "seed": {"inventory": {"items": {"I-PORTAL": {"id": "I-PORTAL", "person_id": "E-1", "kind": "app", "system": "supplier portal",
+              "account": "e1-portal", "administrator": "portal-admin@example.test"}}}},
+     "trigger": [{"schedule": "Step 1: Daily leaver check after closing"}],
+     "expect": [
+       {"mock": "tasks/tasks/E-1-{today}-I-PORTAL", "field": "assignee", "equals": "portal-admin@example.test"},
+       {"mock": "evidence/items/E-1-{today}-I-PORTAL", "field": "status", "equals": "open"},
+       {"mock": "evidence/items/E-1-{today}-I-SSO", "field": "status", "equals": "confirmed"},
+       {"mock": "evidence/cases/E-1-{today}", "field": "status", "equals": "open"},
+       {"mock": "evidence/cases/E-1-{today}", "field": "unconfirmed", "equals": ["I-PORTAL"]},
+       {"calls": "POST /messaging/messages", "count": 0}]},
+    {"case": "Duplicate", "row": 4, "input": "Leaver saved twice",
+     "trigger": [{"webhook": "r9-4-immediate", "pause": 5, "body": {"leaver_id": "L-1"}},
+                 {"webhook": "r9-4-immediate", "body": {"leaver_id": "L-1"}}],
+     "expect": [
+       {"calls": "PATCH /directory/users/u-e1", "count": 1},
+       {"calls": "POST /directory/sign_in_revocations", "count": 1},
+       {"calls": "PATCH /pos/users/pos-e1", "count": 1},
+       {"calls": "POST /messaging/messages", "count": 1},
+       {"sql": "select copies_skipped from key_log where recipe='R9.4'", "equals": "1"}]},
+    {"case": "Refuse", "row": 5, "input": "Entered by a store manager; an administrator",
+     "seed": {"leavers": {"leavers": {
+                "L-1": {"entered_by": "storemanager@example.test"},
+                "L-2": {"id": "L-2", "employee_id": "E-2", "name": "Admin Leaver", "last_day": "{today}", "last_time": "17:30",
+                        "immediate": false, "entered_by": "aisha@example.test", "manager": "manager@example.test"}}},
+              "inventory": {"items": {"I-ADM": {"id": "I-ADM", "person_id": "E-2", "kind": "sso account", "system": "directory", "account": "admin-e2", "admin": true}}},
+              "directory": {"users": {"admin-e2": {"id": "admin-e2", "enabled": true}}}},
+     "trigger": [{"schedule": "Step 1: Daily leaver check after closing"}],
+     "expect": [
+       {"calls": "PATCH /directory/users/u-e1", "count": 0},
+       {"calls": "PATCH /directory/users/admin-e2", "count": 0},
+       {"calls": "PATCH /pos/users/pos-e1", "count": 0},
+       {"calls": "POST /messaging/messages", "count": 2},
+       {"sql": "select string_agg(reason || ' / ' || owner, ', ' order by reason) from exception_queue where recipe='R9.4'", "equals": "inventory not valid / owen@example.test, not entered by HR / aisha@example.test"}]},
+    {"case": "Disable fails", "row": 6, "input": "The SSO disable fails (companion extension)",
+     "fail": [{"method": "PATCH", "path": "/directory/users/u-e1", "status": 500, "times": 1}],
+     "trigger": [{"schedule": "Step 1: Daily leaver check after closing"}],
+     "expect": [
+       {"calls": "PATCH /directory/users/u-e1", "count": 1},
+       {"mock": "itsm/tickets", "count": 1},
+       {"mock": "pos/users/pos-e1", "field": "active", "equals": false},
+       {"mock": "evidence/cases/E-1-{today}", "field": "status", "equals": "open"},
+       {"sql": "select status from key_log where recipe='R9.4'", "equals": "failed"},
+       {"sql": "select reason || ' / ' || owner from exception_queue where recipe='R9.4'", "equals": "removal failed / owen@example.test"}]},
+    {"case": "Administrator does not tick", "row": 7, "input": "An item still open at the deadline (companion extension)",
+     "seed": {"leavers": {"leavers": {"L-1": {"last_day": "{today-3}"}}},
+              "evidence": {"cases": {"E-1-OLD": {"id": "E-1-OLD", "employee_id": "E-1", "name": "Seasonal Leaver", "status": "open",
+                           "deadline_on": "{today-1}", "items": ["I-SSO", "I-PORTAL"], "unconfirmed": ["I-PORTAL"], "ticketed": false}}}},
+     "trigger": [{"schedule": "Step 1: Daily leaver check after closing"}],
+     "expect": [
+       {"mock": "itsm/tickets", "count": 1},
+       {"calls": "POST /messaging/messages", "count": 1},
+       {"mock": "evidence/cases/E-1-OLD", "field": "ticketed", "equals": true},
+       {"mock": "evidence/cases/E-1-OLD", "field": "status", "equals": "open"}]},
+    {"case": "Administrator ticks", "row": 8, "input": "The last open item is ticked (companion extension)",
+     "seed": {"evidence": {
+       "cases": {"E-1-C": {"id": "E-1-C", "key": "E-1:{today-1}", "employee_id": "E-1", "name": "Seasonal Leaver", "status": "open",
+                 "deadline_on": "{today+1}", "items": ["I-SSO", "I-PORTAL"], "unconfirmed": ["I-PORTAL"], "ticketed": false}},
+       "items": {"E-1-C-I-SSO": {"id": "E-1-C-I-SSO", "case_id": "E-1-C", "item_id": "I-SSO", "status": "confirmed", "by": "response: directory"},
+                 "E-1-C-I-PORTAL": {"id": "E-1-C-I-PORTAL", "case_id": "E-1-C", "item_id": "I-PORTAL", "status": "open", "task_id": "E-1-C-I-PORTAL"}}}},
+     "trigger": [{"webhook": "r9-4-tick", "body": {"evidence_id": "E-1-C-I-PORTAL", "by": "portal-admin@example.test"}}],
+     "expect": [
+       {"mock": "evidence/items/E-1-C-I-PORTAL", "field": "status", "equals": "confirmed"},
+       {"mock": "evidence/items/E-1-C-I-PORTAL", "field": "by", "equals": "portal-admin@example.test"},
+       {"mock": "evidence/cases/E-1-C", "field": "status", "equals": "all confirmed; to close"},
+       {"calls": "POST /messaging/messages", "count": 1}]},
+    {"case": "Close refused", "row": 9, "input": "Closing with an item unconfirmed (companion extension)",
+     "seed": {"evidence": {
+       "cases": {"E-1-C": {"id": "E-1-C", "key": "E-1:{today-1}", "employee_id": "E-1", "name": "Seasonal Leaver", "status": "open",
+                 "deadline_on": "{today+1}", "items": ["I-SSO", "I-PORTAL"], "unconfirmed": ["I-PORTAL"], "ticketed": false}},
+       "items": {"E-1-C-I-SSO": {"id": "E-1-C-I-SSO", "case_id": "E-1-C", "item_id": "I-SSO", "status": "confirmed", "by": "response: directory"},
+                 "E-1-C-I-PORTAL": {"id": "E-1-C-I-PORTAL", "case_id": "E-1-C", "item_id": "I-PORTAL", "status": "open", "task_id": "E-1-C-I-PORTAL"}}}},
+     "trigger": [{"webhook": "r9-4-close", "body": {"case_id": "E-1-C", "by": "owen@example.test"}}],
+     "expect": [
+       {"mock": "evidence/cases/E-1-C", "field": "status", "equals": "open"},
+       {"calls": "POST /messaging/messages", "count": 1},
+       {"sql": "select count(*) from decision_log where recipe='R9.4'", "equals": "0"}]}
+  ]
+}

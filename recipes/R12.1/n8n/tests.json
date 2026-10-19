@@ -1,0 +1,929 @@
+{
+ "config": {
+  "library_url": "{mocks}/sharepoint",
+  "table_url": "{mocks}/sharepoint",
+  "snapshots_url": "{mocks}/sharepoint",
+  "approved_rules_url": "{mocks}/sharepoint",
+  "messaging_url": "{mocks}/messaging",
+  "sources": [
+   {
+    "id": "helpdesk",
+    "name": "Helpdesk",
+    "export_path": "exports/helpdesk",
+    "control_path": "controls/helpdesk",
+    "columns": [
+     "ticket",
+     "status",
+     "opened"
+    ],
+    "control_column": "",
+    "manual": false,
+    "data_owner": "helpdesk-owner@example.test"
+   },
+   {
+    "id": "shop",
+    "name": "Online shop and point-of-sale",
+    "export_path": "exports/shop",
+    "control_path": "controls/shop",
+    "columns": [
+     "order",
+     "channel",
+     "amount"
+    ],
+    "control_column": "amount",
+    "manual": false,
+    "data_owner": "owen@example.test"
+   },
+   {
+    "id": "delivery",
+    "name": "Delivery scheduling",
+    "export_path": "exports/delivery",
+    "control_path": "controls/delivery",
+    "columns": [
+     "work_order",
+     "state",
+     "overdue"
+    ],
+    "control_column": "",
+    "manual": false,
+    "data_owner": "tom@example.test"
+   },
+   {
+    "id": "accounting",
+    "name": "Accounting",
+    "export_path": "exports/accounting",
+    "control_path": "controls/accounting",
+    "columns": [
+     "invoice",
+     "customer",
+     "amount",
+     "overdue"
+    ],
+    "control_column": "amount",
+    "manual": false,
+    "data_owner": "aisha@example.test"
+   },
+   {
+    "id": "tasks",
+    "name": "Task system",
+    "export_path": "exports/tasks",
+    "control_path": "controls/tasks",
+    "columns": [
+     "task",
+     "done"
+    ],
+    "control_column": "",
+    "manual": false,
+    "data_owner": "tasks-owner@example.test"
+   },
+   {
+    "id": "hr_form",
+    "name": "HR weekly form",
+    "export_path": "exports/hr_form",
+    "control_path": "controls/hr_form",
+    "columns": [
+     "employee_ref",
+     "type"
+    ],
+    "control_column": "",
+    "manual": true,
+    "data_owner": "aisha@example.test"
+   }
+  ],
+  "measures": [
+   {
+    "id": "open-tickets",
+    "name": "Open tickets",
+    "source": "helpdesk",
+    "kind": "status",
+    "people": false,
+    "formula": {
+     "op": "count",
+     "where": {
+      "status": "open"
+     }
+    },
+    "rule_version": "v1"
+   },
+   {
+    "id": "sales",
+    "name": "Online and store sales",
+    "source": "shop",
+    "kind": "period",
+    "people": false,
+    "formula": {
+     "op": "sum",
+     "column": "amount"
+    },
+    "rule_version": "v1"
+   },
+   {
+    "id": "overdue-work-orders",
+    "name": "Overdue work orders",
+    "source": "delivery",
+    "kind": "status",
+    "people": false,
+    "formula": {
+     "op": "count",
+     "where": {
+      "overdue": true
+     }
+    },
+    "rule_version": "v1"
+   },
+   {
+    "id": "completed-deliveries",
+    "name": "Completed deliveries",
+    "source": "delivery",
+    "kind": "period",
+    "people": false,
+    "formula": {
+     "op": "count",
+     "where": {
+      "state": "completed"
+     }
+    },
+    "rule_version": "v1"
+   },
+   {
+    "id": "receivables-overdue",
+    "name": "Overdue receivables",
+    "source": "accounting",
+    "kind": "status",
+    "people": false,
+    "formula": {
+     "op": "sum",
+     "column": "amount",
+     "where": {
+      "overdue": true
+     }
+    },
+    "rule_version": "v1"
+   },
+   {
+    "id": "open-tasks",
+    "name": "Open tasks",
+    "source": "tasks",
+    "kind": "status",
+    "people": false,
+    "formula": {
+     "op": "count",
+     "where": {
+      "done": false
+     }
+    },
+    "rule_version": "v1"
+   },
+   {
+    "id": "staff-absences",
+    "name": "Staff absences",
+    "source": "hr_form",
+    "kind": "period",
+    "people": true,
+    "formula": {
+     "op": "count"
+    },
+    "rule_version": "v1"
+   }
+  ],
+  "report_builder": "owen@example.test",
+  "rule_approver": "aisha@example.test"
+ },
+ "seed": {
+  "sharepoint": {
+   "exports": {
+    "helpdesk": {
+     "file": "helpdesk-week.csv",
+     "link": "https://files.example.test/helpdesk-week.csv",
+     "created": "{today}T23:00:00Z",
+     "covers_to": "{today}T23:00:00Z",
+     "columns": [
+      "ticket",
+      "status",
+      "opened"
+     ],
+     "rows": [
+      {
+       "ticket": "H-1",
+       "status": "open",
+       "opened": "{today-2}"
+      },
+      {
+       "ticket": "H-2",
+       "status": "open",
+       "opened": "{today-3}"
+      },
+      {
+       "ticket": "H-3",
+       "status": "open",
+       "opened": "{today-4}"
+      },
+      {
+       "ticket": "H-4",
+       "status": "open",
+       "opened": "{today-5}"
+      },
+      {
+       "ticket": "H-5",
+       "status": "closed",
+       "opened": "{today-6}"
+      }
+     ]
+    },
+    "shop": {
+     "file": "shop-and-pos-week.csv",
+     "link": "https://files.example.test/shop-and-pos-week.csv",
+     "created": "{today}T23:00:00Z",
+     "covers_to": "{today}T23:00:00Z",
+     "columns": [
+      "order",
+      "channel",
+      "amount"
+     ],
+     "rows": [
+      {
+       "order": "S-1",
+       "channel": "online",
+       "amount": 100
+      },
+      {
+       "order": "S-2",
+       "channel": "store",
+       "amount": 250
+      },
+      {
+       "order": "S-3",
+       "channel": "store",
+       "amount": 400
+      }
+     ]
+    },
+    "delivery": {
+     "file": "delivery-week.csv",
+     "link": "https://files.example.test/delivery-week.csv",
+     "created": "{today}T23:00:00Z",
+     "covers_to": "{today}T23:00:00Z",
+     "columns": [
+      "work_order",
+      "state",
+      "overdue"
+     ],
+     "rows": [
+      {
+       "work_order": "W-1",
+       "state": "scheduled",
+       "overdue": true
+      },
+      {
+       "work_order": "W-2",
+       "state": "scheduled",
+       "overdue": true
+      },
+      {
+       "work_order": "W-3",
+       "state": "scheduled",
+       "overdue": true
+      },
+      {
+       "work_order": "W-4",
+       "state": "scheduled",
+       "overdue": true
+      },
+      {
+       "work_order": "W-5",
+       "state": "completed",
+       "overdue": false
+      },
+      {
+       "work_order": "W-6",
+       "state": "completed",
+       "overdue": false
+      }
+     ]
+    },
+    "accounting": {
+     "file": "receivables.csv",
+     "link": "https://files.example.test/receivables.csv",
+     "created": "{today}T23:00:00Z",
+     "covers_to": "{today}T23:00:00Z",
+     "columns": [
+      "invoice",
+      "customer",
+      "amount",
+      "overdue"
+     ],
+     "rows": [
+      {
+       "invoice": "I-1",
+       "customer": "C-1",
+       "amount": 1200,
+       "overdue": true
+      },
+      {
+       "invoice": "I-2",
+       "customer": "C-2",
+       "amount": 800,
+       "overdue": true
+      },
+      {
+       "invoice": "I-3",
+       "customer": "C-3",
+       "amount": 500,
+       "overdue": false
+      }
+     ]
+    },
+    "tasks": {
+     "file": "tasks.csv",
+     "link": "https://files.example.test/tasks.csv",
+     "created": "{today}T23:00:00Z",
+     "covers_to": "{today}T23:00:00Z",
+     "columns": [
+      "task",
+      "done"
+     ],
+     "rows": [
+      {
+       "task": "T-1",
+       "done": false
+      },
+      {
+       "task": "T-2",
+       "done": false
+      },
+      {
+       "task": "T-3",
+       "done": true
+      }
+     ]
+    },
+    "hr_form": {
+     "file": "hr-weekly-form.csv",
+     "link": "https://files.example.test/hr-weekly-form.csv",
+     "created": "{today}T23:00:00Z",
+     "covers_to": "{today}T23:00:00Z",
+     "columns": [
+      "employee_ref",
+      "type"
+     ],
+     "rows": [
+      {
+       "employee_ref": "E-1",
+       "type": "absence"
+      },
+      {
+       "employee_ref": "E-2",
+       "type": "absence"
+      },
+      {
+       "employee_ref": "E-3",
+       "type": "absence"
+      },
+      {
+       "employee_ref": "E-4",
+       "type": "absence"
+      }
+     ]
+    }
+   },
+   "controls": {
+    "helpdesk": {
+     "total": 5
+    },
+    "shop": {
+     "total": 750
+    },
+    "delivery": {
+     "total": 6
+    },
+    "accounting": {
+     "total": 2500
+    },
+    "tasks": {
+     "total": 3
+    },
+    "hr_form": {
+     "total": 4
+    }
+   },
+   "approved_rules": {
+    "open-tickets": {
+     "id": "open-tickets",
+     "measure": "Open tickets",
+     "version": "v1"
+    },
+    "sales": {
+     "id": "sales",
+     "measure": "Online and store sales",
+     "version": "v1"
+    },
+    "overdue-work-orders": {
+     "id": "overdue-work-orders",
+     "measure": "Overdue work orders",
+     "version": "v1"
+    },
+    "completed-deliveries": {
+     "id": "completed-deliveries",
+     "measure": "Completed deliveries",
+     "version": "v1"
+    },
+    "receivables-overdue": {
+     "id": "receivables-overdue",
+     "measure": "Overdue receivables",
+     "version": "v1"
+    },
+    "open-tasks": {
+     "id": "open-tasks",
+     "measure": "Open tasks",
+     "version": "v1"
+    },
+    "staff-absences": {
+     "id": "staff-absences",
+     "measure": "Staff absences",
+     "version": "v1"
+    }
+   },
+   "versions": {
+    "V-1": {
+     "id": "V-1",
+     "week": "{today-10}",
+     "cutoff": "{today-10}T17:00:00Z",
+     "status": "written"
+    }
+   },
+   "weekly_table": {
+    "V-1:open-tickets": {
+     "id": "V-1:open-tickets",
+     "version": "V-1",
+     "week": "{today-10}",
+     "measure": "Open tickets",
+     "value": 6,
+     "change": null,
+     "status": "fresh"
+    },
+    "V-1:overdue-work-orders": {
+     "id": "V-1:overdue-work-orders",
+     "version": "V-1",
+     "week": "{today-10}",
+     "measure": "Overdue work orders",
+     "value": 3,
+     "change": null,
+     "status": "fresh"
+    },
+    "V-1:staff-absences": {
+     "id": "V-1:staff-absences",
+     "version": "V-1",
+     "week": "{today-10}",
+     "measure": "Staff absences",
+     "value": 5,
+     "change": null,
+     "status": "manual"
+    }
+   }
+  }
+ },
+ "cases": [
+  {
+   "case": "Normal",
+   "row": 1,
+   "input": "Six fresh sources",
+   "trigger": [
+    {
+     "schedule": "Step 1: Thursday 19:30"
+    }
+   ],
+   "expect": [
+    {
+     "mock": "sharepoint/weekly_table/V-2:open-tickets",
+     "field": "status",
+     "in": [
+      "fresh",
+      "manual"
+     ]
+    },
+    {
+     "mock": "sharepoint/weekly_table/V-2:sales",
+     "field": "status",
+     "in": [
+      "fresh",
+      "manual"
+     ]
+    },
+    {
+     "mock": "sharepoint/weekly_table/V-2:overdue-work-orders",
+     "field": "status",
+     "in": [
+      "fresh",
+      "manual"
+     ]
+    },
+    {
+     "mock": "sharepoint/weekly_table/V-2:completed-deliveries",
+     "field": "status",
+     "in": [
+      "fresh",
+      "manual"
+     ]
+    },
+    {
+     "mock": "sharepoint/weekly_table/V-2:receivables-overdue",
+     "field": "status",
+     "in": [
+      "fresh",
+      "manual"
+     ]
+    },
+    {
+     "mock": "sharepoint/weekly_table/V-2:open-tasks",
+     "field": "status",
+     "in": [
+      "fresh",
+      "manual"
+     ]
+    },
+    {
+     "mock": "sharepoint/weekly_table/V-2:staff-absences",
+     "field": "status",
+     "in": [
+      "fresh",
+      "manual"
+     ]
+    },
+    {
+     "mock": "sharepoint/weekly_table/V-2:open-tickets",
+     "field": "value",
+     "equals": 4
+    },
+    {
+     "mock": "sharepoint/weekly_table/V-2:open-tickets",
+     "field": "change",
+     "equals": -2
+    },
+    {
+     "mock": "sharepoint/weekly_table/V-2:sales",
+     "field": "value",
+     "equals": 750
+    },
+    {
+     "mock": "sharepoint/weekly_table/V-2:sales",
+     "field": "source_link",
+     "equals": "https://files.example.test/shop-and-pos-week.csv"
+    },
+    {
+     "mock": "sharepoint/weekly_table/V-2:overdue-work-orders",
+     "field": "value",
+     "equals": 4
+    },
+    {
+     "mock": "sharepoint/weekly_table/V-2:overdue-work-orders",
+     "field": "change",
+     "equals": 1
+    },
+    {
+     "mock": "sharepoint/weekly_table/V-2:overdue-work-orders",
+     "field": "source_link",
+     "contains": "/snapshots/V-2"
+    },
+    {
+     "mock": "sharepoint/weekly_table/V-2:receivables-overdue",
+     "field": "value",
+     "equals": 2000
+    },
+    {
+     "mock": "sharepoint/weekly_table/V-2:staff-absences",
+     "field": "status",
+     "equals": "manual"
+    },
+    {
+     "mock": "sharepoint/weekly_table/V-2:staff-absences",
+     "field": "note",
+     "equals": "manual, not reconciled"
+    },
+    {
+     "mock": "sharepoint/snapshots",
+     "count": 4
+    },
+    {
+     "mock": "sharepoint/versions/V-2",
+     "field": "status",
+     "equals": "written"
+    },
+    {
+     "mock": "messaging/messages",
+     "count": 0
+    },
+    {
+     "sql": "select status from key_log where recipe='R12.1'",
+     "equals": "done"
+    },
+    {
+     "sql": "select count(*) from decision_log where recipe='R12.1'",
+     "equals": "1"
+    }
+   ]
+  },
+  {
+   "case": "Edge",
+   "row": 2,
+   "input": "Delivery export with a renamed column",
+   "seed": {
+    "sharepoint": {
+     "exports": {
+      "delivery": {
+       "columns": [
+        "work_order",
+        "status",
+        "overdue"
+       ]
+      }
+     }
+    }
+   },
+   "trigger": [
+    {
+     "schedule": "Step 1: Thursday 19:30"
+    }
+   ],
+   "expect": [
+    {
+     "mock": "sharepoint/weekly_table/V-2:overdue-work-orders",
+     "field": "status",
+     "equals": "format changed"
+    },
+    {
+     "mock": "sharepoint/weekly_table/V-2:overdue-work-orders",
+     "field": "value",
+     "equals": null
+    },
+    {
+     "mock": "sharepoint/weekly_table/V-2:completed-deliveries",
+     "field": "status",
+     "equals": "format changed"
+    },
+    {
+     "mock": "sharepoint/weekly_table/V-2:completed-deliveries",
+     "field": "value",
+     "equals": null
+    },
+    {
+     "mock": "sharepoint/weekly_table/V-2:open-tickets",
+     "field": "status",
+     "equals": "fresh"
+    },
+    {
+     "mock": "messaging",
+     "field": "messages",
+     "contains": "\"tom@example.test\""
+    },
+    {
+     "mock": "sharepoint/versions/V-2",
+     "field": "status",
+     "equals": "written"
+    }
+   ]
+  },
+  {
+   "case": "Duplicate",
+   "row": 3,
+   "input": "Schedule fires twice on the same files",
+   "trigger": [
+    {
+     "schedule": "Step 1: Thursday 19:30",
+     "pause": 4
+    },
+    {
+     "schedule": "Step 1: Thursday 19:30"
+    }
+   ],
+   "expect": [
+    {
+     "mock": "sharepoint/versions",
+     "count": 2
+    },
+    {
+     "calls": "POST /sharepoint/weekly_table",
+     "count": 7
+    },
+    {
+     "sql": "select copies_skipped from key_log where recipe='R12.1'",
+     "equals": "1"
+    }
+   ]
+  },
+  {
+   "case": "Escalate",
+   "row": 4,
+   "input": "Receivables total differs from control total",
+   "seed": {
+    "sharepoint": {
+     "controls": {
+      "accounting": {
+       "total": 2600
+      }
+     }
+    }
+   },
+   "trigger": [
+    {
+     "schedule": "Step 1: Thursday 19:30"
+    }
+   ],
+   "expect": [
+    {
+     "mock": "sharepoint/weekly_table/V-2:receivables-overdue",
+     "field": "status",
+     "equals": "does not reconcile"
+    },
+    {
+     "mock": "sharepoint/weekly_table/V-2:receivables-overdue",
+     "field": "value",
+     "equals": null
+    },
+    {
+     "mock": "messaging/messages",
+     "count": 1
+    },
+    {
+     "mock": "messaging",
+     "field": "messages",
+     "contains": "\"to\": [\"owen@example.test\", \"aisha@example.test\"]"
+    },
+    {
+     "sql": "select reason from exception_queue where recipe='R12.1'",
+     "equals": "source failed"
+    }
+   ]
+  },
+  {
+   "case": "Stale export",
+   "row": 5,
+   "input": "The helpdesk export did not run (companion extension)",
+   "seed": {
+    "sharepoint": {
+     "exports": {
+      "helpdesk": {
+       "created": "{today-8}T18:00:00Z",
+       "covers_to": "{today-8}T18:00:00Z"
+      }
+     }
+    }
+   },
+   "trigger": [
+    {
+     "schedule": "Step 1: Thursday 19:30"
+    }
+   ],
+   "expect": [
+    {
+     "mock": "sharepoint/weekly_table/V-2:open-tickets",
+     "field": "status",
+     "equals": "stale"
+    },
+    {
+     "mock": "sharepoint/weekly_table/V-2:open-tickets",
+     "field": "value",
+     "equals": null
+    },
+    {
+     "mock": "sharepoint/weekly_table/V-2:open-tickets",
+     "field": "last_good",
+     "equals": "{today-10}"
+    },
+    {
+     "mock": "messaging",
+     "field": "messages",
+     "contains": "\"to\": [\"owen@example.test\", \"helpdesk-owner@example.test\"]"
+    }
+   ]
+  },
+  {
+   "case": "Fewer than 3",
+   "row": 6,
+   "input": "Two staff absences on the HR form (companion extension)",
+   "seed": {
+    "sharepoint": {
+     "exports": {
+      "hr_form": {
+       "rows": [
+        {
+         "employee_ref": "E-1",
+         "type": "absence"
+        },
+        {
+         "employee_ref": "E-2",
+         "type": "absence"
+        }
+       ]
+      }
+     },
+     "controls": {
+      "hr_form": {
+       "total": 2
+      }
+     }
+    }
+   },
+   "trigger": [
+    {
+     "schedule": "Step 1: Thursday 19:30"
+    }
+   ],
+   "expect": [
+    {
+     "mock": "sharepoint/weekly_table/V-2:staff-absences",
+     "field": "value",
+     "equals": "fewer than 3"
+    },
+    {
+     "mock": "sharepoint/weekly_table/V-2:staff-absences",
+     "field": "change",
+     "equals": null
+    },
+    {
+     "mock": "sharepoint/weekly_table/V-2:staff-absences",
+     "field": "status",
+     "equals": "fewer than 3"
+    }
+   ]
+  },
+  {
+   "case": "Rule not approved",
+   "row": 7,
+   "input": "A formula version the rule approver has not approved (companion extension)",
+   "seed": {
+    "sharepoint": {
+     "approved_rules": {
+      "sales": {
+       "version": "v2"
+      }
+     }
+    }
+   },
+   "trigger": [
+    {
+     "schedule": "Step 1: Thursday 19:30"
+    }
+   ],
+   "expect": [
+    {
+     "mock": "sharepoint/versions",
+     "count": 1
+    },
+    {
+     "calls": "POST /sharepoint/weekly_table",
+     "count": 0
+    },
+    {
+     "mock": "messaging/messages/1",
+     "field": "to",
+     "contains": "aisha@example.test"
+    },
+    {
+     "sql": "select reason from exception_queue where recipe='R12.1'",
+     "equals": "rule version not approved"
+    },
+    {
+     "sql": "select count(*) from key_log where recipe='R12.1'",
+     "equals": "0"
+    }
+   ]
+  },
+  {
+   "case": "Write fails",
+   "row": 8,
+   "input": "A weekly table write fails (companion extension)",
+   "fail": [
+    {
+     "method": "POST",
+     "path": "/sharepoint/weekly_table",
+     "status": 500,
+     "times": 1
+    }
+   ],
+   "trigger": [
+    {
+     "schedule": "Step 1: Thursday 19:30"
+    }
+   ],
+   "expect": [
+    {
+     "calls": "POST /sharepoint/weekly_table",
+     "count": 7
+    },
+    {
+     "mock": "sharepoint/versions/V-2",
+     "field": "status",
+     "equals": "writing"
+    },
+    {
+     "sql": "select status from key_log where recipe='R12.1'",
+     "equals": "failed"
+    },
+    {
+     "sql": "select reason from exception_queue where recipe='R12.1'",
+     "equals": "write failed"
+    }
+   ]
+  }
+ ]
+}

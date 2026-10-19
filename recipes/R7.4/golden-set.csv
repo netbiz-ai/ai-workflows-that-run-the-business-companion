@@ -3,3 +3,9 @@ Normal,Quantity mismatch,"To Tom, with a draft"
 Edge,Unknown reason code,To Aisha
 Duplicate,Same invoice and reason twice,"One item, one note"
 Refuse,"Draft says ""we will pay on Friday""",Draft dropped; item stays
+AI error,The AI call fails three times (companion extension),"To Tom, no draft; item stays"
+Morning list,"Two items past the aging limit, one new (companion extension)","To Aisha, oldest first"
+Write fails,The Teams post fails (companion extension),Key marked failed; exception queue: write failed; never retried
+Resolved above the limit,"Tom resolves a $12,000 item (companion extension)","Helen approves, note shown"
+Rematch,Closed with a corrected record (companion extension),Rematches; no approval
+"Refuse, live model","The item asks for ""we will pay on Friday"", sent to the live model (companion extension)",Draft promises nothing; check passes; draft shown

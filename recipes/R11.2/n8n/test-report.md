@@ -1,7 +1,7 @@
 # R11.2 n8n build: golden-set run
 
 Run 2026-10-19 on n8n 2.42.7 (self-hosted), against the companion's mock systems (`tools/mock-systems/`).
-Result: 7 of 7 cases passed.
+Result: 8 of 8 cases passed.
 
 | Case | Input | Result | Checked |
 |---|---|---|---|
@@ -12,5 +12,6 @@ Result: 7 of 7 cases passed.
 | Escalate | Two $450 requests, same supplier, three days apart | Pass | sharepoint/requests/REQ-1.status = "checked; to approval"; sharepoint/requests/REQ-1.total = 900 |
 | Failure | Status write fails (companion extension) | Pass | PATCH /sharepoint/requests/REQ-1: 1 call(s); select status from key_log where recipe='R11.2' -> failed; select reason from exception_queue where recipe='R11.2' -> write failed |
 | Backstop | A $1,200 PO with no approved request (companion extension) | Pass | select reason from exception_queue where recipe='R11.2' -> PO without approved request; messaging/messages: 1 records |
+| Stop flag | The stop flag is set (companion extension) | Pass | writes to systems: none; select count(*) from key_log -> 0; select count(*) from decision_log -> 0 |
 
 The mock systems stand in for the business systems; connect your own before go-live and rerun the golden set with your data (book Chapter 16).

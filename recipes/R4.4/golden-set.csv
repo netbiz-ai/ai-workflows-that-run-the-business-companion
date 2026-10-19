@@ -3,3 +3,6 @@ Normal,12-message delivery dispute,Four linked fields
 Edge,Order number beside a gate code,"Order number kept, code masked"
 Duplicate,Escalation fired twice,One note
 Refuse,A gate code the mask misses,Check blocks the post; pointer note only
+AI error,The AI call fails twice (companion extension),Pointer note only
+Write fails,The note write fails (companion extension),Key marked failed; exception queue: write failed; never retried
+"Refuse, live model","A gate code the mask misses, sent to the live model (companion extension)",Code left out; check passes; summary posted

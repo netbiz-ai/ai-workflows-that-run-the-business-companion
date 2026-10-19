@@ -1,0 +1,516 @@
+{
+ "config": {
+  "crm_url": "{mocks}/crm",
+  "messaging_url": "{mocks}/teams",
+  "sales_lead": "ben@northstar.example.test",
+  "covers": {
+   "lee@northstar.example.test": "sam@northstar.example.test"
+  },
+  "crm_admin": "owen@northstar.example.test",
+  "ai_url": "{mocks}/anthropic/v1/messages"
+ },
+ "seed": {
+  "crm": {
+   "quotes": {
+    "Q-1": {
+     "id": "Q-1",
+     "ref": "Q-1042",
+     "revision": 1,
+     "status": "sent",
+     "sent_date": "{today-14}",
+     "valid_until": "{today+30}",
+     "owner": "ben@northstar.example.test",
+     "account_id": "A-1",
+     "description": "Lobby bar stools in walnut finish, with delivery and assembly",
+     "last_activity_date": "{today-12}",
+     "last_activity_summary": "The property manager asked whether delivery before the end of the month is possible and whether assembly is included. Ben answered both questions."
+    }
+   },
+   "accounts": {
+    "A-1": {
+     "id": "A-1",
+     "name": "Harbor View Property Mgmt",
+     "dispute": false
+    }
+   },
+   "tasks": {}
+  },
+  "teams": {
+   "messages": {}
+  }
+ },
+ "cases": [
+  {
+   "case": "Normal",
+   "row": 1,
+   "input": "Quote quiet past the window",
+   "needs_ai": true,
+   "trigger": [
+    {
+     "schedule": "Step 1: Quiet-quote check each working day"
+    }
+   ],
+   "expect": [
+    {
+     "mock": "crm/tasks/1",
+     "field": "title",
+     "equals": "Follow up quote Q-1042"
+    },
+    {
+     "mock": "crm/tasks/1",
+     "field": "owner",
+     "equals": "ben@northstar.example.test"
+    },
+    {
+     "mock": "teams/messages/2",
+     "field": "draft",
+     "contains": "Q-1042"
+    },
+    {
+     "sql": "select decision from decision_log where recipe='R6.2'",
+     "equals": "reminder 1, with draft"
+    },
+    {
+     "sql": "select key from key_log where recipe='R6.2'",
+     "equals": "Q-1:1:1"
+    }
+   ]
+  },
+  {
+   "case": "Edge",
+   "row": 2,
+   "input": "Quote expires in two days",
+   "seed": {
+    "crm": {
+     "quotes": {
+      "Q-1": {
+       "valid_until": "{today+2}"
+      }
+     }
+    }
+   },
+   "trigger": [
+    {
+     "schedule": "Step 1: Quiet-quote check each working day"
+    }
+   ],
+   "expect": [
+    {
+     "mock": "teams/messages/2",
+     "field": "text",
+     "contains": "Requote before following up (R5.3)"
+    },
+    {
+     "mock": "teams/messages/2",
+     "field": "draft",
+     "equals": null
+    },
+    {
+     "mock": "crm/tasks",
+     "count": 1
+    },
+    {
+     "calls": "POST /anthropic/v1/messages",
+     "count": 0
+    },
+    {
+     "sql": "select decision from decision_log where recipe='R6.2'",
+     "equals": "reminder 1, no draft: requote"
+    }
+   ]
+  },
+  {
+   "case": "Duplicate",
+   "row": 3,
+   "input": "Schedule fires twice",
+   "trigger": [
+    {
+     "schedule": "Step 1: Quiet-quote check each working day"
+    },
+    {
+     "schedule": "Step 1: Quiet-quote check each working day"
+    }
+   ],
+   "expect": [
+    {
+     "calls": "POST /crm/tasks",
+     "count": 1
+    },
+    {
+     "calls": "POST /teams/messages",
+     "count": 1
+    },
+    {
+     "sql": "select count(*) from key_log where recipe='R6.2'",
+     "equals": "1"
+    },
+    {
+     "sql": "select count(*) from decision_log where recipe='R6.2'",
+     "equals": "1"
+    }
+   ]
+  },
+  {
+   "case": "Escalate",
+   "row": 4,
+   "input": "Account flagged for a dispute",
+   "seed": {
+    "crm": {
+     "accounts": {
+      "A-1": {
+       "dispute": true
+      }
+     }
+    }
+   },
+   "trigger": [
+    {
+     "schedule": "Step 1: Quiet-quote check each working day",
+     "pause": 3
+    },
+    {
+     "schedule": "Step 1: Quiet-quote check each working day"
+    }
+   ],
+   "expect": [
+    {
+     "calls": "POST /teams/messages",
+     "count": 1
+    },
+    {
+     "mock": "teams/messages/1",
+     "field": "to",
+     "equals": "ben@northstar.example.test"
+    },
+    {
+     "calls": "POST /crm/tasks",
+     "count": 0
+    },
+    {
+     "calls": "POST /anthropic/v1/messages",
+     "count": 0
+    },
+    {
+     "sql": "select key || ' ' || copies_skipped from key_log where recipe='R6.2'",
+     "equals": "Q-1:dispute 1"
+    },
+    {
+     "sql": "select decision from decision_log where recipe='R6.2'",
+     "equals": "no reminder; sales lead told (dispute)"
+    }
+   ]
+  },
+  {
+   "case": "Refuse",
+   "row": 5,
+   "input": "Draft offers \"an extra 5% off\"",
+   "trigger": [
+    {
+     "schedule": "Step 1: Quiet-quote check each working day"
+    }
+   ],
+   "expect": [
+    {
+     "mock": "crm/tasks",
+     "count": 1
+    },
+    {
+     "mock": "teams/messages/2",
+     "field": "draft",
+     "equals": null
+    },
+    {
+     "sql": "select decision from decision_log where recipe='R6.2'",
+     "equals": "reminder 1, without draft"
+    },
+    {
+     "sql": "select rules->>'draft_check' from decision_log where recipe='R6.2'",
+     "equals": "dropped: number not in the description: 5"
+    }
+   ],
+   "fail": [
+    {
+     "method": "POST",
+     "path": "/anthropic/v1/messages",
+     "status": 200,
+     "times": 1,
+     "body": {
+      "id": "msg_canned",
+      "type": "message",
+      "role": "assistant",
+      "model": "claude-haiku-5-5",
+      "content": [
+       {
+        "type": "text",
+        "text": "{\"draft\": \"Hello, thank you for considering {{quote_ref}} for the lobby bar stools. We can offer an extra 5% off if you order this month.\"}"
+       }
+      ],
+      "stop_reason": "end_turn",
+      "stop_sequence": null,
+      "usage": {
+       "input_tokens": 0,
+       "output_tokens": 0
+      }
+     }
+    }
+   ]
+  },
+  {
+   "case": "AI error",
+   "row": 6,
+   "input": "The AI call fails on every try (companion extension)",
+   "fail": [
+    {
+     "method": "POST",
+     "path": "/anthropic/v1/messages",
+     "status": 529,
+     "times": 10
+    }
+   ],
+   "trigger": [
+    {
+     "schedule": "Step 1: Quiet-quote check each working day"
+    }
+   ],
+   "expect": [
+    {
+     "calls": "POST /anthropic/v1/messages",
+     "count": 3
+    },
+    {
+     "mock": "crm/tasks/1",
+     "field": "title",
+     "equals": "Follow up quote Q-1042"
+    },
+    {
+     "mock": "teams/messages/2",
+     "field": "draft",
+     "equals": null
+    },
+    {
+     "sql": "select decision || ' / ' || (rules->>'draft_check') from decision_log where recipe='R6.2'",
+     "equals": "reminder 1, without draft / dropped: AI error after three retries"
+    }
+   ]
+  },
+  {
+   "case": "Write fails",
+   "row": 7,
+   "input": "The CRM task write fails (companion extension)",
+   "fail": [
+    {
+     "method": "POST",
+     "path": "/crm/tasks",
+     "status": 500,
+     "times": 1
+    }
+   ],
+   "trigger": [
+    {
+     "schedule": "Step 1: Quiet-quote check each working day"
+    }
+   ],
+   "expect": [
+    {
+     "calls": "POST /crm/tasks",
+     "count": 1
+    },
+    {
+     "calls": "POST /teams/messages",
+     "count": 0
+    },
+    {
+     "sql": "select status from key_log where recipe='R6.2'",
+     "equals": "failed"
+    },
+    {
+     "sql": "select reason from exception_queue where recipe='R6.2'",
+     "equals": "write failed"
+    }
+   ]
+  },
+  {
+   "case": "Last reminder",
+   "row": 8,
+   "input": "Quote due its last allowed reminder (companion extension)",
+   "seed": {
+    "crm": {
+     "tasks": {
+      "T-1": {
+       "id": "T-1",
+       "source": "R6.2 quiet-quote reminder",
+       "quote_id": "Q-1",
+       "revision": 1,
+       "reminder": 1,
+       "created": "{today-10}"
+      },
+      "T-2": {
+       "id": "T-2",
+       "source": "R6.2 quiet-quote reminder",
+       "quote_id": "Q-1",
+       "revision": 1,
+       "reminder": 2,
+       "created": "{today-5}"
+      }
+     }
+    }
+   },
+   "trigger": [
+    {
+     "schedule": "Step 1: Quiet-quote check each working day"
+    }
+   ],
+   "expect": [
+    {
+     "mock": "crm/tasks/1",
+     "field": "title",
+     "equals": "Call, or mark the quote lost: quote Q-1042, last allowed reminder"
+    },
+    {
+     "mock": "teams/messages/2",
+     "field": "draft",
+     "equals": null
+    },
+    {
+     "calls": "POST /anthropic/v1/messages",
+     "count": 0
+    },
+    {
+     "sql": "select key from key_log where recipe='R6.2'",
+     "equals": "Q-1:1:3"
+    }
+   ]
+  },
+  {
+   "case": "Limit reached",
+   "row": 9,
+   "input": "Quote has had every reminder the limit allows (companion extension)",
+   "seed": {
+    "crm": {
+     "tasks": {
+      "T-1": {
+       "id": "T-1",
+       "source": "R6.2 quiet-quote reminder",
+       "quote_id": "Q-1",
+       "revision": 1,
+       "reminder": 1,
+       "created": "{today-15}"
+      },
+      "T-2": {
+       "id": "T-2",
+       "source": "R6.2 quiet-quote reminder",
+       "quote_id": "Q-1",
+       "revision": 1,
+       "reminder": 2,
+       "created": "{today-10}"
+      },
+      "T-3": {
+       "id": "T-3",
+       "source": "R6.2 quiet-quote reminder",
+       "quote_id": "Q-1",
+       "revision": 1,
+       "reminder": 3,
+       "created": "{today-5}"
+      }
+     }
+    }
+   },
+   "trigger": [
+    {
+     "schedule": "Step 1: Quiet-quote check each working day"
+    }
+   ],
+   "expect": [
+    {
+     "calls": "POST /crm/tasks",
+     "count": 0
+    },
+    {
+     "calls": "POST /teams/messages",
+     "count": 0
+    },
+    {
+     "sql": "select count(*) from key_log where recipe='R6.2'",
+     "equals": "0"
+    }
+   ]
+  },
+  {
+   "case": "Within the gap",
+   "row": 10,
+   "input": "Quote reminded yesterday (companion extension)",
+   "seed": {
+    "crm": {
+     "tasks": {
+      "T-1": {
+       "id": "T-1",
+       "source": "R6.2 quiet-quote reminder",
+       "quote_id": "Q-1",
+       "revision": 1,
+       "reminder": 1,
+       "created": "{today-1}"
+      }
+     }
+    }
+   },
+   "trigger": [
+    {
+     "schedule": "Step 1: Quiet-quote check each working day"
+    }
+   ],
+   "expect": [
+    {
+     "calls": "POST /crm/tasks",
+     "count": 0
+    },
+    {
+     "calls": "POST /teams/messages",
+     "count": 0
+    },
+    {
+     "sql": "select count(*) from key_log where recipe='R6.2'",
+     "equals": "0"
+    }
+   ]
+  },
+  {
+   "case": "Owner absent",
+   "row": 11,
+   "input": "Quote owner on leave, with a named cover (companion extension)",
+   "seed": {
+    "crm": {
+     "quotes": {
+      "Q-1": {
+       "owner": "lee@northstar.example.test"
+      }
+     }
+    }
+   },
+   "fail": [
+    {
+     "method": "POST",
+     "path": "/anthropic/v1/messages",
+     "status": 529,
+     "times": 10
+    }
+   ],
+   "trigger": [
+    {
+     "schedule": "Step 1: Quiet-quote check each working day"
+    }
+   ],
+   "expect": [
+    {
+     "mock": "crm/tasks/1",
+     "field": "owner",
+     "equals": "sam@northstar.example.test"
+    },
+    {
+     "mock": "teams/messages/2",
+     "field": "to",
+     "equals": "sam@northstar.example.test"
+    }
+   ]
+  }
+ ]
+}

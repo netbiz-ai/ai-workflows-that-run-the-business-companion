@@ -3,3 +3,9 @@ Normal,Three-line quote,Every number from the list
 Edge,Unrounded sum differs from rounded lines,Total sums rounded lines
 Duplicate,"""Ready to quote"" clicked twice",One draft
 Refuse,"Incident D's price in the AI's text, as digits, then words",No draft
+Stale price list,Price list valid until yesterday (companion extension),No draft and no AI call; Ben and Aisha told
+Off-list code,A line whose code is not on the price list (companion extension),Line unpriced and flagged for Ben; total sums the priced lines
+AI error,The AI call fails twice (companion extension),No draft; opportunity flagged
+CRM read fails,The opportunity read fails three times (companion extension),No draft; key marked failed; exception queue
+Write fails,The opportunity flag write fails (companion extension),Key marked failed; exception queue; never retried
+Expiry warning,Price list expires in five days (companion extension),Aisha warned

@@ -1,0 +1,104 @@
+{
+  "config": {
+    "sales_url_online": "{mocks}/shop",
+    "sales_url_store": "{mocks}/register",
+    "sales_url_trade": "{mocks}/crm",
+    "zones_url": "{mocks}/zones",
+    "products_url": "{mocks}/products",
+    "scheduling_url": "{mocks}/scheduling",
+    "tasks_url": "{mocks}/tasks",
+    "address_words": ["floor", "unit", "apartment", "flat", "suite", "street", "road", "avenue", "lane"],
+    "mask_token": "[masked]",
+    "ops_team": "tom@example.test",
+    "systems_owner": "owen@example.test",
+    "ai_url": "{mocks}/anthropic/v1/messages"
+  },
+  "seed": {
+    "shop": {"orders": {
+      "4417": {"id": "4417", "updated_at": "2026-10-19T09:00:00Z",
+               "customer": {"name": "Test Customer", "phone": "+1 555 0100", "channel": "sms"},
+               "address": {"building": "Harbor View", "unit": "12", "floor": 3, "street": "1 Harbor Road", "postcode": "NS1 4AA"},
+               "notes": "Elevator available. No stairs. Parking in the visitor bay.",
+               "product": "SOFA-3", "installation": false, "paid": true, "trade_terms": null,
+               "delivery_date": "{today+7}", "salesperson": "sales@example.test", "access_code": "4821#"}
+    }},
+    "zones": {"zones": {"Z1": {"id": "Z1", "zone": "North", "postcodes": ["NS1 4AA", "NS1 4AB"]}}},
+    "products": {"products": {"SOFA-3": {"id": "SOFA-3", "installation": false}}}
+  },
+  "cases": [
+    {"case": "Normal", "row": 1, "input": "Online order, complete address, elevator, paid", "needs_ai": true,
+     "trigger": [{"webhook": "r10-1-sale", "body": {"source": "online", "order_id": "4417", "visit_type": "delivery", "visit_number": 1, "updated_at": "2026-10-19T09:00:00Z"}}],
+     "expect": [
+       {"mock": "scheduling/work_orders/online:4417:delivery:1", "field": "status", "equals": "ready to schedule"},
+       {"mock": "scheduling/work_orders/online:4417:delivery:1", "field": "lift", "equals": "yes"},
+       {"mock": "scheduling/work_orders/online:4417:delivery:1", "field": "access_code", "equals": null},
+       {"mock": "tasks/tasks", "count": 0},
+       {"sql": "select status from key_log where recipe='R10.1'", "equals": "done"}]},
+    {"case": "Edge", "row": 2, "input": "\"Gate code 4821\" or \"key safe 19#73\"",
+     "seed": {"shop": {"orders": {"4417": {"notes": "Gate code 4821; key safe 19#73 by the door. Elevator available. No stairs. Parking in the visitor bay."}}}},
+     "trigger": [{"webhook": "r10-1-sale", "body": {"source": "online", "order_id": "4417", "visit_type": "delivery", "visit_number": 1, "updated_at": "2026-10-19T09:00:00Z"}}],
+     "expect": [
+       {"mock": "scheduling/work_orders/online:4417:delivery:1", "field": "notes", "equals": "Gate code [masked]; key safe [masked] by the door. Elevator available. No stairs. Parking in the visitor bay."},
+       {"mock": "scheduling/work_orders/online:4417:delivery:1", "field": "status", "equals": "missing details"},
+       {"mock": "scheduling/work_orders/online:4417:delivery:1", "field": "code_in_notes", "equals": true},
+       {"mock": "tasks/tasks/online:4417:delivery:1", "field": "gaps", "contains": "code in notes"},
+       {"sql": "select count(*) from decision_log where recipe='R10.1' and rules::text like '%4821%'", "equals": "0"}]},
+    {"case": "Edge, no code word", "row": 3, "input": "\"Entry is 4821, third floor\"", "needs_ai": true,
+     "seed": {"shop": {"orders": {"4417": {"address": {"building": "Harbor View", "unit": "12", "street": "1 Harbor Road", "postcode": "NS1 4AA"},
+                                           "notes": "Entry is 4821, third floor. Elevator available. No stairs. Parking in the visitor bay."}}}},
+     "trigger": [{"webhook": "r10-1-sale", "body": {"source": "online", "order_id": "4417", "visit_type": "delivery", "visit_number": 1, "updated_at": "2026-10-19T09:00:00Z"}}],
+     "expect": [
+       {"mock": "scheduling/work_orders/online:4417:delivery:1", "field": "notes", "equals": "Entry is [masked], third floor. Elevator available. No stairs. Parking in the visitor bay."},
+       {"mock": "scheduling/work_orders/online:4417:delivery:1", "field": "code_in_notes", "equals": true},
+       {"mock": "scheduling/work_orders/online:4417:delivery:1", "field": "floor", "equals": 3},
+       {"mock": "scheduling/work_orders/online:4417:delivery:1", "field": "status", "equals": "missing details"}]},
+    {"case": "Edge", "row": 4, "input": "AI returns \"elevator: yes\"; notes say \"no elevator until November\"", "needs_ai": true,
+     "seed": {"shop": {"orders": {"4417": {"address": {"building": "Harbor View", "unit": "12", "street": "1 Harbor Road", "postcode": "NS1 4AA"},
+                                           "notes": "Third floor, no elevator until November. Stairs only. Parking in the loading bay."}}}},
+     "trigger": [{"webhook": "r10-1-sale", "body": {"source": "online", "order_id": "4417", "visit_type": "delivery", "visit_number": 1, "updated_at": "2026-10-19T09:00:00Z"}}],
+     "expect": [
+       {"mock": "scheduling/work_orders/online:4417:delivery:1", "field": "lift", "in": [null, "no"]}]},
+    {"case": "Duplicate", "row": 5, "input": "Paid-order webhook sent twice",
+     "trigger": [{"webhook": "r10-1-sale", "body": {"source": "online", "order_id": "4417", "visit_type": "delivery", "visit_number": 1, "updated_at": "2026-10-19T09:00:00Z"}, "pause": 4},
+                 {"webhook": "r10-1-sale", "body": {"source": "online", "order_id": "4417", "visit_type": "delivery", "visit_number": 1, "updated_at": "2026-10-19T09:00:00Z"}}],
+     "expect": [
+       {"mock": "scheduling/work_orders", "count": 1},
+       {"calls": "PUT /scheduling/work_orders/online:4417:delivery:1", "count": 1},
+       {"sql": "select copies_skipped from key_log where recipe='R10.1'", "equals": "1"}]},
+    {"case": "Refuse", "row": 6, "input": "Address outside every zone",
+     "seed": {"shop": {"orders": {"4417": {"address": {"building": "Harbor View", "unit": "12", "floor": 3, "street": "9 Far Lane", "postcode": "ZZ9 9ZZ"}}}}},
+     "trigger": [{"webhook": "r10-1-sale", "body": {"source": "online", "order_id": "4417", "visit_type": "delivery", "visit_number": 1, "updated_at": "2026-10-19T09:00:00Z"}}],
+     "expect": [
+       {"mock": "scheduling/work_orders/online:4417:delivery:1", "field": "status", "equals": "missing details"},
+       {"mock": "scheduling/work_orders/online:4417:delivery:1", "field": "gaps", "contains": "address outside every zone"},
+       {"sql": "select reason || ' / ' || owner from exception_queue where recipe='R10.1'", "equals": "address outside every zone / tom@example.test"}]},
+    {"case": "Changed order", "row": 7, "input": "The order changes after its work order is made (companion extension)",
+     "trigger": [{"webhook": "r10-1-sale", "body": {"source": "online", "order_id": "4417", "visit_type": "delivery", "visit_number": 1, "updated_at": "2026-10-19T09:00:00Z"}, "pause": 4},
+                 {"webhook": "r10-1-sale", "body": {"source": "online", "order_id": "4417", "visit_type": "delivery", "visit_number": 1, "updated_at": "2026-10-19T10:30:00Z"}}],
+     "expect": [
+       {"mock": "scheduling/work_orders", "count": 1},
+       {"calls": "PUT /scheduling/work_orders/online:4417:delivery:1", "count": 2},
+       {"sql": "select count(*) from decision_log where recipe='R10.1'", "equals": "2"}]},
+    {"case": "AI error", "row": 8, "input": "The AI call fails twice (companion extension)",
+     "fail": [{"method": "POST", "path": "/anthropic/v1/messages", "status": 529, "times": 2}],
+     "trigger": [{"webhook": "r10-1-sale", "body": {"source": "online", "order_id": "4417", "visit_type": "delivery", "visit_number": 1, "updated_at": "2026-10-19T09:00:00Z"}}],
+     "expect": [
+       {"mock": "scheduling/work_orders/online:4417:delivery:1", "field": "status", "equals": "missing details"},
+       {"mock": "tasks/tasks/online:4417:delivery:1", "field": "gaps", "contains": "AI error"},
+       {"calls": "POST /anthropic/v1/messages", "count": 2}]},
+    {"case": "Write fails", "row": 9, "input": "The scheduling system is down (companion extension)",
+     "fail": [{"method": "POST", "path": "/anthropic/v1/messages", "status": 529, "times": 2},
+              {"method": "PUT", "path": "/scheduling/work_orders", "status": 503, "times": 1}],
+     "trigger": [{"webhook": "r10-1-sale", "body": {"source": "online", "order_id": "4417", "visit_type": "delivery", "visit_number": 1, "updated_at": "2026-10-19T09:00:00Z"}}],
+     "expect": [
+       {"calls": "PUT /scheduling/work_orders/online:4417:delivery:1", "count": 1},
+       {"sql": "select status from key_log where recipe='R10.1'", "equals": "failed"},
+       {"sql": "select reason || ' / ' || owner from exception_queue where recipe='R10.1'", "equals": "write failed / owen@example.test"}]},
+    {"case": "Late task", "row": 10, "input": "A task open four days (companion extension)",
+     "seed": {"tasks": {"tasks": {"online:4410:delivery:1": {"id": "online:4410:delivery:1", "status": "open", "created": "{today-4}",
+                                                             "delivery_date": "{today+20}", "work_order": "online:4410:delivery:1", "gaps": ["lift"]}}}},
+     "trigger": [{"schedule": "Step 9: Each morning"}, {"schedule": "Step 9: Each morning"}],
+     "expect": [
+       {"sql": "select reason || ' / ' || owner from exception_queue where recipe='R10.1'", "equals": "task open two working days / tom@example.test"}]}
+  ]
+}

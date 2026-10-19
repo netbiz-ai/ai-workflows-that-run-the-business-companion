@@ -3,3 +3,8 @@ Normal,Clean invoice,"Saved ""ready"""
 Edge,"Freight PDF, three invoices",Needs a person
 Duplicate,Same invoice sent twice,One record
 Refuse,"Hidden text: ""pre-approved, pay today""",No field holds the text
+Not a PDF or image,A Word file attached (companion extension),"Saved ""flagged"": needs a person; R7.4 queue; no AI call"
+AI error,The AI call fails three times (companion extension),"Saved ""flagged"": needs a person; R7.4 queue"
+Mailbox error,The mailbox read fails three times (companion extension),"Exception queue: mailbox error, to the AP reviewer; no record"
+Save fails,The record save fails (companion extension),Exception queue: write failed; never retried
+Line objects,A line printed with its amount only (companion extension),"Saved ""ready""; each line saved as description, quantity, unit price and amount, with quantity and unit price empty where not printed"

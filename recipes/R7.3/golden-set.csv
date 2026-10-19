@@ -4,3 +4,11 @@ Edge,"Same account, spaced differently",No hold
 Duplicate,Two emails for one change,"One hold, one task"
 Refuse,"Email: ""call 555-0100 to confirm""",Task shows the register's number
 Refuse,Email gives a new phone number,Unsaved until a call-back on the old number
+Changed account,An invoice shows a different account (companion extension),"Hold, one task with the register's number"
+Call to another number,The caller dialed the message's number (companion extension),Hold stays; exception queue: call to another number
+Not confirmed,The supplier denies the change on the number on file (companion extension),Hold stays; fraud reported
+Confirmed change,"Change confirmed on the number on file, then the next export shows it (companion extension)",Register updated; assistant enters it; hold lifts
+New phone confirmed,A call-back on the old number confirms the new phone number (companion extension),New number saved
+Flow off,No export check logged before the payment run (companion extension),Every supplier held; Helen alerted
+Hold write fails,The hold write fails (companion extension),Exception queue: write failed; no task
+Pre-run check,Export check logged before the payment run (companion extension),Caller and Aisha asked to confirm; held suppliers listed

@@ -1,0 +1,39 @@
+# The companion's test stack: n8n at the version the book documents, Postgres for the
+# key log, decision log and exception queue, and the mock business systems.
+# Localhost only. Create tools/stack/.env with N8N_ENCRYPTION_KEY and POSTGRES_PASSWORD first.
+#   docker compose -f tools/stack/docker-compose.yml --env-file tools/stack/.env up -d
+services:
+  n8n:
+    image: docker.n8n.io/n8nio/n8n:2.42.7
+    restart: unless-stopped
+    ports: ["127.0.0.1:5679:5678"]
+    environment:
+      - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY}
+      - N8N_HOST=localhost
+      - WEBHOOK_URL=http://127.0.0.1:5679/
+      - GENERIC_TIMEZONE=UTC
+      - N8N_DIAGNOSTICS_ENABLED=false
+      - N8N_PUBLIC_API_DISABLED=false
+      - EXECUTIONS_DATA_SAVE_ON_SUCCESS=all
+    volumes: [n8n-data:/home/node/.n8n]
+    depends_on: [postgres, mocks]
+  postgres:
+    image: postgres:16-alpine
+    container_name: companion-postgres
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=companion
+      - POSTGRES_USER=companion
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+      - ../../patterns/duplicate-check/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+  mocks:
+    image: python:3.12-alpine
+    restart: unless-stopped
+    command: ["python", "/app/server.py"]
+    ports: ["127.0.0.1:5680:8080"]
+    volumes: [../mock-systems:/app:ro]
+volumes:
+  n8n-data:
+  pg-data:

@@ -1,0 +1,1289 @@
+{
+  "name": "R14.2 Create tasks with owners and due dates after verification",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "r14-2-list-verified",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "61fbf280-e938-5587-abea-1a9754cb2cdc",
+      "name": "Step 1: List verified",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "notes": "Your action list calls this when a list changes to \"verified\". Body: {series_id, occurrence_id, verified_by}.",
+      "notesInFlow": true,
+      "webhookId": "05f339a4-f48b-5ca1-88be-6a831b8ea1eb"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "7bb121a1-0cf2-5156-8f3e-3e59a476451d",
+              "name": "stop_flag_url",
+              "value": "https://<your stop list API>/stop_flags/R14.2",
+              "type": "string"
+            },
+            {
+              "id": "57a7e021-ef69-5510-b854-9dc94240423a",
+              "name": "register_url",
+              "value": "https://<your meeting register API>",
+              "type": "string"
+            },
+            {
+              "id": "5c26fb53-a32c-5b99-a28a-b6bd2d95ed71",
+              "name": "actions_url",
+              "value": "https://<your action list API>",
+              "type": "string"
+            },
+            {
+              "id": "049edf5f-237f-5014-af6f-2e3a55b1b9b7",
+              "name": "directory_url",
+              "value": "https://<your staff directory API>",
+              "type": "string"
+            },
+            {
+              "id": "b0c50d23-a56d-5b78-b2ae-5a6dc348feff",
+              "name": "tasks_url",
+              "value": "https://<your task system API>",
+              "type": "string"
+            },
+            {
+              "id": "096e8234-6ed5-57be-8475-d8d383f5d703",
+              "name": "minutes_url",
+              "value": "https://<your minutes API>",
+              "type": "string"
+            },
+            {
+              "id": "6be12b1a-f416-5a3b-9ab2-11565970ac56",
+              "name": "messaging_url",
+              "value": "https://<your messaging API>",
+              "type": "string"
+            },
+            {
+              "id": "dcf340e9-aea8-5e41-8b8e-00d166b136a1",
+              "name": "register_owner",
+              "value": "<your register owner>",
+              "type": "string"
+            },
+            {
+              "id": "f2c774ea-2493-5211-936b-d7e063519291",
+              "name": "exception_owner",
+              "value": "<your workflow editor>",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "ab0bb6cd-9f54-5c44-b8a8-540d45fd7c3b",
+      "name": "Config",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        260,
+        0
+      ],
+      "notes": "Edit these values for your company; nothing else in the workflow hard-codes them.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Config').first().json.register_url }}/series",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "_wrap",
+              "value": "1"
+            },
+            {
+              "name": "id",
+              "value": "={{ $('Step 1: List verified').first().json.body.series_id }}"
+            }
+          ]
+        }
+      },
+      "id": "9e248313-78ab-5d10-9c73-0ceeca78af99",
+      "name": "Read the register",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1040,
+        0
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Config').first().json.actions_url }}/items",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "_wrap",
+              "value": "1"
+            },
+            {
+              "name": "occurrence_id",
+              "value": "={{ $('Step 1: List verified').first().json.body.occurrence_id }}"
+            }
+          ]
+        }
+      },
+      "id": "6940db3c-29f5-5802-8c5b-8071461536f0",
+      "name": "Read the verified list",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1300,
+        0
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Config').first().json.directory_url }}/staff",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "_wrap",
+              "value": "1"
+            }
+          ]
+        }
+      },
+      "id": "79798644-3843-5a11-b4af-f0ee70266222",
+      "name": "Read staff accounts",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1560,
+        0
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "\n// Steps 2 to 5 of the book's R14.2 and the checks in Table 14.1. The workflow never fills a gap.\nconst ev = $('Step 1: List verified').first().json.body;\nconst series = ($('Read the register').first().json.items || [])[0] || null;\nconst staff = $('Read staff accounts').first().json.items || [];\nconst items = ($('Read the verified list').first().json.items || []).filter(i => i.status === 'approved');\nconst today = new Date().toISOString().slice(0, 10);\nconst low = s => String(s || '').trim().toLowerCase();\n\n// Step 2: the verifier must be the series' chair or backup.\nif (!series || ![series.chair, series.backup].map(low).includes(low(ev.verified_by))) {\n  return [{ json: { route: 'refuse', reason: series ? 'verifier not chair or backup' : 'series not in the register', verified_by: ev.verified_by } }];\n}\nconst chair = staff.find(s => low(s.email) === low(series.chair)) || { name: series.chair, email: series.chair };\n\n// The owner as a staff account: full name or address, else a unique first-name match.\nfunction account(owner) {\n  const o = low(owner);\n  const exact = staff.filter(s => low(s.name) === o || low(s.email) === o);\n  if (exact.length) return { acct: exact[0] };\n  const first = staff.filter(s => low(s.name).split(/\\s+/)[0] === o);\n  if (first.length > 1) return { ambiguous: true };\n  return { acct: first[0] || null };\n}\nconst isDate = d => /^\\d{4}-\\d{2}-\\d{2}$/.test(d || '') && !isNaN(Date.parse(d + 'T00:00:00Z'))\n  && new Date(d + 'T00:00:00Z').toISOString().slice(0, 10) === d;\n\nconst out = [];\nfor (const it of items) {\n  // Step 5: an item already holding a task ID is skipped, whatever steps 3 and 4 would say.\n  if (it.task_id) continue;\n  const owner = String(it.owner || '').trim();\n  const { acct, ambiguous } = account(owner);\n  const base = { item_id: it.id, action: String(it.action || '').trim(), owner, due_date: it.due_date || '',\n                 source_link: it.source_link || '', quoted_line: it.quoted_line || '' };\n  // Step 3: an owner outside the company goes into the minutes, with a follow-up task for the chair.\n  if (owner && low(owner) !== 'unassigned' && !acct && !ambiguous) {\n    out.push({ ...base, route: 'outside', task_owner: chair.name, task_email: chair.email,\n               title: `Follow up with ${owner}: ${base.action}`,\n               minutes: { id: it.id, occurrence_id: it.occurrence_id, series_id: series.id,\n                          text: `${owner} (outside the company): ${base.action}${base.due_date ? ', due ' + base.due_date : ''}`,\n                          source_link: base.source_link } });\n    continue;\n  }\n  // Step 4: Table 14.1. A failure returns the item to the chair with the reason.\n  const reasons = [];\n  if (!base.action) reasons.push('no action');\n  if (!owner || low(owner) === 'unassigned') reasons.push('no owner');\n  else if (ambiguous) reasons.push('owner matches more than one staff account');\n  else if (!acct.active) reasons.push('owner not an active staff account');\n  if (!isDate(base.due_date)) reasons.push('due date is not a calendar date');\n  else if (base.due_date < today) reasons.push('due date is in the past');\n  if (!base.source_link) reasons.push('no source link');\n  if (reasons.length) { out.push({ ...base, route: 'return', reasons }); continue; }\n  out.push({ ...base, route: 'task', task_owner: acct.name, task_email: acct.email, title: base.action });\n}\nreturn out.map(j => ({ json: { ...j, series_id: series.id, series: series.name, chair: series.chair, verified_by: ev.verified_by } }));\n"
+      },
+      "id": "6c6ad495-31ec-5ce4-9b79-ed48dfa04cd8",
+      "name": "Steps 2 to 5: Rules",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1820,
+        0
+      ],
+      "notes": "Rules decide; there is no AI step in R14.2.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "16a28fa8-193f-50f5-a06d-0de6518c9d10",
+                    "leftValue": "={{ $json.route }}",
+                    "rightValue": "refuse",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "refuse"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "7735e7fe-17da-5565-af88-36977df7587e",
+                    "leftValue": "={{ $json.route }}",
+                    "rightValue": "return",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "return"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "4c7493ff-bb85-545f-8938-50910f40cc07",
+                    "leftValue": "={{ $json.route }}",
+                    "rightValue": "outside",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "outside"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "e9e50160-f378-58ae-9ff2-6ffcb3646d5e",
+                    "leftValue": "={{ $json.route }}",
+                    "rightValue": "task",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "task"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "1136e211-6562-582c-95c4-9ae71e246942",
+      "name": "Route",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        2080,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO exception_queue (recipe, item, reason, detail, owner) VALUES ($1, $2, $3, $4, $5) RETURNING id",
+        "options": {
+          "queryReplacement": "={{ [\"R14.2\", $('Step 1: List verified').first().json.body.occurrence_id, \"verifier not chair or backup\", $json.reason + ': ' + $('Step 1: List verified').first().json.body.verified_by, $('Config').first().json.register_owner] }}"
+        }
+      },
+      "id": "d3663f2d-758e-5a59-9633-d937f931e1fe",
+      "name": "Step 2: Exception queue: verifier not registered",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2340,
+        -480
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "Exception queue: a named person works through it (book Chapters 2 and 16).",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').first().json.messaging_url }}/messages",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ to: [$('Config').first().json.register_owner], subject: 'Action list not verified by its chair or backup', text: 'No tasks created for meeting ' + $('Step 1: List verified').first().json.body.occurrence_id + ': ' + $('Steps 2 to 5: Rules').first().json.reason + ' (' + $('Step 1: List verified').first().json.body.verified_by + ').' }) }}"
+      },
+      "id": "1197a3e0-29ad-58db-851a-6ae05c38193b",
+      "name": "Step 2: Alert the register owner",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2600,
+        -480
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $('Config').first().json.actions_url }}/items/{{ encodeURIComponent($('Steps 2 to 5: Rules').item.json.item_id) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ status: 'returned', return_reason: $('Steps 2 to 5: Rules').item.json.reasons.join('; ') }) }}"
+      },
+      "id": "bde83e91-1587-5978-b9a4-2b4b43766f58",
+      "name": "Step 4: Return the item to the chair",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2340,
+        -240
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "\n// One message to the chair listing every returned item.\nconst rows = $input.all().map((_, i) => $('Steps 2 to 5: Rules').itemMatching(i).json);\nconst lines = rows.map(r => `- ${r.action || '(no action)'}: ${r.reasons.join('; ')}`);\nreturn [{ json: { chair: rows[0].chair, series: rows[0].series, count: rows.length, text: lines.join('\\n') }, pairedItem: { item: 0 } }];\n"
+      },
+      "id": "a68a55b0-f68f-5229-8b95-46cfd0a855f7",
+      "name": "Step 4: One message to the chair",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2600,
+        -240
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').first().json.messaging_url }}/messages",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ to: [$json.chair], subject: $json.count + ' action item(s) returned: ' + $json.series, text: 'Fix and verify again:\\n' + $json.text }) }}"
+      },
+      "id": "d46613f6-5add-574b-9f53-ec504046822f",
+      "name": "Step 4: Tell the chair",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2860,
+        -240
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "={{ $('Config').first().json.minutes_url }}/entries/{{ encodeURIComponent($('Steps 2 to 5: Rules').item.json.item_id) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($('Steps 2 to 5: Rules').item.json.minutes) }}"
+      },
+      "id": "a58dd18a-e327-5de0-ac63-eccb3ff54e1a",
+      "name": "Step 3: Write to the minutes",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2340,
+        0
+      ],
+      "notes": "An owner outside the company goes into the minutes; the chair gets the follow-up task (steps 6 to 8).",
+      "notesInFlow": true,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Config').first().json.tasks_url }}/tasks",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "_wrap",
+              "value": "1"
+            },
+            {
+              "name": "item_id",
+              "value": "={{ $('Steps 2 to 5: Rules').item.json.item_id }}"
+            }
+          ]
+        }
+      },
+      "id": "580f152b-2bc1-5bbe-8158-b339375cea48",
+      "name": "Step 6: Search tasks for the item ID",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2600,
+        160
+      ],
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 2000,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ ($json.items || []).length > 0 }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "id": "cdc4e028-cfc8-5b60-8681-14084b8893de"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "cc813c87-4f10-5e71-b37a-d19531d6561a",
+      "name": "Task found?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2860,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $('Config').first().json.actions_url }}/items/{{ encodeURIComponent($('Steps 2 to 5: Rules').item.json.item_id) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ task_id: $json.items[0].id }) }}"
+      },
+      "id": "20edd6c3-5b19-5dce-be29-d4ca58be2287",
+      "name": "Step 6: Write the found task ID back",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3120,
+        0
+      ],
+      "notes": "A task already carries this item ID: write its ID back and create nothing.",
+      "notesInFlow": true,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').first().json.tasks_url }}/tasks",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ title: $('Steps 2 to 5: Rules').item.json.title, owner: $('Steps 2 to 5: Rules').item.json.task_owner, owner_email: $('Steps 2 to 5: Rules').item.json.task_email, due_date: $('Steps 2 to 5: Rules').item.json.due_date, verified_due_date: $('Steps 2 to 5: Rules').item.json.due_date, series: $('Steps 2 to 5: Rules').item.json.series, series_id: $('Steps 2 to 5: Rules').item.json.series_id, source_link: $('Steps 2 to 5: Rules').item.json.source_link, item_id: $('Steps 2 to 5: Rules').item.json.item_id, quoted_line: $('Steps 2 to 5: Rules').item.json.quoted_line, verified_by: $('Steps 2 to 5: Rules').item.json.verified_by, status: 'open' }) }}"
+      },
+      "id": "400b98de-7077-5356-ad3f-c1b1c557ac6a",
+      "name": "Step 7: Create the task",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3120,
+        240
+      ],
+      "notes": "Step 9: a task-system error is retried once, then the chair is told; steps 5 and 6 make a rerun safe.",
+      "notesInFlow": true,
+      "onError": "continueErrorOutput",
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $('Config').first().json.actions_url }}/items/{{ encodeURIComponent($('Steps 2 to 5: Rules').item.json.item_id) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ task_id: $json.id, verified_due_date: $('Steps 2 to 5: Rules').item.json.due_date, verified_at: new Date().toISOString() }) }}"
+      },
+      "id": "de3bad52-9b13-5aad-89e9-ee6ca8b6d3c1",
+      "name": "Step 8: Write task ID back",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3380,
+        240
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "\n// Step 8: one message to each owner, listing all of their new tasks.\nconst groups = {};\n$input.all().forEach((_, i) => {\n  const r = $('Steps 2 to 5: Rules').itemMatching(i).json;\n  const task = $('Step 7: Create the task').itemMatching(i).json;\n  (groups[r.task_email] = groups[r.task_email] || { to: r.task_email, series: r.series, lines: [], first: i })\n    .lines.push(`- ${r.title}, due ${r.due_date} (task ${task.id}; source ${r.source_link})`);\n});\nreturn Object.values(groups).map(g => ({ json: { to: g.to, series: g.series, count: g.lines.length, text: g.lines.join('\\n') }, pairedItem: { item: g.first } }));\n"
+      },
+      "id": "26b32bb0-dce6-5e42-b578-27bd1aec2e45",
+      "name": "Step 8: One message per owner",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3640,
+        240
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').first().json.messaging_url }}/messages",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ to: [$json.to], subject: $json.count + ' new task(s) from ' + $json.series, text: $json.text }) }}"
+      },
+      "id": "4198f13e-c222-5868-94aa-553323a9168a",
+      "name": "Step 8: Tell each owner",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3900,
+        240
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO exception_queue (recipe, item, reason, detail, owner) VALUES ($1, $2, $3, $4, $5) RETURNING id",
+        "options": {
+          "queryReplacement": "={{ [\"R14.2\", $('Steps 2 to 5: Rules').item.json.item_id, \"task system error\", 'Task system failed after one retry: ' + (($json.error && $json.error.message) || ''), $('Steps 2 to 5: Rules').item.json.chair] }}"
+        }
+      },
+      "id": "8c1678b7-588a-5ad7-8777-a8d888541813",
+      "name": "Step 9: Exception queue: task system error",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        3380,
+        480
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "Exception queue: a named person works through it (book Chapters 2 and 16).",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').first().json.messaging_url }}/messages",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ to: [$('Steps 2 to 5: Rules').item.json.chair], subject: 'Task not created: ' + $('Steps 2 to 5: Rules').item.json.series, text: 'The task system failed after one retry for: ' + $('Steps 2 to 5: Rules').item.json.title + '. Owen reruns the list; items with a task ID are skipped.' }) }}"
+      },
+      "id": "cda8617e-ee31-5b5b-8dc9-147b0525333b",
+      "name": "Step 9: Tell the chair",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3640,
+        480
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO decision_log (recipe, item, decision, rules, approved_by) VALUES ($1, $2, $3, $4::jsonb, $5) RETURNING id",
+        "options": {
+          "queryReplacement": "={{ [\"R14.2\", $('Steps 2 to 5: Rules').item.json.item_id, 'task created', JSON.stringify({ task_id: $('Step 7: Create the task').item.json.id, route: $('Steps 2 to 5: Rules').item.json.route }), $('Steps 2 to 5: Rules').item.json.verified_by] }}"
+        }
+      },
+      "id": "a04f2407-cfea-5ccb-9771-6a0963cb5f44",
+      "name": "Decision log: task created",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        3640,
+        60
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "Decision log: the item's ID, task ID and verifier; never the content (governance card).",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO decision_log (recipe, item, decision, rules, approved_by) VALUES ($1, $2, $3, $4::jsonb, $5) RETURNING id",
+        "options": {
+          "queryReplacement": "={{ [\"R14.2\", $('Steps 2 to 5: Rules').item.json.item_id, 'existing task linked', JSON.stringify({ task_id: $('Task found?').item.json.items[0].id, route: $('Steps 2 to 5: Rules').item.json.route }), $('Steps 2 to 5: Rules').item.json.verified_by] }}"
+        }
+      },
+      "id": "96f8df1e-c745-5f51-983d-9c719e8fadf1",
+      "name": "Decision log: task found",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        3380,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "Decision log: the item's ID, task ID and verifier; never the content (governance card).",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO decision_log (recipe, item, decision, rules, approved_by) VALUES ($1, $2, $3, $4::jsonb, $5) RETURNING id",
+        "options": {
+          "queryReplacement": "={{ [\"R14.2\", $('Steps 2 to 5: Rules').item.json.item_id, 'returned to chair', JSON.stringify({ reasons: $('Steps 2 to 5: Rules').item.json.reasons }), $('Steps 2 to 5: Rules').item.json.verified_by] }}"
+        }
+      },
+      "id": "d394d2d1-fc24-5d16-a86b-504b2bef93f1",
+      "name": "Decision log: returned",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2600,
+        -380
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "Decision log: the item's ID, task ID and verifier; never the content (governance card).",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO exception_queue (recipe, item, reason, detail, owner) VALUES ($1, $2, $3, $4, $5) RETURNING id",
+        "options": {
+          "queryReplacement": "={{ [\"R14.2\", $('Step 1: List verified').first().json.body.occurrence_id, \"write failed\", 'A write or message failed; never retried. Check the list, then rerun it: steps 5 and 6 guard.', $('Config').first().json.exception_owner] }}"
+        }
+      },
+      "id": "6aadaa71-bc57-5dd4-adbc-3cfbcd49359a",
+      "name": "Exception queue: write failed",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        4160,
+        480
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "Exception queue: a named person works through it (book Chapters 2 and 16).",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Config').item.json.stop_flag_url }}",
+        "options": {}
+      },
+      "id": "3f75d2ad-fffa-53f7-b59c-e9f0c9cb2caa",
+      "name": "Stop flag: read",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        520,
+        0
+      ],
+      "notes": "Kill switch: set stopped to true in your stop list and the next run ends quietly (book Chapter 3).",
+      "notesInFlow": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.stopped === true }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "id": "7f63bcbe-19a2-5ed1-8320-fd67fcdc8545"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "2b1205a6-273d-5038-b1af-da55dd20c54f",
+      "name": "Stop flag set?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        780,
+        0
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "2b550eec-b3a0-5835-8732-5aa568add5d9",
+      "name": "Stopped by the stop flag",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        1040,
+        -200
+      ],
+      "notes": "Ends quietly; nothing is read, written or sent.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO exception_queue (recipe, item, reason, detail, owner) VALUES ($1, $2, $3, $4, $5) RETURNING id",
+        "options": {
+          "queryReplacement": "={{ [\"R14.2\", 'run ' + $execution.id, \"stop list unreadable\", 'The stop list could not be read, so the run stopped; fix the stop list', '<your workflow owner>'] }}"
+        }
+      },
+      "id": "d312100f-ead6-5a91-956f-23a6c8a846e7",
+      "name": "Exception queue: stop list unreadable",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        780,
+        220
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "Exception queue: a named person works through it (book Chapters 2 and 16).",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    }
+  ],
+  "connections": {
+    "Step 1: List verified": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read the register": {
+      "main": [
+        [
+          {
+            "node": "Read the verified list",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read the verified list": {
+      "main": [
+        [
+          {
+            "node": "Read staff accounts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read staff accounts": {
+      "main": [
+        [
+          {
+            "node": "Steps 2 to 5: Rules",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Steps 2 to 5: Rules": {
+      "main": [
+        [
+          {
+            "node": "Route",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route": {
+      "main": [
+        [
+          {
+            "node": "Step 2: Exception queue: verifier not registered",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Step 4: Return the item to the chair",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Step 3: Write to the minutes",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Step 6: Search tasks for the item ID",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 2: Exception queue: verifier not registered": {
+      "main": [
+        [
+          {
+            "node": "Step 2: Alert the register owner",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 4: Return the item to the chair": {
+      "main": [
+        [
+          {
+            "node": "Step 4: One message to the chair",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Decision log: returned",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Exception queue: write failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 4: One message to the chair": {
+      "main": [
+        [
+          {
+            "node": "Step 4: Tell the chair",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 3: Write to the minutes": {
+      "main": [
+        [
+          {
+            "node": "Step 6: Search tasks for the item ID",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Exception queue: write failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 6: Search tasks for the item ID": {
+      "main": [
+        [
+          {
+            "node": "Task found?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Step 9: Exception queue: task system error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Task found?": {
+      "main": [
+        [
+          {
+            "node": "Step 6: Write the found task ID back",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Step 7: Create the task",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 7: Create the task": {
+      "main": [
+        [
+          {
+            "node": "Step 8: Write task ID back",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Step 9: Exception queue: task system error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 8: Write task ID back": {
+      "main": [
+        [
+          {
+            "node": "Step 8: One message per owner",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Decision log: task created",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Exception queue: write failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 8: One message per owner": {
+      "main": [
+        [
+          {
+            "node": "Step 8: Tell each owner",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 9: Exception queue: task system error": {
+      "main": [
+        [
+          {
+            "node": "Step 9: Tell the chair",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 6: Write the found task ID back": {
+      "main": [
+        [
+          {
+            "node": "Decision log: task found",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Exception queue: write failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 2: Alert the register owner": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Exception queue: write failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 4: Tell the chair": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Exception queue: write failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 8: Tell each owner": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Exception queue: write failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 9: Tell the chair": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Exception queue: write failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config": {
+      "main": [
+        [
+          {
+            "node": "Stop flag: read",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Stop flag: read": {
+      "main": [
+        [
+          {
+            "node": "Stop flag set?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Exception queue: stop list unreadable",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Stop flag set?": {
+      "main": [
+        [
+          {
+            "node": "Stopped by the stop flag",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Read the register",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataSuccessExecution": "all",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "pinData": {}
+}

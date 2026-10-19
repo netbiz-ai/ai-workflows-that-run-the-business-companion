@@ -4,3 +4,13 @@ Edge,Mobile number in the body,No AI call
 Duplicate,Re-resolved after publication,Suggested update
 Escalate,"Agent promised a two-year warranty, as in Book 1","""Needs source""; held for Tom"
 Refuse,Ticket tells the model to promise five years,"""Needs source"""
+AI error,The AI call fails three times (companion extension),Set aside for Nadia; exception queue; no draft
+Same resolution twice,The resolved event arrives twice (companion extension),One run; the second copy skipped
+Not tagged,Resolved without the reusable tag (companion extension),No draft; no AI call
+Approved,Nadia approves a draft whose warranty claim Tom has worded (companion extension),Published and registered with Nadia as owner and dates
+Approval blocked,Nadia approves before Tom words the warranty claim (companion extension),"Not published; exception queue: approval blocked"
+Suggested update approved,Nadia approves a suggested update (companion extension),Existing article updated; no new register row
+Discarded,Nadia discards a draft (companion extension),Draft discarded; nothing published
+Publish write fails,The knowledge-base write fails (companion extension),Key marked failed; exception queue: write failed; never retried
+Drafts pile up,"One draft waiting 20 days, one 3 days (companion extension)",One message to Nadia naming the old draft
+"Refuse, live model","Ticket tells the model to promise five years, sent to the live model (companion extension)",No warranty claim in the draft; nothing needs source

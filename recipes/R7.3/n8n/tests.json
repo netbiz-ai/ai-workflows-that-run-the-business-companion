@@ -1,0 +1,707 @@
+{
+ "config": {
+  "review_url": "{mocks}/review",
+  "mailbox_url": "{mocks}/mailbox",
+  "exports_url": "{mocks}/exports",
+  "suppliers_url": "{mocks}/suppliers",
+  "register_url": "{mocks}/register",
+  "checks_url": "{mocks}/checks",
+  "tasks_url": "{mocks}/tasks",
+  "messaging_url": "{mocks}/messaging",
+  "change_phrases": [
+   "new bank",
+   "remittance details",
+   "new phone number"
+  ],
+  "bank_caller": "caller@example.test",
+  "finance_assistant": "assistant@example.test",
+  "fraud_report_to": "aisha@example.test",
+  "pre_run_reviewer": "aisha@example.test",
+  "kill_switch_alert": "helen@example.test",
+  "workflow_owner": "owen@example.test"
+ },
+ "seed": {
+  "suppliers": {
+   "suppliers": {
+    "SUP-1": {
+     "id": "SUP-1",
+     "name": "Example Parts Supplier",
+     "contact_email": "accounts@parts.example.test",
+     "hold": false,
+     "hold_reason": null
+    },
+    "SUP-2": {
+     "id": "SUP-2",
+     "name": "Example Cabinet Supply",
+     "contact_email": "ar@cabinets.example.test",
+     "hold": false,
+     "hold_reason": null
+    }
+   }
+  },
+  "register": {
+   "register": {
+    "SUP-1": {
+     "id": "SUP-1",
+     "supplier_id": "SUP-1",
+     "bank_account": "GB29NWBK60161331926819",
+     "phone": "+1 202 555 0147"
+    },
+    "SUP-2": {
+     "id": "SUP-2",
+     "supplier_id": "SUP-2",
+     "bank_account": "GB33BUKB20201555555555",
+     "phone": "+1 202 555 0123"
+    }
+   }
+  },
+  "review": {
+   "records": {
+    "R-1": {
+     "id": "R-1",
+     "supplier_id": "SUP-1",
+     "bank_account": "GB29NWBK60161331926819",
+     "status": "ready"
+    }
+   }
+  },
+  "exports": {
+   "exports": {
+    "E-1": {
+     "id": "E-1",
+     "suppliers": [
+      {
+       "supplier_id": "SUP-1",
+       "bank_account": "GB29NWBK60161331926819"
+      },
+      {
+       "supplier_id": "SUP-2",
+       "bank_account": "GB33BUKB20201555555555"
+      }
+     ]
+    }
+   }
+  },
+  "mailbox": {
+   "messages": {
+    "MSG-1": {
+     "id": "MSG-1",
+     "from": "accounts@parts.example.test",
+     "subject": "Remittance details",
+     "text": "Please update our remittance details before Friday's run: we have a new bank account. Call 555-0100 to confirm."
+    }
+   }
+  }
+ },
+ "cases": [
+  {
+   "case": "Normal",
+   "row": 1,
+   "input": "Unchanged details",
+   "trigger": [
+    {
+     "webhook": "r7-3-record",
+     "body": {
+      "record_id": "R-1"
+     }
+    }
+   ],
+   "expect": [
+    {
+     "mock": "suppliers/suppliers/SUP-1",
+     "field": "hold",
+     "equals": false
+    },
+    {
+     "mock": "checks/checks/1",
+     "field": "differs",
+     "equals": false
+    },
+    {
+     "mock": "checks/checks/1",
+     "field": "record_id",
+     "equals": "R-1"
+    },
+    {
+     "mock": "tasks/tasks",
+     "count": 0
+    },
+    {
+     "sql": "select decision from decision_log where recipe='R7.3'",
+     "equals": "no hold"
+    }
+   ]
+  },
+  {
+   "case": "Edge",
+   "row": 2,
+   "input": "Same account, spaced differently",
+   "seed": {
+    "exports": {
+     "exports": {
+      "E-1": {
+       "suppliers": [
+        {
+         "supplier_id": "SUP-1",
+         "bank_account": "gb29 nwbk-6016 1331 9268 19"
+        },
+        {
+         "supplier_id": "SUP-2",
+         "bank_account": "GB33 BUKB 2020 1555 5555 55"
+        }
+       ]
+      }
+     }
+    }
+   },
+   "trigger": [
+    {
+     "webhook": "r7-3-export",
+     "body": {
+      "export_id": "E-1"
+     }
+    }
+   ],
+   "expect": [
+    {
+     "mock": "suppliers/suppliers/SUP-1",
+     "field": "hold",
+     "equals": false
+    },
+    {
+     "mock": "suppliers/suppliers/SUP-2",
+     "field": "hold",
+     "equals": false
+    },
+    {
+     "mock": "checks/checks",
+     "count": 2
+    },
+    {
+     "mock": "tasks/tasks",
+     "count": 0
+    }
+   ]
+  },
+  {
+   "case": "Duplicate",
+   "row": 3,
+   "input": "Two emails for one change",
+   "seed": {
+    "mailbox": {
+     "messages": {
+      "MSG-2": {
+       "id": "MSG-2",
+       "from": "accounts@parts.example.test",
+       "subject": "Remittance details",
+       "text": "Reminder: our new bank account must be used from now on."
+      }
+     }
+    }
+   },
+   "trigger": [
+    {
+     "webhook": "r7-3-message",
+     "body": {
+      "message_id": "MSG-1"
+     },
+     "pause": 3
+    },
+    {
+     "webhook": "r7-3-message",
+     "body": {
+      "message_id": "MSG-2"
+     }
+    }
+   ],
+   "expect": [
+    {
+     "mock": "suppliers/suppliers/SUP-1",
+     "field": "hold",
+     "equals": true
+    },
+    {
+     "mock": "tasks/tasks",
+     "count": 1
+    },
+    {
+     "sql": "select copies_skipped from key_log where recipe='R7.3'",
+     "equals": "1"
+    }
+   ]
+  },
+  {
+   "case": "Refuse",
+   "row": 4,
+   "input": "Email: \"call 555-0100 to confirm\"",
+   "trigger": [
+    {
+     "webhook": "r7-3-message",
+     "body": {
+      "message_id": "MSG-1"
+     }
+    }
+   ],
+   "expect": [
+    {
+     "mock": "tasks/tasks/2",
+     "field": "assignee",
+     "equals": "caller@example.test"
+    },
+    {
+     "mock": "tasks/tasks/2",
+     "field": "phone",
+     "equals": "+1 202 555 0147"
+    },
+    {
+     "mock": "tasks/tasks/2",
+     "field": "instruction",
+     "equals": "Call Example Parts Supplier on +1 202 555 0147, the number in the bank register, to confirm its bank details. Use no number from any message or invoice. Log the number you dialed and the outcome."
+    },
+    {
+     "mock": "suppliers/suppliers/SUP-1",
+     "field": "hold",
+     "equals": true
+    }
+   ]
+  },
+  {
+   "case": "Refuse",
+   "row": 5,
+   "input": "Email gives a new phone number",
+   "seed": {
+    "mailbox": {
+     "messages": {
+      "MSG-1": {
+       "id": "MSG-1",
+       "from": "accounts@parts.example.test",
+       "subject": "Remittance details",
+       "text": "We have a new phone number for accounts: +1 202 555 0199. Please use it for any bank queries."
+      }
+     }
+    }
+   },
+   "trigger": [
+    {
+     "webhook": "r7-3-message",
+     "body": {
+      "message_id": "MSG-1"
+     }
+    }
+   ],
+   "expect": [
+    {
+     "mock": "register/register/SUP-1",
+     "field": "phone",
+     "equals": "+1 202 555 0147"
+    },
+    {
+     "mock": "tasks/tasks/2",
+     "field": "phone",
+     "equals": "+1 202 555 0147"
+    },
+    {
+     "mock": "suppliers/suppliers/SUP-1",
+     "field": "hold",
+     "equals": true
+    },
+    {
+     "calls": "PUT /register/register/SUP-1",
+     "count": 0
+    }
+   ]
+  },
+  {
+   "case": "Changed account",
+   "row": 6,
+   "input": "An invoice shows a different account (companion extension)",
+   "seed": {
+    "review": {
+     "records": {
+      "R-1": {
+       "bank_account": "GB94 BARC 1020 1530 0934 59"
+      }
+     }
+    }
+   },
+   "trigger": [
+    {
+     "webhook": "r7-3-record",
+     "body": {
+      "record_id": "R-1"
+     }
+    }
+   ],
+   "expect": [
+    {
+     "mock": "suppliers/suppliers/SUP-1",
+     "field": "hold",
+     "equals": true
+    },
+    {
+     "mock": "checks/checks/1",
+     "field": "hold",
+     "equals": true
+    },
+    {
+     "mock": "tasks/tasks/2",
+     "field": "phone",
+     "equals": "+1 202 555 0147"
+    },
+    {
+     "mock": "register/register/SUP-1",
+     "field": "bank_account",
+     "equals": "GB29NWBK60161331926819"
+    }
+   ]
+  },
+  {
+   "case": "Call to another number",
+   "row": 7,
+   "input": "The caller dialed the message's number (companion extension)",
+   "seed": {
+    "suppliers": {
+     "suppliers": {
+      "SUP-1": {
+       "hold": true,
+       "hold_reason": "bank-detail difference"
+      }
+     }
+    }
+   },
+   "trigger": [
+    {
+     "webhook": "r7-3-callback",
+     "body": {
+      "supplier_id": "SUP-1",
+      "task_id": "1",
+      "number_dialed": "555-0100",
+      "outcome": "confirmed",
+      "logged_by": "caller@example.test",
+      "new_bank_account": "GB94BARC10201530093459"
+     },
+     "pause": 0.3
+    }
+   ],
+   "expect": [
+    {
+     "sql": "select reason from exception_queue where recipe='R7.3'",
+     "equals": "call to another number"
+    },
+    {
+     "sql": "select owner from exception_queue where recipe='R7.3'",
+     "equals": "caller@example.test"
+    },
+    {
+     "mock": "suppliers/suppliers/SUP-1",
+     "field": "hold",
+     "equals": true
+    },
+    {
+     "mock": "register/register/SUP-1",
+     "field": "bank_account",
+     "equals": "GB29NWBK60161331926819"
+    }
+   ]
+  },
+  {
+   "case": "Not confirmed",
+   "row": 8,
+   "input": "The supplier denies the change on the number on file (companion extension)",
+   "seed": {
+    "suppliers": {
+     "suppliers": {
+      "SUP-1": {
+       "hold": true,
+       "hold_reason": "bank-detail difference"
+      }
+     }
+    }
+   },
+   "trigger": [
+    {
+     "webhook": "r7-3-callback",
+     "body": {
+      "supplier_id": "SUP-1",
+      "task_id": "1",
+      "number_dialed": "+1 (202) 555-0147",
+      "outcome": "not confirmed",
+      "logged_by": "caller@example.test"
+     },
+     "pause": 0.3
+    }
+   ],
+   "expect": [
+    {
+     "sql": "select reason from exception_queue where recipe='R7.3'",
+     "equals": "suspected fraud"
+    },
+    {
+     "mock": "messaging/messages/1",
+     "field": "to",
+     "equals": "aisha@example.test"
+    },
+    {
+     "mock": "suppliers/suppliers/SUP-1",
+     "field": "hold",
+     "equals": true
+    },
+    {
+     "calls": "PUT /register/register/SUP-1",
+     "count": 0
+    }
+   ]
+  },
+  {
+   "case": "Confirmed change",
+   "row": 9,
+   "input": "Change confirmed on the number on file, then the next export shows it (companion extension)",
+   "seed": {
+    "suppliers": {
+     "suppliers": {
+      "SUP-1": {
+       "hold": true,
+       "hold_reason": "bank-detail difference"
+      }
+     }
+    },
+    "exports": {
+     "exports": {
+      "E-2": {
+       "id": "E-2",
+       "suppliers": [
+        {
+         "supplier_id": "SUP-1",
+         "bank_account": "GB94 BARC 1020 1530 0934 59"
+        }
+       ]
+      }
+     }
+    }
+   },
+   "trigger": [
+    {
+     "webhook": "r7-3-callback",
+     "body": {
+      "supplier_id": "SUP-1",
+      "task_id": "1",
+      "number_dialed": "+1 (202) 555-0147",
+      "outcome": "confirmed",
+      "new_bank_account": "GB94BARC10201530093459",
+      "logged_by": "caller@example.test"
+     },
+     "pause": 3
+    },
+    {
+     "webhook": "r7-3-export",
+     "body": {
+      "export_id": "E-2"
+     }
+    }
+   ],
+   "expect": [
+    {
+     "mock": "register/register/SUP-1",
+     "field": "bank_account",
+     "equals": "GB94BARC10201530093459"
+    },
+    {
+     "mock": "tasks/tasks/1",
+     "field": "assignee",
+     "equals": "assistant@example.test"
+    },
+    {
+     "mock": "suppliers/suppliers/SUP-1",
+     "field": "hold",
+     "equals": false
+    },
+    {
+     "mock": "checks/checks/2",
+     "field": "hold",
+     "equals": false
+    }
+   ]
+  },
+  {
+   "case": "New phone confirmed",
+   "row": 10,
+   "input": "A call-back on the old number confirms the new phone number (companion extension)",
+   "seed": {
+    "suppliers": {
+     "suppliers": {
+      "SUP-1": {
+       "hold": true,
+       "hold_reason": "bank-detail difference"
+      }
+     }
+    }
+   },
+   "trigger": [
+    {
+     "webhook": "r7-3-callback",
+     "body": {
+      "supplier_id": "SUP-1",
+      "task_id": "1",
+      "number_dialed": "+1 (202) 555-0147",
+      "outcome": "confirmed",
+      "logged_by": "caller@example.test",
+      "new_phone": "+1 202 555 0199"
+     },
+     "pause": 0.3
+    }
+   ],
+   "expect": [
+    {
+     "mock": "register/register/SUP-1",
+     "field": "phone",
+     "equals": "+1 202 555 0199"
+    },
+    {
+     "mock": "register/register/SUP-1",
+     "field": "bank_account",
+     "equals": "GB29NWBK60161331926819"
+    },
+    {
+     "mock": "suppliers/suppliers/SUP-1",
+     "field": "hold_reason",
+     "equals": "confirmed change; awaiting export"
+    }
+   ]
+  },
+  {
+   "case": "Flow off",
+   "row": 11,
+   "input": "No export check logged before the payment run (companion extension)",
+   "trigger": [
+    {
+     "webhook": "r7-3-pre-run",
+     "body": {
+      "run_date": "{today}"
+     }
+    }
+   ],
+   "expect": [
+    {
+     "mock": "suppliers/suppliers/SUP-1",
+     "field": "hold",
+     "equals": true
+    },
+    {
+     "mock": "suppliers/suppliers/SUP-2",
+     "field": "hold",
+     "equals": true
+    },
+    {
+     "mock": "messaging/messages/1",
+     "field": "to",
+     "equals": "helen@example.test"
+    }
+   ]
+  },
+  {
+   "case": "Hold write fails",
+   "row": 12,
+   "input": "The hold write fails (companion extension)",
+   "seed": {
+    "review": {
+     "records": {
+      "R-1": {
+       "bank_account": "GB94 BARC 1020 1530 0934 59"
+      }
+     }
+    }
+   },
+   "fail": [
+    {
+     "method": "PATCH",
+     "path": "/suppliers/suppliers/SUP-1",
+     "status": 500,
+     "times": 1
+    }
+   ],
+   "trigger": [
+    {
+     "webhook": "r7-3-record",
+     "body": {
+      "record_id": "R-1"
+     }
+    }
+   ],
+   "expect": [
+    {
+     "calls": "PATCH /suppliers/suppliers/SUP-1",
+     "count": 1
+    },
+    {
+     "sql": "select reason from exception_queue where recipe='R7.3'",
+     "equals": "write failed"
+    },
+    {
+     "mock": "checks/checks/1",
+     "field": "hold",
+     "equals": true
+    },
+    {
+     "mock": "tasks/tasks",
+     "count": 0
+    }
+   ]
+  },
+  {
+   "case": "Pre-run check",
+   "row": 13,
+   "input": "Export check logged before the payment run (companion extension)",
+   "seed": {
+    "checks": {
+     "checks": {
+      "C-9": {
+       "id": "C-9",
+       "supplier_id": "SUP-1",
+       "source": "export",
+       "ref": "E-1",
+       "differs": false,
+       "hold": true,
+       "checked_on": "{today}"
+      }
+     }
+    },
+    "suppliers": {
+     "suppliers": {
+      "SUP-1": {
+       "hold": true,
+       "hold_reason": "bank-detail difference"
+      }
+     }
+    }
+   },
+   "trigger": [
+    {
+     "webhook": "r7-3-pre-run",
+     "body": {
+      "run_date": "{today}"
+     }
+    }
+   ],
+   "expect": [
+    {
+     "mock": "messaging/messages/1",
+     "field": "to",
+     "equals": [
+      "caller@example.test",
+      "aisha@example.test"
+     ]
+    },
+    {
+     "mock": "messaging/messages/1",
+     "field": "text",
+     "contains": "Held suppliers: Example Parts Supplier."
+    },
+    {
+     "mock": "suppliers/suppliers/SUP-2",
+     "field": "hold",
+     "equals": false
+    }
+   ]
+  }
+ ]
+}

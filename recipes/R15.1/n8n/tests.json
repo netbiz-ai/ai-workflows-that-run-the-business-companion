@@ -1,0 +1,1759 @@
+{
+ "config": {
+  "briefs_url": "{mocks}/briefs",
+  "claims_url": "{mocks}/claims",
+  "prices_url": "{mocks}/crm",
+  "style_sheet_url": "{mocks}/styles/sheets/main",
+  "drafts_url": "{mocks}/drafts",
+  "messaging_url": "{mocks}/messaging",
+  "approvers": {
+   "price": "aisha@example.test",
+   "time": "tom@example.test",
+   "warranty": "tom@example.test",
+   "comparison": "helen@example.test",
+   "environmental": "helen@example.test"
+  },
+  "final_approver": "ben@example.test",
+  "ai_owner": "owen@example.test",
+  "stand_in_namer": "helen@example.test",
+  "prompt_version": "R15.1 prompts, companion 2026-10-19",
+  "ai_url": "{mocks}/anthropic/v1/messages"
+ },
+ "seed": {
+  "briefs": {
+   "briefs": {
+    "B-7": {
+     "id": "B-7",
+     "version": 1,
+     "approval": "approved",
+     "capacity": "cleared",
+     "offer": "Free installation on washer and dryer pairs",
+     "segment": "washer and dryer buyers",
+     "channels": [
+      "email"
+     ],
+     "dates": {
+      "start": "{today+14}",
+      "end": "{today+35}"
+     },
+     "claim_ids": [
+      "C12",
+      "C07",
+      "C03"
+     ]
+    }
+   }
+  },
+  "claims": {
+   "claims": {
+    "C12": {
+     "id": "C12",
+     "wording": "Free installation on washer and dryer pairs",
+     "types": [
+      "price",
+      "time"
+     ],
+     "source": "CRM price list",
+     "owner": "aisha@example.test",
+     "last_confirmed": "{today-5}",
+     "expiry": "{today+60}",
+     "source_changed": "{today-20}",
+     "row_changed": "{today-20}",
+     "price_ids": [
+      "WD-200"
+     ]
+    },
+    "C07": {
+     "id": "C07",
+     "wording": "delivery within five business days",
+     "types": [
+      "time"
+     ],
+     "source": "Delivery-scheduling system",
+     "owner": "tom@example.test",
+     "last_confirmed": "{today-5}",
+     "expiry": "{today+60}",
+     "source_changed": "{today-20}",
+     "row_changed": "{today-20}",
+     "price_ids": []
+    },
+    "C03": {
+     "id": "C03",
+     "wording": "One-year warranty on dishwashers",
+     "types": [
+      "warranty"
+     ],
+     "source": "Warranty terms",
+     "owner": "tom@example.test",
+     "last_confirmed": "{today-5}",
+     "expiry": "{today+60}",
+     "source_changed": "{today-20}",
+     "row_changed": "{today-20}",
+     "price_ids": []
+    },
+    "C09": {
+     "id": "C09",
+     "wording": "install within 48 hours",
+     "types": [
+      "time"
+     ],
+     "source": "Delivery-scheduling system",
+     "owner": "tom@example.test",
+     "last_confirmed": "{today-90}",
+     "expiry": "{today-30}",
+     "source_changed": "{today-120}",
+     "row_changed": "{today-120}",
+     "price_ids": []
+    }
+   }
+  },
+  "crm": {
+   "prices": {
+    "WD-200": {
+     "id": "WD-200",
+     "product": "Washer and dryer pair",
+     "price": "$1,499",
+     "changed": "{today-20}"
+    }
+   }
+  },
+  "styles": {
+   "sheets": {
+    "main": {
+     "id": "main",
+     "text": "Plain, friendly sentences. Email: one subject line and a body of up to 60 words."
+    }
+   }
+  },
+  "drafts": {
+   "versions": {},
+   "report": {}
+  }
+ },
+ "cases": [
+  {
+   "case": "Normal",
+   "row": 1,
+   "input": "Brief with three current claims",
+   "needs_ai": true,
+   "trigger": [
+    {
+     "webhook": "r15-1-brief-approved",
+     "body": {
+      "brief_id": "B-7"
+     }
+    }
+   ],
+   "expect": [
+    {
+     "mock": "drafts/versions/B-7-email",
+     "field": "status",
+     "equals": "waiting for sign-off"
+    },
+    {
+     "mock": "drafts/versions/B-7-email",
+     "field": "copy",
+     "contains": "[C12]"
+    },
+    {
+     "mock": "drafts/versions/B-7-email",
+     "field": "copy",
+     "contains": "[C07]"
+    },
+    {
+     "mock": "drafts/versions/B-7-email",
+     "field": "copy",
+     "contains": "[C03]"
+    },
+    {
+     "mock": "messaging/messages/2",
+     "field": "to",
+     "contains": "aisha@example.test"
+    },
+    {
+     "mock": "messaging/messages/2",
+     "field": "to",
+     "contains": "tom@example.test"
+    }
+   ]
+  },
+  {
+   "case": "Edge",
+   "row": 2,
+   "input": "\"Delivered this week\" for \"delivery within five business days\"",
+   "needs_ai": true,
+   "seed": {
+    "briefs": {
+     "briefs": {
+      "B-7": {
+       "claim_ids": [
+        "C12",
+        "C07"
+       ]
+      }
+     }
+    },
+    "styles": {
+     "sheets": {
+      "main": {
+       "text": "Punchy and short. Prefer phrases such as \"Delivered this week\" over long ones."
+      }
+     }
+    }
+   },
+   "trigger": [
+    {
+     "webhook": "r15-1-brief-approved",
+     "body": {
+      "brief_id": "B-7"
+     }
+    }
+   ],
+   "expect": [
+    {
+     "mock": "drafts/versions/B-7-email",
+     "field": "status",
+     "equals": "waiting for sign-off"
+    },
+    {
+     "mock": "drafts/versions/B-7-email",
+     "field": "copy",
+     "contains": "five business days [C07]"
+    }
+   ]
+  },
+  {
+   "case": "Duplicate",
+   "row": 3,
+   "input": "Brief re-marked \"approved\"",
+   "trigger": [
+    {
+     "webhook": "r15-1-brief-approved",
+     "body": {
+      "brief_id": "B-7"
+     },
+     "pause": 3
+    },
+    {
+     "webhook": "r15-1-brief-approved",
+     "body": {
+      "brief_id": "B-7"
+     }
+    }
+   ],
+   "expect": [
+    {
+     "sql": "select copies_skipped from key_log where recipe='R15.1'",
+     "equals": "1"
+    },
+    {
+     "calls": "POST /drafts/report",
+     "count": 1
+    },
+    {
+     "sql": "select count(*) from decision_log where recipe='R15.1'",
+     "equals": "1"
+    }
+   ]
+  },
+  {
+   "case": "Refuse",
+   "row": 4,
+   "input": "Retired \"install within 48 hours\" claim",
+   "seed": {
+    "briefs": {
+     "briefs": {
+      "B-7": {
+       "claim_ids": [
+        "C12",
+        "C09"
+       ]
+      }
+     }
+    }
+   },
+   "trigger": [
+    {
+     "webhook": "r15-1-brief-approved",
+     "body": {
+      "brief_id": "B-7"
+     }
+    }
+   ],
+   "expect": [
+    {
+     "calls": "POST /anthropic/v1/messages",
+     "count": 0
+    },
+    {
+     "mock": "messaging/messages/2",
+     "field": "to",
+     "equals": [
+      "ben@example.test"
+     ]
+    },
+    {
+     "mock": "messaging/messages/2",
+     "field": "text",
+     "contains": "C09 \\\"install within 48 hours\\\" expired"
+    },
+    {
+     "mock": "drafts/versions",
+     "count": 0
+    },
+    {
+     "sql": "select status from key_log where recipe='R15.1'",
+     "equals": "done"
+    }
+   ]
+  },
+  {
+   "case": "AI error",
+   "row": 5,
+   "input": "The drafting call fails three times (companion extension)",
+   "fail": [
+    {
+     "method": "POST",
+     "path": "/anthropic/v1/messages",
+     "status": 529,
+     "times": 3
+    }
+   ],
+   "trigger": [
+    {
+     "webhook": "r15-1-brief-approved",
+     "body": {
+      "brief_id": "B-7"
+     }
+    }
+   ],
+   "expect": [
+    {
+     "calls": "POST /anthropic/v1/messages",
+     "count": 3
+    },
+    {
+     "sql": "select owner from exception_queue where recipe='R15.1' and reason='AI error'",
+     "equals": "owen@example.test"
+    },
+    {
+     "mock": "messaging/messages/2",
+     "field": "to",
+     "equals": [
+      "owen@example.test"
+     ]
+    },
+    {
+     "mock": "drafts/versions",
+     "count": 0
+    }
+   ]
+  },
+  {
+   "case": "No clearance",
+   "row": 6,
+   "input": "Delivery promise while R15.2's capacity is \"held\" (companion extension)",
+   "seed": {
+    "briefs": {
+     "briefs": {
+      "B-7": {
+       "capacity": "held"
+      }
+     }
+    }
+   },
+   "trigger": [
+    {
+     "webhook": "r15-1-brief-approved",
+     "body": {
+      "brief_id": "B-7"
+     }
+    }
+   ],
+   "expect": [
+    {
+     "calls": "POST /anthropic/v1/messages",
+     "count": 0
+    },
+    {
+     "mock": "messaging/messages/2",
+     "field": "text",
+     "contains": "without R15.2's \\\"cleared\\\""
+    }
+   ]
+  },
+  {
+   "case": "Not reconfirmed",
+   "row": 7,
+   "input": "Warranty source changed after its owner last confirmed it (companion extension)",
+   "seed": {
+    "claims": {
+     "claims": {
+      "C03": {
+       "source_changed": "{today-1}"
+      }
+     }
+    }
+   },
+   "trigger": [
+    {
+     "webhook": "r15-1-brief-approved",
+     "body": {
+      "brief_id": "B-7"
+     }
+    }
+   ],
+   "expect": [
+    {
+     "calls": "POST /anthropic/v1/messages",
+     "count": 0
+    },
+    {
+     "mock": "messaging/messages/2",
+     "field": "text",
+     "equals": "C03 not confirmed by its owner since its source or row last changed"
+    }
+   ]
+  },
+  {
+   "case": "Last approver signs",
+   "row": 8,
+   "input": "Tom signs after Aisha (companion extension)",
+   "seed": {
+    "drafts": {
+     "versions": {
+      "B-7-email": {
+       "id": "B-7-email",
+       "brief_id": "B-7",
+       "brief_version": 1,
+       "channel": "email",
+       "copy": "Free installation on washer and dryer pairs [C12], with delivery within five business days [C07].",
+       "text": "Free installation on washer and dryer pairs, with delivery within five business days.",
+       "claims": [
+        {
+         "id": "C12",
+         "wording": "Free installation on washer and dryer pairs",
+         "types": [
+          "price",
+          "time"
+         ],
+         "price_ids": [
+          "WD-200"
+         ]
+        },
+        {
+         "id": "C07",
+         "wording": "delivery within five business days",
+         "types": [
+          "time"
+         ],
+         "price_ids": []
+        }
+       ],
+       "prices": [
+        {
+         "id": "WD-200",
+         "product": "Washer and dryer pair",
+         "price": "$1,499"
+        }
+       ],
+       "created": "{today}T06:00:00Z",
+       "signoff_requested": "{today}T06:00:00Z",
+       "status": "waiting for sign-off",
+       "approvals": {
+        "aisha@example.test": {
+         "claims": [
+          "[C12]",
+          "[P:WD-200]"
+         ],
+         "status": "signed"
+        },
+        "tom@example.test": {
+         "claims": [
+          "[C12]",
+          "[C07]"
+         ],
+         "status": "open"
+        }
+       }
+      }
+     }
+    }
+   },
+   "trigger": [
+    {
+     "webhook": "r15-1-sign",
+     "body": {
+      "version_id": "B-7-email",
+      "approver": "tom@example.test",
+      "decision": "signed"
+     }
+    }
+   ],
+   "expect": [
+    {
+     "mock": "drafts/versions/B-7-email",
+     "field": "status",
+     "equals": "waiting for Ben"
+    },
+    {
+     "mock": "messaging/messages/1",
+     "field": "to",
+     "equals": [
+      "ben@example.test"
+     ]
+    }
+   ]
+  },
+  {
+   "case": "Comparison struck",
+   "row": 9,
+   "input": "Helen strikes an untagged comparison (companion extension)",
+   "seed": {
+    "drafts": {
+     "versions": {
+      "B-7-email": {
+       "id": "B-7-email",
+       "brief_id": "B-7",
+       "brief_version": 1,
+       "channel": "email",
+       "copy": "Free installation on washer and dryer pairs [C12], with delivery within five business days [C07].",
+       "text": "Free installation on washer and dryer pairs, with delivery within five business days.",
+       "claims": [
+        {
+         "id": "C12",
+         "wording": "Free installation on washer and dryer pairs",
+         "types": [
+          "price",
+          "time"
+         ],
+         "price_ids": [
+          "WD-200"
+         ]
+        },
+        {
+         "id": "C07",
+         "wording": "delivery within five business days",
+         "types": [
+          "time"
+         ],
+         "price_ids": []
+        }
+       ],
+       "prices": [
+        {
+         "id": "WD-200",
+         "product": "Washer and dryer pair",
+         "price": "$1,499"
+        }
+       ],
+       "created": "{today}T06:00:00Z",
+       "signoff_requested": "{today}T06:00:00Z",
+       "status": "waiting for sign-off",
+       "approvals": {
+        "aisha@example.test": {
+         "claims": [
+          "[C12]"
+         ],
+         "status": "signed"
+        },
+        "helen@example.test": {
+         "claims": [
+          "untagged comparison: \"Quieter than your old washer\""
+         ],
+         "status": "open"
+        }
+       }
+      }
+     }
+    }
+   },
+   "trigger": [
+    {
+     "webhook": "r15-1-sign",
+     "body": {
+      "version_id": "B-7-email",
+      "approver": "helen@example.test",
+      "decision": "struck"
+     }
+    }
+   ],
+   "expect": [
+    {
+     "mock": "drafts/versions/B-7-email",
+     "field": "status",
+     "equals": "returned to Ben"
+    },
+    {
+     "mock": "messaging/messages/1",
+     "field": "to",
+     "equals": [
+      "ben@example.test"
+     ]
+    }
+   ]
+  },
+  {
+   "case": "Ben approves",
+   "row": 10,
+   "input": "Ben approves a fully signed version (companion extension)",
+   "seed": {
+    "drafts": {
+     "versions": {
+      "B-7-email": {
+       "id": "B-7-email",
+       "brief_id": "B-7",
+       "brief_version": 1,
+       "channel": "email",
+       "copy": "Free installation on washer and dryer pairs [C12], with delivery within five business days [C07].",
+       "text": "Free installation on washer and dryer pairs, with delivery within five business days.",
+       "claims": [
+        {
+         "id": "C12",
+         "wording": "Free installation on washer and dryer pairs",
+         "types": [
+          "price",
+          "time"
+         ],
+         "price_ids": [
+          "WD-200"
+         ]
+        },
+        {
+         "id": "C07",
+         "wording": "delivery within five business days",
+         "types": [
+          "time"
+         ],
+         "price_ids": []
+        }
+       ],
+       "prices": [
+        {
+         "id": "WD-200",
+         "product": "Washer and dryer pair",
+         "price": "$1,499"
+        }
+       ],
+       "created": "{today}T06:00:00Z",
+       "signoff_requested": "{today}T06:00:00Z",
+       "status": "waiting for Ben",
+       "approvals": {
+        "aisha@example.test": {
+         "claims": [
+          "[C12]"
+         ],
+         "status": "signed"
+        }
+       }
+      }
+     }
+    }
+   },
+   "trigger": [
+    {
+     "webhook": "r15-1-ben-approves",
+     "body": {
+      "version_id": "B-7-email"
+     }
+    }
+   ],
+   "expect": [
+    {
+     "mock": "drafts/versions/B-7-email",
+     "field": "status",
+     "equals": "approved; ready to send"
+    },
+    {
+     "mock": "drafts/versions/B-7-email",
+     "field": "fingerprint",
+     "equals": "6b4ddd068e6c92c480d83fa755d913a70cefc134cc7b1516e04e1ef3fe89a5f4"
+    },
+    {
+     "mock": "drafts/report",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "case": "Send unchanged",
+   "row": 11,
+   "input": "The approved text, unchanged, before a send (companion extension)",
+   "seed": {
+    "drafts": {
+     "versions": {
+      "B-7-email": {
+       "id": "B-7-email",
+       "brief_id": "B-7",
+       "brief_version": 1,
+       "channel": "email",
+       "copy": "Free installation on washer and dryer pairs [C12], with delivery within five business days [C07].",
+       "text": "Free installation on washer and dryer pairs, with delivery within five business days.",
+       "claims": [
+        {
+         "id": "C12",
+         "wording": "Free installation on washer and dryer pairs",
+         "types": [
+          "price",
+          "time"
+         ],
+         "price_ids": [
+          "WD-200"
+         ]
+        },
+        {
+         "id": "C07",
+         "wording": "delivery within five business days",
+         "types": [
+          "time"
+         ],
+         "price_ids": []
+        }
+       ],
+       "prices": [
+        {
+         "id": "WD-200",
+         "product": "Washer and dryer pair",
+         "price": "$1,499"
+        }
+       ],
+       "created": "{today}T06:00:00Z",
+       "signoff_requested": "{today}T06:00:00Z",
+       "status": "approved; ready to send",
+       "fingerprint": "6b4ddd068e6c92c480d83fa755d913a70cefc134cc7b1516e04e1ef3fe89a5f4"
+      }
+     }
+    }
+   },
+   "trigger": [
+    {
+     "webhook": "r15-1-before-send",
+     "body": {
+      "version_id": "B-7-email",
+      "text": "Free installation on washer and dryer pairs, with delivery within five business days."
+     }
+    }
+   ],
+   "expect": [
+    {
+     "mock": "drafts/versions/B-7-email",
+     "field": "send_check",
+     "equals": "passed"
+    },
+    {
+     "mock": "drafts/versions/B-7-email",
+     "field": "status",
+     "equals": "approved; ready to send"
+    },
+    {
+     "calls": "POST /anthropic/v1/messages",
+     "count": 0
+    },
+    {
+     "mock": "messaging/messages",
+     "count": 0
+    }
+   ]
+  },
+  {
+   "case": "Send changed",
+   "row": 12,
+   "input": "A sentence added after Ben's approval (companion extension)",
+   "seed": {
+    "drafts": {
+     "versions": {
+      "B-7-email": {
+       "id": "B-7-email",
+       "brief_id": "B-7",
+       "brief_version": 1,
+       "channel": "email",
+       "copy": "Free installation on washer and dryer pairs [C12], with delivery within five business days [C07].",
+       "text": "Free installation on washer and dryer pairs, with delivery within five business days.",
+       "claims": [
+        {
+         "id": "C12",
+         "wording": "Free installation on washer and dryer pairs",
+         "types": [
+          "price",
+          "time"
+         ],
+         "price_ids": [
+          "WD-200"
+         ]
+        },
+        {
+         "id": "C07",
+         "wording": "delivery within five business days",
+         "types": [
+          "time"
+         ],
+         "price_ids": []
+        }
+       ],
+       "prices": [
+        {
+         "id": "WD-200",
+         "product": "Washer and dryer pair",
+         "price": "$1,499"
+        }
+       ],
+       "created": "{today}T06:00:00Z",
+       "signoff_requested": "{today}T06:00:00Z",
+       "status": "approved; ready to send",
+       "fingerprint": "6b4ddd068e6c92c480d83fa755d913a70cefc134cc7b1516e04e1ef3fe89a5f4"
+      }
+     }
+    }
+   },
+   "trigger": [
+    {
+     "webhook": "r15-1-before-send",
+     "body": {
+      "version_id": "B-7-email",
+      "text": "Free installation on washer and dryer pairs, with delivery within five business days. Best price in town."
+     }
+    }
+   ],
+   "expect": [
+    {
+     "mock": "drafts/versions/B-7-email",
+     "field": "status",
+     "equals": "stopped: text changed"
+    },
+    {
+     "mock": "messaging/messages/1",
+     "field": "to",
+     "equals": [
+      "ben@example.test"
+     ]
+    },
+    {
+     "mock": "messaging/messages/1",
+     "field": "subject",
+     "equals": "Send of B-7-email stopped: the text changed"
+    }
+   ]
+  },
+  {
+   "case": "Price changed",
+   "row": 13,
+   "input": "A price row changes after drafting (companion extension)",
+   "seed": {
+    "drafts": {
+     "versions": {
+      "B-7-email": {
+       "id": "B-7-email",
+       "brief_id": "B-7",
+       "brief_version": 1,
+       "channel": "email",
+       "copy": "Free installation on washer and dryer pairs [C12], with delivery within five business days [C07].",
+       "text": "Free installation on washer and dryer pairs, with delivery within five business days.",
+       "claims": [
+        {
+         "id": "C12",
+         "wording": "Free installation on washer and dryer pairs",
+         "types": [
+          "price",
+          "time"
+         ],
+         "price_ids": [
+          "WD-200"
+         ]
+        },
+        {
+         "id": "C07",
+         "wording": "delivery within five business days",
+         "types": [
+          "time"
+         ],
+         "price_ids": []
+        }
+       ],
+       "prices": [
+        {
+         "id": "WD-200",
+         "product": "Washer and dryer pair",
+         "price": "$1,499"
+        }
+       ],
+       "created": "{today-3}T06:00:00Z",
+       "signoff_requested": "{today-3}T06:00:00Z",
+       "status": "waiting for sign-off",
+       "approvals": {
+        "aisha@example.test": {
+         "claims": [
+          "[C12]"
+         ],
+         "status": "open"
+        }
+       }
+      }
+     }
+    },
+    "crm": {
+     "prices": {
+      "WD-200": {
+       "price": "$1,599",
+       "changed": "{today}"
+      }
+     }
+    }
+   },
+   "trigger": [
+    {
+     "schedule": "Step 10: Each morning"
+    }
+   ],
+   "expect": [
+    {
+     "mock": "drafts/versions/B-7-email",
+     "field": "status",
+     "equals": "held: source changed"
+    },
+    {
+     "mock": "drafts/versions/B-7-email",
+     "field": "held_reasons",
+     "equals": [
+      "price WD-200 changed"
+     ]
+    },
+    {
+     "mock": "messaging/messages/1",
+     "field": "to",
+     "equals": [
+      "ben@example.test"
+     ]
+    }
+   ]
+  },
+  {
+   "case": "Approver away",
+   "row": 14,
+   "input": "Sign-off open three days (companion extension)",
+   "seed": {
+    "drafts": {
+     "versions": {
+      "B-7-email": {
+       "id": "B-7-email",
+       "brief_id": "B-7",
+       "brief_version": 1,
+       "channel": "email",
+       "copy": "Free installation on washer and dryer pairs [C12], with delivery within five business days [C07].",
+       "text": "Free installation on washer and dryer pairs, with delivery within five business days.",
+       "claims": [
+        {
+         "id": "C12",
+         "wording": "Free installation on washer and dryer pairs",
+         "types": [
+          "price",
+          "time"
+         ],
+         "price_ids": [
+          "WD-200"
+         ]
+        },
+        {
+         "id": "C07",
+         "wording": "delivery within five business days",
+         "types": [
+          "time"
+         ],
+         "price_ids": []
+        }
+       ],
+       "prices": [
+        {
+         "id": "WD-200",
+         "product": "Washer and dryer pair",
+         "price": "$1,499"
+        }
+       ],
+       "created": "{today-3}T06:00:00Z",
+       "signoff_requested": "{today-3}T06:00:00Z",
+       "status": "waiting for sign-off",
+       "approvals": {
+        "aisha@example.test": {
+         "claims": [
+          "[C12]"
+         ],
+         "status": "signed"
+        },
+        "tom@example.test": {
+         "claims": [
+          "[C07]"
+         ],
+         "status": "open"
+        }
+       }
+      }
+     }
+    }
+   },
+   "trigger": [
+    {
+     "schedule": "Step 10: Each morning"
+    }
+   ],
+   "expect": [
+    {
+     "mock": "messaging/messages/1",
+     "field": "to",
+     "equals": [
+      "helen@example.test"
+     ]
+    },
+    {
+     "mock": "messaging/messages/1",
+     "field": "text",
+     "contains": "tom@example.test"
+    },
+    {
+     "mock": "drafts/versions/B-7-email",
+     "field": "status",
+     "equals": "waiting for sign-off"
+    }
+   ]
+  },
+  {
+   "case": "Write fails",
+   "row": 15,
+   "input": "The claims report write fails (companion extension)",
+   "seed": {
+    "briefs": {
+     "briefs": {
+      "B-7": {
+       "claim_ids": [
+        "C12",
+        "C09"
+       ]
+      }
+     }
+    }
+   },
+   "fail": [
+    {
+     "method": "POST",
+     "path": "/drafts/report",
+     "status": 500,
+     "times": 1
+    }
+   ],
+   "trigger": [
+    {
+     "webhook": "r15-1-brief-approved",
+     "body": {
+      "brief_id": "B-7"
+     }
+    }
+   ],
+   "expect": [
+    {
+     "calls": "POST /drafts/report",
+     "count": 1
+    },
+    {
+     "sql": "select status from key_log where recipe='R15.1'",
+     "equals": "failed"
+    },
+    {
+     "sql": "select reason from exception_queue where recipe='R15.1'",
+     "equals": "write failed"
+    }
+   ]
+  },
+  {
+   "case": "Redraft",
+   "row": 16,
+   "input": "Canned draft shortens C07 and adds an untagged comparison, as in Example 15.1 (companion extension)",
+   "seed": {
+    "briefs": {
+     "briefs": {
+      "B-7": {
+       "claim_ids": [
+        "C12",
+        "C07"
+       ]
+      }
+     }
+    }
+   },
+   "fail": [
+    {
+     "method": "POST",
+     "path": "/anthropic/v1/messages",
+     "status": 200,
+     "times": 1,
+     "body": {
+      "id": "msg_canned",
+      "type": "message",
+      "role": "assistant",
+      "model": "claude-haiku-5-5",
+      "content": [
+       {
+        "type": "text",
+        "text": "{\"copy\": \"Free installation on washer and dryer pairs [C12]. Delivered this week [C07]. Quieter than your old washer.\"}"
+       }
+      ],
+      "stop_reason": "end_turn",
+      "usage": {
+       "input_tokens": 1,
+       "output_tokens": 1
+      }
+     }
+    },
+    {
+     "method": "POST",
+     "path": "/anthropic/v1/messages",
+     "status": 200,
+     "times": 1,
+     "body": {
+      "id": "msg_canned",
+      "type": "message",
+      "role": "assistant",
+      "model": "claude-haiku-5-5",
+      "content": [
+       {
+        "type": "text",
+        "text": "{\"claims\": [{\"quote\": \"Free installation on washer and dryer pairs\", \"type\": \"price\"}, {\"quote\": \"Delivered this week\", \"type\": \"time\"}, {\"quote\": \"Quieter than your old washer\", \"type\": \"comparison\"}]}"
+       }
+      ],
+      "stop_reason": "end_turn",
+      "usage": {
+       "input_tokens": 1,
+       "output_tokens": 1
+      }
+     }
+    },
+    {
+     "method": "POST",
+     "path": "/anthropic/v1/messages",
+     "status": 200,
+     "times": 1,
+     "body": {
+      "id": "msg_canned",
+      "type": "message",
+      "role": "assistant",
+      "model": "claude-haiku-5-5",
+      "content": [
+       {
+        "type": "text",
+        "text": "{\"copy\": \"Free installation on washer and dryer pairs [C12], with delivery within five business days [C07]. Quieter than your old washer.\"}"
+       }
+      ],
+      "stop_reason": "end_turn",
+      "usage": {
+       "input_tokens": 1,
+       "output_tokens": 1
+      }
+     }
+    },
+    {
+     "method": "POST",
+     "path": "/anthropic/v1/messages",
+     "status": 200,
+     "times": 1,
+     "body": {
+      "id": "msg_canned",
+      "type": "message",
+      "role": "assistant",
+      "model": "claude-haiku-5-5",
+      "content": [
+       {
+        "type": "text",
+        "text": "{\"claims\": [{\"quote\": \"Free installation on washer and dryer pairs\", \"type\": \"price\"}, {\"quote\": \"delivery within five business days\", \"type\": \"time\"}, {\"quote\": \"Quieter than your old washer\", \"type\": \"comparison\"}]}"
+       }
+      ],
+      "stop_reason": "end_turn",
+      "usage": {
+       "input_tokens": 1,
+       "output_tokens": 1
+      }
+     }
+    }
+   ],
+   "trigger": [
+    {
+     "webhook": "r15-1-brief-approved",
+     "body": {
+      "brief_id": "B-7"
+     }
+    }
+   ],
+   "expect": [
+    {
+     "calls": "POST /anthropic/v1/messages",
+     "count": 4
+    },
+    {
+     "mock": "drafts/versions/B-7-email",
+     "field": "status",
+     "equals": "waiting for sign-off"
+    },
+    {
+     "mock": "drafts/versions/B-7-email",
+     "field": "approvals",
+     "contains": "\"aisha@example.test\": {\"claims\": [\"[C12]\"]"
+    },
+    {
+     "mock": "drafts/versions/B-7-email",
+     "field": "approvals",
+     "contains": "\"tom@example.test\": {\"claims\": [\"[C12]\", \"[C07]\"]"
+    },
+    {
+     "mock": "drafts/versions/B-7-email",
+     "field": "approvals",
+     "contains": "\"helen@example.test\": {\"claims\": [\"untagged comparison: \\\"Quieter than your old washer\\\"\"]"
+    },
+    {
+     "mock": "messaging/messages/2",
+     "field": "to",
+     "equals": [
+      "aisha@example.test",
+      "tom@example.test",
+      "helen@example.test"
+     ]
+    },
+    {
+     "mock": "drafts/report/1",
+     "field": "redrafts",
+     "equals": 1
+    },
+    {
+     "sql": "select status from key_log where recipe='R15.1'",
+     "equals": "done"
+    }
+   ]
+  },
+  {
+   "case": "Redraft still fails",
+   "row": 17,
+   "input": "Canned draft shortens C07 twice (companion extension)",
+   "seed": {
+    "briefs": {
+     "briefs": {
+      "B-7": {
+       "claim_ids": [
+        "C12",
+        "C07"
+       ]
+      }
+     }
+    }
+   },
+   "fail": [
+    {
+     "method": "POST",
+     "path": "/anthropic/v1/messages",
+     "status": 200,
+     "times": 1,
+     "body": {
+      "id": "msg_canned",
+      "type": "message",
+      "role": "assistant",
+      "model": "claude-haiku-5-5",
+      "content": [
+       {
+        "type": "text",
+        "text": "{\"copy\": \"Free installation on washer and dryer pairs [C12]. Delivered this week [C07]. Quieter than your old washer.\"}"
+       }
+      ],
+      "stop_reason": "end_turn",
+      "usage": {
+       "input_tokens": 1,
+       "output_tokens": 1
+      }
+     }
+    },
+    {
+     "method": "POST",
+     "path": "/anthropic/v1/messages",
+     "status": 200,
+     "times": 1,
+     "body": {
+      "id": "msg_canned",
+      "type": "message",
+      "role": "assistant",
+      "model": "claude-haiku-5-5",
+      "content": [
+       {
+        "type": "text",
+        "text": "{\"claims\": [{\"quote\": \"Free installation on washer and dryer pairs\", \"type\": \"price\"}, {\"quote\": \"Delivered this week\", \"type\": \"time\"}, {\"quote\": \"Quieter than your old washer\", \"type\": \"comparison\"}]}"
+       }
+      ],
+      "stop_reason": "end_turn",
+      "usage": {
+       "input_tokens": 1,
+       "output_tokens": 1
+      }
+     }
+    },
+    {
+     "method": "POST",
+     "path": "/anthropic/v1/messages",
+     "status": 200,
+     "times": 1,
+     "body": {
+      "id": "msg_canned",
+      "type": "message",
+      "role": "assistant",
+      "model": "claude-haiku-5-5",
+      "content": [
+       {
+        "type": "text",
+        "text": "{\"copy\": \"Free installation on washer and dryer pairs [C12]. Delivered this week [C07]. Quieter than your old washer.\"}"
+       }
+      ],
+      "stop_reason": "end_turn",
+      "usage": {
+       "input_tokens": 1,
+       "output_tokens": 1
+      }
+     }
+    },
+    {
+     "method": "POST",
+     "path": "/anthropic/v1/messages",
+     "status": 200,
+     "times": 1,
+     "body": {
+      "id": "msg_canned",
+      "type": "message",
+      "role": "assistant",
+      "model": "claude-haiku-5-5",
+      "content": [
+       {
+        "type": "text",
+        "text": "{\"claims\": [{\"quote\": \"Free installation on washer and dryer pairs\", \"type\": \"price\"}, {\"quote\": \"Delivered this week\", \"type\": \"time\"}, {\"quote\": \"Quieter than your old washer\", \"type\": \"comparison\"}]}"
+       }
+      ],
+      "stop_reason": "end_turn",
+      "usage": {
+       "input_tokens": 1,
+       "output_tokens": 1
+      }
+     }
+    }
+   ],
+   "trigger": [
+    {
+     "webhook": "r15-1-brief-approved",
+     "body": {
+      "brief_id": "B-7"
+     }
+    }
+   ],
+   "expect": [
+    {
+     "mock": "drafts/versions/B-7-email",
+     "field": "status",
+     "equals": "returned to Ben"
+    },
+    {
+     "mock": "drafts/versions/B-7-email",
+     "field": "problems",
+     "equals": [
+      "[C07] reads \"Delivered this week\", not \"delivery within five business days\""
+     ]
+    },
+    {
+     "mock": "messaging/messages/2",
+     "field": "to",
+     "equals": [
+      "ben@example.test"
+     ]
+    }
+   ]
+  },
+  {
+   "case": "Untagged price",
+   "row": 18,
+   "input": "Canned draft adds \"Save 20% today\" with no tag (companion extension)",
+   "seed": {
+    "briefs": {
+     "briefs": {
+      "B-7": {
+       "claim_ids": [
+        "C12",
+        "C07"
+       ]
+      }
+     }
+    }
+   },
+   "fail": [
+    {
+     "method": "POST",
+     "path": "/anthropic/v1/messages",
+     "status": 200,
+     "times": 1,
+     "body": {
+      "id": "msg_canned",
+      "type": "message",
+      "role": "assistant",
+      "model": "claude-haiku-5-5",
+      "content": [
+       {
+        "type": "text",
+        "text": "{\"copy\": \"Free installation on washer and dryer pairs [C12], with delivery within five business days [C07]. Save 20% today.\"}"
+       }
+      ],
+      "stop_reason": "end_turn",
+      "usage": {
+       "input_tokens": 1,
+       "output_tokens": 1
+      }
+     }
+    },
+    {
+     "method": "POST",
+     "path": "/anthropic/v1/messages",
+     "status": 200,
+     "times": 1,
+     "body": {
+      "id": "msg_canned",
+      "type": "message",
+      "role": "assistant",
+      "model": "claude-haiku-5-5",
+      "content": [
+       {
+        "type": "text",
+        "text": "{\"claims\": [{\"quote\": \"Free installation on washer and dryer pairs\", \"type\": \"price\"}, {\"quote\": \"delivery within five business days\", \"type\": \"time\"}]}"
+       }
+      ],
+      "stop_reason": "end_turn",
+      "usage": {
+       "input_tokens": 1,
+       "output_tokens": 1
+      }
+     }
+    },
+    {
+     "method": "POST",
+     "path": "/anthropic/v1/messages",
+     "status": 200,
+     "times": 1,
+     "body": {
+      "id": "msg_canned",
+      "type": "message",
+      "role": "assistant",
+      "model": "claude-haiku-5-5",
+      "content": [
+       {
+        "type": "text",
+        "text": "{\"copy\": \"Free installation on washer and dryer pairs [C12], with delivery within five business days [C07]. Save 20% today.\"}"
+       }
+      ],
+      "stop_reason": "end_turn",
+      "usage": {
+       "input_tokens": 1,
+       "output_tokens": 1
+      }
+     }
+    },
+    {
+     "method": "POST",
+     "path": "/anthropic/v1/messages",
+     "status": 200,
+     "times": 1,
+     "body": {
+      "id": "msg_canned",
+      "type": "message",
+      "role": "assistant",
+      "model": "claude-haiku-5-5",
+      "content": [
+       {
+        "type": "text",
+        "text": "{\"claims\": [{\"quote\": \"Free installation on washer and dryer pairs\", \"type\": \"price\"}, {\"quote\": \"delivery within five business days\", \"type\": \"time\"}]}"
+       }
+      ],
+      "stop_reason": "end_turn",
+      "usage": {
+       "input_tokens": 1,
+       "output_tokens": 1
+      }
+     }
+    }
+   ],
+   "trigger": [
+    {
+     "webhook": "r15-1-brief-approved",
+     "body": {
+      "brief_id": "B-7"
+     }
+    }
+   ],
+   "expect": [
+    {
+     "mock": "drafts/versions/B-7-email",
+     "field": "status",
+     "equals": "returned to Ben"
+    },
+    {
+     "mock": "drafts/versions/B-7-email",
+     "field": "problems",
+     "contains": "untagged \\\"20\\\""
+    }
+   ]
+  },
+  {
+   "case": "Bad output",
+   "row": 19,
+   "input": "Canned draft is not JSON three times (companion extension)",
+   "seed": {
+    "briefs": {
+     "briefs": {
+      "B-7": {
+       "claim_ids": [
+        "C12",
+        "C07"
+       ]
+      }
+     }
+    }
+   },
+   "fail": [
+    {
+     "method": "POST",
+     "path": "/anthropic/v1/messages",
+     "status": 200,
+     "times": 1,
+     "body": {
+      "id": "msg_canned",
+      "type": "message",
+      "role": "assistant",
+      "model": "claude-haiku-5-5",
+      "content": [
+       {
+        "type": "text",
+        "text": "not json"
+       }
+      ],
+      "stop_reason": "end_turn",
+      "usage": {
+       "input_tokens": 1,
+       "output_tokens": 1
+      }
+     }
+    },
+    {
+     "method": "POST",
+     "path": "/anthropic/v1/messages",
+     "status": 200,
+     "times": 1,
+     "body": {
+      "id": "msg_canned",
+      "type": "message",
+      "role": "assistant",
+      "model": "claude-haiku-5-5",
+      "content": [
+       {
+        "type": "text",
+        "text": "not json"
+       }
+      ],
+      "stop_reason": "end_turn",
+      "usage": {
+       "input_tokens": 1,
+       "output_tokens": 1
+      }
+     }
+    },
+    {
+     "method": "POST",
+     "path": "/anthropic/v1/messages",
+     "status": 200,
+     "times": 1,
+     "body": {
+      "id": "msg_canned",
+      "type": "message",
+      "role": "assistant",
+      "model": "claude-haiku-5-5",
+      "content": [
+       {
+        "type": "text",
+        "text": "not json"
+       }
+      ],
+      "stop_reason": "end_turn",
+      "usage": {
+       "input_tokens": 1,
+       "output_tokens": 1
+      }
+     }
+    }
+   ],
+   "trigger": [
+    {
+     "webhook": "r15-1-brief-approved",
+     "body": {
+      "brief_id": "B-7"
+     }
+    }
+   ],
+   "expect": [
+    {
+     "calls": "POST /anthropic/v1/messages",
+     "count": 3
+    },
+    {
+     "sql": "select reason from exception_queue where recipe='R15.1'",
+     "equals": "AI error"
+    },
+    {
+     "mock": "messaging/messages/2",
+     "field": "to",
+     "equals": [
+      "owen@example.test"
+     ]
+    },
+    {
+     "mock": "drafts/versions",
+     "count": 0
+    }
+   ]
+  },
+  {
+   "case": "Two channels",
+   "row": 20,
+   "input": "Canned drafts for an email and a social version (companion extension)",
+   "seed": {
+    "briefs": {
+     "briefs": {
+      "B-7": {
+       "claim_ids": [
+        "C12",
+        "C07"
+       ],
+       "channels": [
+        "email",
+        "social"
+       ]
+      }
+     }
+    }
+   },
+   "fail": [
+    {
+     "method": "POST",
+     "path": "/anthropic/v1/messages",
+     "status": 200,
+     "times": 1,
+     "body": {
+      "id": "msg_canned",
+      "type": "message",
+      "role": "assistant",
+      "model": "claude-haiku-5-5",
+      "content": [
+       {
+        "type": "text",
+        "text": "{\"copy\": \"Free installation on washer and dryer pairs [C12], with delivery within five business days [C07]. Quieter than your old washer.\"}"
+       }
+      ],
+      "stop_reason": "end_turn",
+      "usage": {
+       "input_tokens": 1,
+       "output_tokens": 1
+      }
+     }
+    },
+    {
+     "method": "POST",
+     "path": "/anthropic/v1/messages",
+     "status": 200,
+     "times": 1,
+     "body": {
+      "id": "msg_canned",
+      "type": "message",
+      "role": "assistant",
+      "model": "claude-haiku-5-5",
+      "content": [
+       {
+        "type": "text",
+        "text": "{\"claims\": [{\"quote\": \"Free installation on washer and dryer pairs\", \"type\": \"price\"}, {\"quote\": \"delivery within five business days\", \"type\": \"time\"}, {\"quote\": \"Quieter than your old washer\", \"type\": \"comparison\"}]}"
+       }
+      ],
+      "stop_reason": "end_turn",
+      "usage": {
+       "input_tokens": 1,
+       "output_tokens": 1
+      }
+     }
+    },
+    {
+     "method": "POST",
+     "path": "/anthropic/v1/messages",
+     "status": 200,
+     "times": 1,
+     "body": {
+      "id": "msg_canned",
+      "type": "message",
+      "role": "assistant",
+      "model": "claude-haiku-5-5",
+      "content": [
+       {
+        "type": "text",
+        "text": "{\"copy\": \"Free installation on washer and dryer pairs [C12], with delivery within five business days [C07]. Quieter than your old washer.\"}"
+       }
+      ],
+      "stop_reason": "end_turn",
+      "usage": {
+       "input_tokens": 1,
+       "output_tokens": 1
+      }
+     }
+    },
+    {
+     "method": "POST",
+     "path": "/anthropic/v1/messages",
+     "status": 200,
+     "times": 1,
+     "body": {
+      "id": "msg_canned",
+      "type": "message",
+      "role": "assistant",
+      "model": "claude-haiku-5-5",
+      "content": [
+       {
+        "type": "text",
+        "text": "{\"claims\": [{\"quote\": \"Free installation on washer and dryer pairs\", \"type\": \"price\"}, {\"quote\": \"delivery within five business days\", \"type\": \"time\"}, {\"quote\": \"Quieter than your old washer\", \"type\": \"comparison\"}]}"
+       }
+      ],
+      "stop_reason": "end_turn",
+      "usage": {
+       "input_tokens": 1,
+       "output_tokens": 1
+      }
+     }
+    }
+   ],
+   "trigger": [
+    {
+     "webhook": "r15-1-brief-approved",
+     "body": {
+      "brief_id": "B-7"
+     }
+    }
+   ],
+   "expect": [
+    {
+     "mock": "drafts/versions/B-7-email",
+     "field": "status",
+     "equals": "waiting for sign-off"
+    },
+    {
+     "mock": "drafts/versions/B-7-social",
+     "field": "status",
+     "equals": "waiting for sign-off"
+    },
+    {
+     "sql": "select count(*) from decision_log where recipe='R15.1'",
+     "equals": "2"
+    },
+    {
+     "sql": "select status from key_log where recipe='R15.1'",
+     "equals": "done"
+    }
+   ]
+  }
+ ]
+}

@@ -4,3 +4,10 @@ Edge,"Managed owner accounts sharing the firm's phone, rejected; later one phone
 Duplicate,Pair already in the queue,Not queued again
 Escalate,"Open quote, or credit terms","Ben, or Aisha, confirms first"
 Refuse,Unrelated accounts on one webmail domain,Not queued
+AI error,The AI call fails on every try (companion extension),Queued with signals alone
+Export fails,The account export fails (companion extension),Run stops; Owen told; exception queue
+Export short,The export shrinks sharply (companion extension),Run stops; Owen told; nothing queued
+Export changed,The export changes format (companion extension),Run stops; Owen told; nothing queued
+Queue write fails,The queue write fails (companion extension),Key marked failed; exception queue: write failed; never retried
+Rejection,The merger rejects a queued pair; the next weekly run (companion extension),On the suppression list; not queued again
+Reason names another field,The AI's reason names a field that did not match (companion extension),Reason dropped; queued with signals alone

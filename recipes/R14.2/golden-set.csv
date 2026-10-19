@@ -3,3 +3,7 @@ Normal,Complete verified item,One task; owner told once
 Edge,"Due date still ""next week""",Returned to chair; no task
 Duplicate,"Chair presses ""verified"" twice",No second task
 Refuse,Verified by someone not registered,No tasks; Tom alerted
+Owner has left,Owner's staff account inactive (companion extension),Returned to chair; no task
+Task system down,Task creation fails twice (companion extension),Retried once; chair told; exception queue; no task ID written
+Rerun,Rerun after a task was created but its ID not written back (companion extension),Task ID written back; no second task
+Outside owner,Item owned by a supplier (companion extension),Minutes entry; follow-up task for the chair

@@ -5,3 +5,12 @@ Edge,"Tom raises $4,000",Skips to Helen
 Duplicate,Status set twice,One approval
 Refuse,Helen approves after the quote expired,"Blocked: ""quote expired during approval"""
 Refuse,Requester edits after release,Edit refused; new request needed
+Over budget,"$9,500 with $9,000 left (companion extension)",Helen; Aisha copied
+Stale export,Budget export eight days old (companion extension),Held: exception queue for Aisha; no approval
+Release,"Tom approves; quote valid, supplier clear (companion extension)",Approved and locked; commitment written; buyer told
+Rejected,Tom rejects with a comment (companion extension),Comment recorded; no commitment
+Reminder,No answer in two working days; quote valid until tomorrow (companion extension),Approver reminded; requester warned
+Stand-in,No answer in three working days (companion extension),Sent to the stand-in
+Approver and stand-in away,No answer after the stand-in (companion extension),Exception queue: Helen decides
+Bill over commitment,"A $3,400 bill on a $3,200 commitment, tolerance $50 (companion extension)",Commitment reduced to zero; exception queue for Aisha; each bill counted once
+Write fails,The approval write fails (companion extension),Key marked failed; exception queue: write failed; never retried

@@ -10,7 +10,7 @@ It never posts to the ledger, approves anything, or obeys the invoice.
 | Platform | File | Status |
 |---|---|---|
 | Tool-neutral | `build-spec.md` | Available |
-| n8n | `n8n/workflow.json` | Not yet available |
+| n8n | [`n8n/workflow.json`](n8n/workflow.json) | Available: golden set passed on n8n 2.42.7, 2026-10-19 ([report](n8n/test-report.md)) |
 | Make | `make/blueprint.json` | Not yet available |
 | Power Automate | `power-automate/` | Not yet available |
 | Zapier | `zapier.md` | Not yet available |
@@ -49,6 +49,13 @@ See `golden-set.csv`; run it before go-live and after every change (book Chapter
 ## Variations
 
 Smaller: run steps 4 to 6 on your ledger's bill-capture drafts; no AI cost.
+
+## Companion note
+
+The book's step 3 returns the lines as numbers, one amount per line.
+The companion's build returns each line's description, quantity, unit price and amount instead, so R7.2 can pair each invoice line with an order line and check its quantity and unit price.
+Quantity and unit price are empty when the invoice does not print them.
+The step 4 sum uses the line amounts, plus freight and tax, against the total.
 
 ## Source
 

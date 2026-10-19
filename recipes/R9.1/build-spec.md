@@ -10,7 +10,7 @@ It never decides hiring, pay or role, or grants access the template does not lis
 | Platform | File | Status |
 |---|---|---|
 | Tool-neutral | `build-spec.md` | Available |
-| n8n | `n8n/workflow.json` | Not yet available |
+| n8n | [`n8n/workflow.json`](n8n/workflow.json) | Available: golden set passed on n8n 2.42.7, 2026-10-19 ([report](n8n/test-report.md)) |
 | Make | `make/blueprint.json` | Not yet available |
 | Power Automate | `power-automate/` | Not yet available |
 | Zapier | `zapier.md` | Not yet available |

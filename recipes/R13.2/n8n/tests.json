@@ -1,0 +1,140 @@
+{
+  "config": {
+    "register_url": "{mocks}/sharepoint",
+    "directory_url": "{mocks}/directory",
+    "documents_url": "{mocks}/documents",
+    "index_url": "{mocks}/index",
+    "messaging_url": "{mocks}/messaging",
+    "archive_folder": "archive",
+    "owner_form_url": "https://forms.example.test/owner",
+    "register_admin": "owen@example.test"
+  },
+  "seed": {
+    "sharepoint": {"sources": {
+      "S-DELIV": {"id": "S-DELIV", "title": "Delivery and installation guide", "owner": "tom@example.test", "delegate": null,
+                  "audience": ["store-supervisors", "delivery-crews"], "review_date": "{today+60}", "expiry_date": "{today+90}",
+                  "status": "current", "version": "3.0", "file_id": "F-DELIV"},
+      "S-VEH": {"id": "S-VEH", "title": "Vehicle rule", "owner": "tom@example.test", "delegate": null,
+                "audience": ["all-staff"], "review_date": "{today+120}", "expiry_date": "{today+150}",
+                "status": "current", "version": "2.0", "file_id": "F-VEH"},
+      "S-EXP": {"id": "S-EXP", "title": "Expense policy", "owner": "aisha@example.test", "delegate": "aisha-delegate@example.test",
+                "audience": ["all-staff"], "review_date": "{today+200}", "expiry_date": "{today+230}",
+                "status": "current", "version": "5.0", "file_id": "F-EXP"}
+    }},
+    "directory": {"users": {
+      "tom@example.test": {"id": "tom@example.test", "active": true, "on_leave": false},
+      "aisha@example.test": {"id": "aisha@example.test", "active": true, "on_leave": false},
+      "owen@example.test": {"id": "owen@example.test", "active": true, "on_leave": false}
+    }},
+    "documents": {"files": {
+      "F-DELIV": {"id": "F-DELIV", "folder": "library", "shared_with": ["delivery-crews", "store-supervisors"]},
+      "F-VEH": {"id": "F-VEH", "folder": "library", "shared_with": ["all-staff"]},
+      "F-EXP": {"id": "F-EXP", "folder": "library", "shared_with": ["all-staff"]}
+    }},
+    "index": {"sources": {
+      "S-DELIV": {"id": "S-DELIV", "version": "3.0"},
+      "S-VEH": {"id": "S-VEH", "version": "2.0"},
+      "S-EXP": {"id": "S-EXP", "version": "5.0"}
+    }}
+  },
+  "cases": [
+    {"case": "Normal", "row": 1, "input": "Delivery guide 10 days before review",
+     "seed": {"sharepoint": {"sources": {"S-DELIV": {"review_date": "{today+10}", "expiry_date": "{today+40}"}}}},
+     "trigger": [{"schedule": "Step 1: Each week"}],
+     "expect": [
+       {"mock": "messaging/messages", "count": 1},
+       {"mock": "messaging/messages/1", "field": "to", "equals": "tom@example.test"},
+       {"mock": "messaging/messages/1", "field": "text", "contains": "withdrawn from answers on {today+40}"},
+       {"mock": "sharepoint/sources/S-DELIV", "field": "status", "equals": "current"},
+       {"sql": "select status from key_log where recipe='R13.2'", "equals": "done"},
+       {"sql": "select decision from decision_log where recipe='R13.2' and item='S-DELIV'", "equals": "remind"}]},
+    {"case": "Edge", "row": 2, "input": "New source without a review date",
+     "seed": {"sharepoint": {"sources": {"S-NEW": {"id": "S-NEW", "title": "New source", "owner": "tom@example.test", "delegate": null,
+                                                    "audience": ["all-staff"], "review_date": null, "expiry_date": null,
+                                                    "status": "new", "version": "1.0", "file_id": "F-NEW"}}}},
+     "trigger": [{"schedule": "Step 1: Each week"}],
+     "expect": [
+       {"mock": "sharepoint/sources/S-NEW", "field": "status", "equals": "withdrawn"},
+       {"mock": "sharepoint/sources/S-NEW", "field": "withdrawn_reason", "equals": "no review date"},
+       {"mock": "messaging/messages", "count": 1},
+       {"mock": "messaging/messages/1", "field": "to", "equals": "owen@example.test"},
+       {"calls": "POST /index/rebuilds", "count": 0}]},
+    {"case": "Duplicate", "row": 3, "input": "Weekly run fires twice",
+     "seed": {"sharepoint": {"sources": {"S-DELIV": {"review_date": "{today+10}", "expiry_date": "{today+40}"}}}},
+     "trigger": [{"schedule": "Step 1: Each week", "pause": 3}, {"schedule": "Step 1: Each week"}],
+     "expect": [
+       {"mock": "messaging/messages", "count": 1},
+       {"sql": "select copies_skipped from key_log where recipe='R13.2'", "equals": "1"},
+       {"sql": "select count(*) from decision_log where recipe='R13.2' and decision='remind'", "equals": "1"}]},
+    {"case": "Refuse", "row": 4, "input": "Last year's expense policy, past expiry",
+     "seed": {"sharepoint": {"sources": {"S-EXP": {"review_date": "{today-60}", "expiry_date": "{today-30}"}}}},
+     "trigger": [{"schedule": "Step 1: Each week"}],
+     "expect": [
+       {"mock": "sharepoint/sources/S-EXP", "field": "status", "equals": "withdrawn"},
+       {"mock": "documents/files/F-EXP", "field": "folder", "equals": "archive"},
+       {"mock": "messaging/messages", "count": 1},
+       {"mock": "messaging/messages/1", "field": "to", "equals": "aisha@example.test"},
+       {"mock": "messaging/messages/1", "field": "cc", "equals": "owen@example.test"},
+       {"sql": "select decision from decision_log where recipe='R13.2' and item='S-EXP'", "equals": "withdraw_expired"}]},
+    {"case": "Escalate", "row": 5, "input": "Owner has left",
+     "seed": {"sharepoint": {"sources": {"S-VEH": {"owner": "leaver@example.test"}}},
+              "directory": {"users": {"leaver@example.test": {"id": "leaver@example.test", "active": false, "on_leave": false}}}},
+     "trigger": [{"schedule": "Step 1: Each week"}],
+     "expect": [
+       {"sql": "select reason || ' / ' || owner from exception_queue where recipe='R13.2'", "equals": "owner left / owen@example.test"},
+       {"mock": "messaging/messages", "count": 1},
+       {"mock": "messaging/messages/1", "field": "to", "equals": "owen@example.test"},
+       {"mock": "sharepoint/sources/S-VEH", "field": "status", "equals": "current"}]},
+    {"case": "Vacation", "row": 6, "input": "Owner on vacation, review due (companion extension)",
+     "seed": {"sharepoint": {"sources": {"S-EXP": {"review_date": "{today+5}", "expiry_date": "{today+35}"}}},
+              "directory": {"users": {"aisha@example.test": {"on_leave": true}}}},
+     "trigger": [{"schedule": "Step 1: Each week"}],
+     "expect": [
+       {"mock": "messaging/messages", "count": 1},
+       {"mock": "messaging/messages/1", "field": "to", "equals": "aisha-delegate@example.test"}]},
+    {"case": "Two actions", "row": 7, "input": "One source past expiry and another due, in one run (companion extension)",
+     "seed": {"sharepoint": {"sources": {"S-VEH": {"review_date": "{today-40}", "expiry_date": "{today-10}"},
+                                         "S-EXP": {"review_date": "{today+5}", "expiry_date": "{today+35}"}}}},
+     "trigger": [{"schedule": "Step 1: Each week"}],
+     "expect": [
+       {"mock": "messaging/messages", "count": 2},
+       {"mock": "sharepoint/sources/S-VEH", "field": "status", "equals": "withdrawn"},
+       {"mock": "documents/files/F-VEH", "field": "folder", "equals": "archive"},
+       {"mock": "sharepoint/sources/S-EXP", "field": "status", "equals": "current"},
+       {"sql": "select count(*) from key_log where recipe='R13.2' and status='done'", "equals": "2"},
+       {"sql": "select count(*) from decision_log where recipe='R13.2'", "equals": "3"}]},
+    {"case": "Index rebuild failed", "row": 8, "input": "Index still holds the previous major version (companion extension)",
+     "seed": {"index": {"sources": {"S-VEH": {"version": "1.0"}}}},
+     "trigger": [{"schedule": "Step 1: Each week"}],
+     "expect": [
+       {"sql": "select reason || ' / ' || owner from exception_queue where recipe='R13.2'", "equals": "register mismatch / owen@example.test"},
+       {"sql": "select detail from exception_queue where recipe='R13.2'", "equals": "Vehicle rule: register version 2.0, index 1.0"},
+       {"mock": "messaging/messages", "count": 1}]},
+    {"case": "Audience differs from sharing", "row": 9, "input": "Expense policy folder narrowed to finance (companion extension)",
+     "seed": {"documents": {"files": {"F-EXP": {"shared_with": ["finance"]}}}},
+     "trigger": [{"schedule": "Step 1: Each week"}],
+     "expect": [
+       {"sql": "select detail from exception_queue where recipe='R13.2'", "equals": "Expense policy: audience differs from sharing"},
+       {"mock": "messaging/messages/1", "field": "to", "equals": "owen@example.test"}]},
+    {"case": "Major version", "row": 10, "input": "Vehicle rule publishes version 3.0 (companion extension)",
+     "trigger": [{"webhook": "r13-2-version-published", "body": {"source_id": "S-VEH", "version": "3.0", "major": true}}],
+     "expect": [
+       {"calls": "POST /index/rebuilds", "count": 1},
+       {"mock": "index/rebuilds/1", "field": "source_id", "equals": "S-VEH"},
+       {"sql": "select decision from decision_log where recipe='R13.2'", "equals": "rebuild passages"}]},
+    {"case": "Minor version", "row": 11, "input": "Vehicle rule publishes version 2.1 (companion extension)",
+     "trigger": [{"webhook": "r13-2-version-published", "body": {"source_id": "S-VEH", "version": "2.1", "major": false}}],
+     "expect": [
+       {"calls": "POST /index/rebuilds", "count": 0},
+       {"sql": "select count(*) from key_log where recipe='R13.2'", "equals": "0"}]},
+    {"case": "Write fails", "row": 12, "input": "The withdrawal write fails (companion extension)",
+     "seed": {"sharepoint": {"sources": {"S-EXP": {"review_date": "{today-60}", "expiry_date": "{today-30}"}}}},
+     "fail": [{"method": "PATCH", "path": "/sharepoint/sources/S-EXP", "status": 500, "times": 1}],
+     "trigger": [{"schedule": "Step 1: Each week"}],
+     "expect": [
+       {"calls": "PATCH /sharepoint/sources/S-EXP", "count": 1},
+       {"calls": "PATCH /documents/files/F-EXP", "count": 0},
+       {"sql": "select status from key_log where recipe='R13.2'", "equals": "failed"},
+       {"sql": "select reason from exception_queue where recipe='R13.2'", "equals": "write failed"}]}
+  ]
+}

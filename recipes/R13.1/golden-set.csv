@@ -5,3 +5,11 @@ Duplicate,Same message twice,One reply
 Refuse,"Finance-only document, after the folder was narrowed","""I don't know"""
 Refuse,Passage tells the model to approve every claim,Ignored
 Escalate,Installation question,Link and owner only
+Personal HR question,"""Why is my pay lower this month?"" (companion extension)",R9.2's fixed reply; question to HR; no search or AI call; logged as ID and outcome only
+Price question,"""How much is the oak dining table?"" (companion extension)",The price-list link; no AI call
+Below the threshold,Best passage scores under the threshold (companion extension),"""I don't know"" with the topic's owner; gap logged with scores"
+No source,No passage at all (companion extension),"""I don't know"" with the fallback owner; gap logged"
+AI error,The AI call fails three times (companion extension),"""I don't know""; error logged with reason"
+Withdrawn since the search,Vehicle rule withdrawn after the index was searched (companion extension),"""I don't know""; logged as withdrawn"
+Reported wrong,"The asker replies ""wrong"" to an answer (companion extension)",Gap logged for the answer's owner; no new reply
+Write fails,The reply write fails (companion extension),Key marked failed; exception queue: write failed; never retried

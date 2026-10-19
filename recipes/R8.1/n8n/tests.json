@@ -1,0 +1,186 @@
+{
+  "config": {
+    "sharepoint_url": "{mocks}/sharepoint",
+    "crm_url": "{mocks}/crm",
+    "mail_url": "{mocks}/mail",
+    "approvals_url": "{mocks}/approvals",
+    "messaging_url": "{mocks}/messaging",
+    "ar_mailbox": "ar@example.test",
+    "ar_lead": "aisha@example.test",
+    "stage_days": {"courtesy_before_due": 3, "first_after_due": 1, "second_after_first": 7, "final_after_second": 7},
+    "templates": {
+      "courtesy reminder": {"subject": "Invoice {{invoice}} falls due on {{due_date}}", "text": "Dear {{contact_name}}, a reminder that invoice {{invoice}} for {{amount}} falls due on {{due_date}}."},
+      "first overdue reminder": {"subject": "First reminder: invoice {{invoice}}", "text": "Dear {{contact_name}}, invoice {{invoice}} for {{amount}} was due on {{due_date}}. If you have paid, thank you."},
+      "second overdue reminder": {"subject": "Second reminder: invoice {{invoice}}", "text": "Dear {{contact_name}}, invoice {{invoice}} for {{amount}}, due {{due_date}}, is still open."},
+      "final notice": {"subject": "Final notice: invoice {{invoice}}", "text": "Dear {{contact_name}}, invoice {{invoice}} for {{amount}}, due {{due_date}}, remains open. Please call us."}
+    },
+    "template_version": "test-1",
+    "r8_3_runs": true
+  },
+  "seed": {
+    "sharepoint": {
+      "exports": {"open-invoices": {"id": "open-invoices", "saved_at": "{today}T06:00:00Z",
+        "rows": [{"invoice": "4471", "account": "ACC-1", "amount": 1200, "open_amount": 1200, "due_date": "{today-10}"}]}},
+      "reminders": {},
+      "disputes": {},
+      "holds": {},
+      "status": {"mailbox-check": {"id": "mailbox-check", "last_check": "{today}T06:30:00Z"}}
+    },
+    "crm": {"accounts": {"ACC-1": {"id": "ACC-1", "name": "Example Property Management", "contact_name": "Pat Example",
+                                   "contact_email": "ap@example.test", "owner": "ben@example.test"}}}
+  },
+  "cases": [
+    {"case": "Normal", "row": 1, "input": "Past due, on neither list",
+     "trigger": [{"schedule": "Step 1: Each working morning after the export is due"}],
+     "expect": [
+       {"mock": "mail/outbox", "count": 1},
+       {"mock": "mail/outbox/1", "field": "subject", "equals": "First reminder: invoice 4471"},
+       {"mock": "sharepoint/reminders/4471", "field": "stage", "equals": "second overdue reminder"},
+       {"mock": "sharepoint/reminders/4471", "field": "due_on", "equals": "{today+7}"},
+       {"sql": "select status from key_log where recipe='R8.1' and key='4471:first overdue reminder'", "equals": "done"},
+       {"sql": "select decision from decision_log where recipe='R8.1'", "equals": "sent first overdue reminder"}]},
+    {"case": "Edge", "row": 2, "input": "Part-paid yesterday",
+     "seed": {"sharepoint": {
+       "exports": {"open-invoices": {"rows": [{"invoice": "4471", "account": "ACC-1", "amount": 1200, "open_amount": 700, "due_date": "{today-10}"}]}},
+       "reminders": {"4471": {"id": "4471", "invoice": "4471", "account": "ACC-1", "stage": "first overdue reminder", "due_on": "{today}", "status": "active"}}}},
+     "trigger": [{"schedule": "Step 1: Each working morning after the export is due"}],
+     "expect": [
+       {"mock": "mail/outbox", "count": 0},
+       {"mock": "sharepoint/reminders/4471", "field": "status", "equals": "stopped"},
+       {"mock": "sharepoint/reminders/4471", "field": "reason", "equals": "part-paid"},
+       {"mock": "messaging/messages", "count": 1},
+       {"mock": "messaging/messages/1", "field": "to", "equals": ["aisha@example.test"]},
+       {"sql": "select decision from decision_log where recipe='R8.1'", "equals": "stopped: part-paid"}]},
+    {"case": "Restart", "row": 3, "input": "Dispute closed yesterday",
+     "seed": {"sharepoint": {
+       "reminders": {"4471": {"id": "4471", "invoice": "4471", "account": "ACC-1", "stage": "second overdue reminder", "due_on": "{today-2}",
+                              "status": "stopped", "reason": "open dispute, set by Ben Hollis"}},
+       "disputes": {"D-1": {"id": "D-1", "invoice": "4471", "account": "ACC-1", "status": "closed", "set_by": "Ben Hollis",
+                            "why": "six apartments not installed", "closed_on": "{today-1}"}}}},
+     "trigger": [{"schedule": "Step 1: Each working morning after the export is due"}],
+     "expect": [
+       {"mock": "mail/outbox", "count": 1},
+       {"mock": "mail/outbox/1", "field": "subject", "equals": "Second reminder: invoice 4471"},
+       {"mock": "sharepoint/reminders/4471", "field": "stage", "equals": "final notice"},
+       {"mock": "sharepoint/reminders/4471", "field": "status", "equals": "active"}]},
+    {"case": "Duplicate", "row": 4, "input": "Flow run twice the same morning",
+     "trigger": [{"schedule": "Step 1: Each working morning after the export is due", "pause": 4},
+                 {"schedule": "Step 1: Each working morning after the export is due"}],
+     "expect": [
+       {"calls": "POST /mail/outbox", "count": 1},
+       {"mock": "mail/outbox", "count": 1},
+       {"sql": "select count(*) from decision_log where recipe='R8.1'", "equals": "1"}]},
+    {"case": "Refuse", "row": 5, "input": "Dispute logged by Ben, or agreed hold",
+     "seed": {
+       "sharepoint": {
+         "exports": {"open-invoices": {"rows": [
+           {"invoice": "4471", "account": "ACC-1", "amount": 1200, "open_amount": 1200, "due_date": "{today-10}"},
+           {"invoice": "4480", "account": "ACC-2", "amount": 300, "open_amount": 300, "due_date": "{today-10}"}]}},
+         "disputes": {"D-1": {"id": "D-1", "invoice": "4471", "account": "ACC-1", "status": "open", "set_by": "Ben Hollis",
+                              "why": "six apartments not installed", "until": null}},
+         "holds": {"H-1": {"id": "H-1", "invoice": null, "account": "ACC-2", "type": "agreed", "set_by": "Aisha Karim",
+                           "why": "payment date agreed by phone", "until": "{today+14}"}}},
+       "crm": {"accounts": {"ACC-2": {"id": "ACC-2", "name": "Example Builders", "contact_name": "Sam Example",
+                                      "contact_email": "accounts@builders.example.test", "owner": "ben@example.test"}}}},
+     "trigger": [{"schedule": "Step 1: Each working morning after the export is due"}],
+     "expect": [
+       {"mock": "mail/outbox", "count": 0},
+       {"mock": "sharepoint/reminders/4471", "field": "reason", "equals": "open dispute, set by Ben Hollis"},
+       {"mock": "sharepoint/reminders/4480", "field": "reason", "equals": "hold: agreed, set by Aisha Karim"},
+       {"sql": "select string_agg(decision, ' | ' order by item) from decision_log where recipe='R8.1'",
+        "equals": "stopped: open dispute, set by Ben Hollis | stopped: hold: agreed, set by Aisha Karim"}]},
+    {"case": "Escalate", "row": 6, "input": "Dispute logged while a final notice awaits approval",
+     "seed": {
+       "sharepoint": {
+         "reminders": {"4471": {"id": "4471", "invoice": "4471", "account": "ACC-1", "stage": "final notice", "due_on": "{today-1}", "status": "active"}},
+         "disputes": {"D-2": {"id": "D-2", "invoice": "4471", "account": "ACC-1", "status": "open", "set_by": "Ben Hollis",
+                              "why": "customer questions the installation", "until": null}}}},
+     "trigger": [{"webhook": "r8-1-final-notice-decision", "body": {"invoice": "4471", "approved": true, "by": "Aisha Karim"}}],
+     "expect": [
+       {"mock": "mail/outbox", "count": 0},
+       {"calls": "POST /mail/outbox", "count": 0},
+       {"mock": "sharepoint/reminders/4471", "field": "status", "equals": "stopped"},
+       {"mock": "sharepoint/reminders/4471", "field": "stage", "equals": "final notice"},
+       {"sql": "select decision from decision_log where recipe='R8.1'", "equals": "final notice not sent; stopped: open dispute, set by Ben Hollis"}]},
+    {"case": "Export stale", "row": 7, "input": "Yesterday's export (companion extension)",
+     "seed": {"sharepoint": {"exports": {"open-invoices": {"saved_at": "{today-1}T06:00:00Z"}}}},
+     "trigger": [{"schedule": "Step 1: Each working morning after the export is due"}],
+     "expect": [
+       {"calls": "POST /mail/outbox", "count": 0},
+       {"sql": "select decision from decision_log where recipe='R8.1'", "equals": "no run"},
+       {"mock": "messaging/messages", "count": 1},
+       {"mock": "messaging/messages/1", "field": "to", "equals": ["aisha@example.test"]}]},
+    {"case": "Export missing", "row": 8, "input": "No export saved today (companion extension)",
+     "fail": [{"method": "GET", "path": "/sharepoint/exports/open-invoices", "status": 404, "times": 3}],
+     "trigger": [{"schedule": "Step 1: Each working morning after the export is due"}],
+     "expect": [
+       {"calls": "POST /mail/outbox", "count": 0},
+       {"sql": "select decision from decision_log where recipe='R8.1'", "equals": "no run"},
+       {"sql": "select rules->>'problems' from decision_log where recipe='R8.1'", "equals": "[\"export missing\"]"},
+       {"mock": "messaging/messages", "count": 1}]},
+    {"case": "No mailbox check", "row": 9, "input": "R8.3 logged no mailbox check today (companion extension)",
+     "seed": {"sharepoint": {"status": {"mailbox-check": {"last_check": "{today-1}T16:00:00Z"}}}},
+     "trigger": [{"schedule": "Step 1: Each working morning after the export is due"}],
+     "expect": [
+       {"calls": "POST /mail/outbox", "count": 0},
+       {"sql": "select decision from decision_log where recipe='R8.1'", "equals": "no run"},
+       {"mock": "messaging/messages", "count": 1}]},
+    {"case": "Send fails", "row": 10, "input": "The AR mailbox refuses the send (companion extension)",
+     "seed": {"sharepoint": {"reminders": {"4471": {"id": "4471", "invoice": "4471", "account": "ACC-1", "stage": "first overdue reminder", "due_on": "{today-1}", "status": "active"}}}},
+     "fail": [{"method": "POST", "path": "/mail/outbox", "status": 500, "times": 1}],
+     "trigger": [{"schedule": "Step 1: Each working morning after the export is due"}],
+     "expect": [
+       {"calls": "POST /mail/outbox", "count": 1},
+       {"mock": "sharepoint/reminders/4471", "field": "stage", "equals": "first overdue reminder"},
+       {"mock": "sharepoint/reminders/4471", "field": "due_on", "equals": "{today-1}"},
+       {"sql": "select count(*) from key_log where recipe='R8.1'", "equals": "0"},
+       {"sql": "select reason from exception_queue where recipe='R8.1'", "equals": "send failed"},
+       {"sql": "select decision from decision_log where recipe='R8.1'", "equals": "unsent: first overdue reminder"}]},
+    {"case": "Missing contact", "row": 11, "input": "No AR contact in the CRM (companion extension)",
+     "seed": {"crm": {"accounts": {"ACC-1": {"contact_email": ""}}}},
+     "trigger": [{"schedule": "Step 1: Each working morning after the export is due"}],
+     "expect": [
+       {"calls": "POST /mail/outbox", "count": 0},
+       {"sql": "select reason from exception_queue where recipe='R8.1'", "equals": "held: template check"},
+       {"sql": "select detail from exception_queue where recipe='R8.1'", "equals": "no AR contact in the CRM"},
+       {"sql": "select count(*) from key_log where recipe='R8.1'", "equals": "0"},
+       {"mock": "messaging/messages", "count": 1}]},
+    {"case": "List write fails", "row": 12, "input": "Reminder list write fails after a send, then a second run (companion extension)",
+     "fail": [{"method": "PUT", "path": "/sharepoint/reminders/4471", "status": 500, "times": 1}],
+     "trigger": [{"schedule": "Step 1: Each working morning after the export is due", "pause": 4},
+                 {"schedule": "Step 1: Each working morning after the export is due"}],
+     "expect": [
+       {"calls": "POST /mail/outbox", "count": 1},
+       {"sql": "select status from key_log where recipe='R8.1'", "equals": "failed"},
+       {"sql": "select copies_skipped from key_log where recipe='R8.1'", "equals": "1"},
+       {"sql": "select reason from exception_queue where recipe='R8.1'", "equals": "write failed"}]},
+    {"case": "Final notice due", "row": 13, "input": "Final notice falls due (companion extension)",
+     "seed": {"sharepoint": {"reminders": {"4471": {"id": "4471", "invoice": "4471", "account": "ACC-1", "stage": "final notice", "due_on": "{today}", "status": "active"}}}},
+     "trigger": [{"schedule": "Step 1: Each working morning after the export is due"}],
+     "expect": [
+       {"calls": "POST /mail/outbox", "count": 0},
+       {"mock": "approvals/requests/4471-{today}", "field": "status", "equals": "pending"},
+       {"mock": "approvals/requests/4471-{today}", "field": "subject", "equals": "Final notice: invoice 4471"},
+       {"sql": "select decision from decision_log where recipe='R8.1'", "equals": "final notice: approval requested"}]},
+    {"case": "Final notice approved", "row": 14, "input": "Aisha approves a final notice (companion extension)",
+     "seed": {"sharepoint": {"reminders": {"4471": {"id": "4471", "invoice": "4471", "account": "ACC-1", "stage": "final notice", "due_on": "{today}", "status": "active"}}}},
+     "trigger": [{"webhook": "r8-1-final-notice-decision", "body": {"invoice": "4471", "approved": true, "by": "Aisha Karim"}}],
+     "expect": [
+       {"mock": "mail/outbox", "count": 1},
+       {"mock": "mail/outbox/1", "field": "subject", "equals": "Final notice: invoice 4471"},
+       {"mock": "sharepoint/reminders/4471", "field": "stage", "equals": "handoff"},
+       {"mock": "sharepoint/handoffs/4471", "field": "owner", "equals": "aisha@example.test"},
+       {"sql": "select decision from decision_log where recipe='R8.1'", "equals": "sent final notice"}]},
+    {"case": "Pause date passed", "row": 15, "input": "A promise-to-pay pause whose date passed yesterday, unpaid (companion extension)",
+     "seed": {"sharepoint": {
+       "reminders": {"4471": {"id": "4471", "invoice": "4471", "account": "ACC-1", "stage": "second overdue reminder", "due_on": "{today-3}",
+                              "status": "stopped", "reason": "open dispute, set by Ben Hollis"}},
+       "disputes": {"4471-M-7": {"id": "4471-M-7", "invoice": "4471", "account": "ACC-1", "status": "open", "kind": "promise to pay",
+                                 "set_by": "Ben Hollis", "why": "reply M-7, confirmed by the owner", "until": "{today-1}"}}}},
+     "trigger": [{"schedule": "Step 1: Each working morning after the export is due"}],
+     "expect": [
+       {"mock": "mail/outbox", "count": 1},
+       {"mock": "mail/outbox/1", "field": "subject", "equals": "Second reminder: invoice 4471"},
+       {"mock": "sharepoint/reminders/4471", "field": "status", "equals": "active"}]}
+  ]
+}

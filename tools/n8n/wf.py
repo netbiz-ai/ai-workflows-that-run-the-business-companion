@@ -82,7 +82,40 @@ class Workflow:
         for a, b in zip(names, names[1:]):
             self.connect(a, b)
 
+    def _add_stop_flag(self) -> None:
+        """The book's stop flag (Chapter 3): a one-row stop list the workflow reads at its first
+        step, ending quietly when the flag is set. Inserted after Config, so every trigger passes it.
+        An unreadable stop list stops the run too, with an exception-queue row, so nobody runs a
+        workflow they cannot stop."""
+        if "Config" not in self.connections or any(n["name"] == "Stop flag: read" for n in self.nodes):
+            return
+        cfg = next(n for n in self.nodes if n["name"] == "Config")
+        cfg["parameters"]["assignments"]["assignments"].insert(0, {
+            "id": _uid(f"{self.recipe}/Config/stop_flag_url"), "name": "stop_flag_url",
+            "value": f"https://<your stop list API>/stop_flags/{self.recipe}", "type": "string"})
+        downstream = self.connections.pop("Config")
+        x, y = cfg["position"]
+        for n in self.nodes:
+            if n["position"][0] > x:
+                n["position"] = [n["position"][0] + 520, n["position"][1]]
+        self.node("Stop flag: read", "n8n-nodes-base.httpRequest", V["http"],
+                  {"method": "GET", "url": "={{ $('Config').item.json.stop_flag_url }}", "options": {}},
+                  pos=[x + 260, y], retryOnFail=True, maxTries=3, waitBetweenTries=2000, onError="continueErrorOutput",
+                  notes="Kill switch: set stopped to true in your stop list and the next run ends quietly (book Chapter 3).")
+        self.if_("Stop flag set?", "={{ $json.stopped === true }}", pos=[x + 520, y])
+        self.noop("Stopped by the stop flag", pos=[x + 780, y - 200], notes="Ends quietly; nothing is read, written or sent.")
+        self.connect("Config", "Stop flag: read")
+        self.connect("Stop flag: read", "Stop flag set?")
+        self.connect("Stop flag set?", "Stopped by the stop flag", output=0)
+        self.connections.setdefault("Stop flag set?", {})["main"].append(
+            [dict(c) for c in downstream["main"][0]])
+        self.exception("Exception queue: stop list unreadable", "'run ' + $execution.id", "stop list unreadable",
+                       "'The stop list could not be read, so the run stopped; fix the stop list'", "'<your workflow owner>'",
+                       pos=[x + 520, y + 220])
+        self.connect("Stop flag: read", "Exception queue: stop list unreadable", output=1)
+
     def to_json(self) -> dict:
+        self._add_stop_flag()
         return {"name": self.name, "nodes": self.nodes, "connections": self.connections,
                 "settings": {"executionOrder": "v1", "saveDataSuccessExecution": "all",
                              "saveManualExecutions": True, "callerPolicy": "workflowsFromSameOwner"},
@@ -215,11 +248,17 @@ function parseAi(reply, required, enums = {}) {
 
 
 def read_prompt(path) -> tuple[str, str]:
-    """Return (system prompt, input template) from a recipes/<ID>/prompts/<step>.md file."""
+    """Return (system prompt, input template) from a recipes/<ID>/prompts/<step>.md file.
+    The prompt file's output schema is appended to the system prompt, so the model is told
+    the exact shape the rule check will hold it to."""
     import re
     text = open(path).read()
     system = re.search(r"(?ms)^## System prompt\n(.*?)^## ", text).group(1).strip()
     inp = re.search(r"(?ms)^## Input\n.*?```[a-z]*\n(.*?)```", text).group(1).rstrip("\n")
+    schema = re.search(r"(?ms)^## Output schema\n.*?```json\n(.*?)```", text)
+    if schema:
+        system += ("\n\nReturn only a JSON object that matches this JSON Schema exactly, with no other text:\n"
+                   + schema.group(1).strip())
     return system, inp
 
 
@@ -230,6 +269,9 @@ def ai_step(w: Workflow, step: str, prompt_path, vars_js: str, *, max_tokens: in
     literal filling the prompt's {{placeholders}}. Returns (build node, call node); the
     call node's output 0 is the reply, output 1 an AI error after the retries."""
     system, template = read_prompt(prompt_path)
+    # Claude Haiku 5.5 thinks before it answers, and thinking counts against max_tokens:
+    # a low cap can stop the reply before any JSON is written. Only tokens used are billed.
+    max_tokens = max(max_tokens, 4096)
     build = f"{step}: Build the AI request"
     call = f"{step}: AI call"
     js = (
@@ -238,8 +280,9 @@ def ai_step(w: Workflow, step: str, prompt_path, vars_js: str, *, max_tokens: in
         f"const TEMPLATE = {json.dumps(template)};\n"
         f"const vars = {vars_js};\n"
         "const cfg = $('Config').first().json;\n"
-        "const user = TEMPLATE.replace(/\\{\\{(\\w+)\\}\\}/g, (_, k) => (k in vars ? String(vars[k]) : ''));\n"
-        "const request = { model: cfg.ai_model, max_tokens: " + str(max_tokens) + ", temperature: 0, system: SYSTEM,\n"
+        "const fill = t => t.replace(/\\{\\{(\\w+)\\}\\}/g, (m, k) => (k in vars ? String(vars[k]) : m));\n"
+        "const user = fill(TEMPLATE).replace(/\\{\\{(\\w+)\\}\\}/g, '');\n"
+        "const request = { model: cfg.ai_model, max_tokens: " + str(max_tokens) + ", system: fill(SYSTEM),\n"
         "  messages: [{ role: 'user', content: user }] };\n"
         "if (cfg.ai_inference_geo) request.inference_geo = cfg.ai_inference_geo;\n"
         "return { json: { request } };\n"

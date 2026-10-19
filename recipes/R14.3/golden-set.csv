@@ -3,3 +3,8 @@ Normal,"Task one day overdue, not reminded",One reminder
 Edge,"Date moved twice, not overdue",On the next agenda
 Duplicate,"Message sent, key not marked ""sent""",No second message; Owen checks
 Escalate,No series meeting within 14 days,Tom told once
+Carried,"Reminded a working day ago, still open, series meets in 7 days (companion extension)",On that meeting's agenda; no second message
+Write fails,The reminder send fails (companion extension),"Reminder stays ""pending"", never resent; key marked failed; exception queue: write failed"
+Holiday,The morning run on a holiday (companion extension),No run
+New date,The chair sets a new date at the meeting (companion extension),New verified date; change count reset; task untouched
+Closed since listed,A listed task closed before its meeting (companion extension),"Marked ""closed since listed""; not removed"

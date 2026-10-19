@@ -4,3 +4,9 @@ Edge,Two open deals; email fits either,"""Unclear""; exception queue"
 Duplicate,Same email in two mailboxes,One activity
 Escalate,Manager's address on two accounts,Exception queue; nothing written
 Refuse,"Colleague's lunch email, marked by mistake",Not logged
+Several recipients,A sent email to two external recipients (companion extension),Exception queue; nothing written; no AI call
+AI error,The AI call fails on every try (companion extension),Exception queue; nothing written
+Write fails,"The CRM activity write fails, given a valid summary (companion extension)",Key marked failed; exception queue: write failed; never retried
+Meeting note,A meeting note for an account with no open deal (companion extension),Activity at account level; summary waits
+Deal not open,The AI names a deal that is not open on the account (companion extension),Exception queue; nothing written
+Past date,The AI returns a next-step date in the past (companion extension),Date dropped; activity and summary draft written

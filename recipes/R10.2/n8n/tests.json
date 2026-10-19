@@ -1,0 +1,103 @@
+{
+  "config": {
+    "scheduling_url": "{mocks}/scheduling",
+    "messaging_url": "{mocks}/messaging",
+    "tasks_url": "{mocks}/tasks",
+    "helpdesk_url": "{mocks}/helpdesk",
+    "dispatch_queue": "dispatch@example.test",
+    "confirmation_template": "Your delivery is booked for {date}, {window}. {prep}",
+    "reminder_template": "Reminder: your delivery is tomorrow, {date}, {window}.",
+    "preparation_notes": "Please clear a path to the room.",
+    "address_words": ["floor", "unit", "apartment", "flat", "suite", "street", "road", "avenue", "lane"],
+    "mask_token": "[masked]",
+    "ai_url": "{mocks}/anthropic/v1/messages"
+  },
+  "seed": {
+    "scheduling": {
+      "work_orders": {
+        "J-1": {"id": "J-1", "source": "online", "slot_id": "S-0", "slot_date": "{today+3}", "window": "09:00-12:00", "zone": "North",
+                "customer": {"name": "Test Customer", "phone": "+1 555 0100", "channel": "sms"}}
+      },
+      "slots": {
+        "S-1": {"id": "S-1", "zone": "North", "status": "open", "date": "{today+4}", "window": "09:00-12:00"},
+        "S-2": {"id": "S-2", "zone": "North", "status": "open", "date": "{today+5}", "window": "13:00-16:00"},
+        "S-3": {"id": "S-3", "zone": "North", "status": "open", "date": "{today+6}", "window": "09:00-12:00"},
+        "S-4": {"id": "S-4", "zone": "North", "status": "open", "date": "{today+7}", "window": "13:00-16:00"},
+        "S-5": {"id": "S-5", "zone": "South", "status": "open", "date": "{today+4}", "window": "09:00-12:00"}
+      }
+    }
+  },
+  "cases": [
+    {"case": "Normal", "row": 1, "input": "\"Can we do Thursday instead?\", then \"2\"", "needs_ai": true,
+     "trigger": [{"webhook": "r10-2-reply", "body": {"message_id": "M-1", "job_ref": "J-1", "from": "+1 555 0100", "text": "Can we do Thursday instead?"}, "pause": 4},
+                 {"webhook": "r10-2-reply", "body": {"message_id": "M-2", "job_ref": "J-1", "from": "+1 555 0100", "text": "2"}}],
+     "expect": [
+       {"mock": "messaging/messages/O-M-1", "field": "text", "contains": "3. {today+6} 09:00-12:00"},
+       {"mock": "tasks/tasks/T-M-2", "field": "slot", "equals": "S-2"},
+       {"calls": "PATCH /scheduling/work_orders/J-1", "count": 0}]},
+    {"case": "Edge", "row": 2, "input": "\"Thursday's fine, gate code 4821\"", "needs_ai": true,
+     "trigger": [{"webhook": "r10-2-reply", "body": {"message_id": "M-1", "job_ref": "J-1", "from": "+1 555 0100", "text": "Thursday's fine, gate code 4821"}}],
+     "expect": [
+       {"mock": "tasks/tasks/T-M-1", "field": "reply", "equals": "Thursday's fine, gate code [masked]"},
+       {"mock": "messaging/messages", "count": 0}]},
+    {"case": "Duplicate", "row": 3, "input": "Same reply delivered twice",
+     "trigger": [{"webhook": "r10-2-reply", "body": {"message_id": "M-1", "job_ref": "J-1", "from": "+1 555 0100", "text": "Can we do Thursday instead?"}, "pause": 4},
+                 {"webhook": "r10-2-reply", "body": {"message_id": "M-1", "job_ref": "J-1", "from": "+1 555 0100", "text": "Can we do Thursday instead?"}}],
+     "expect": [
+       {"sql": "select copies_skipped from key_log where recipe='R10.2'", "equals": "1"},
+       {"sql": "select count(*) from decision_log where recipe='R10.2'", "equals": "1"}]},
+    {"case": "Escalate", "row": 4, "input": "Trade account: \"fridge leaking onto the floor\"",
+     "seed": {"scheduling": {"work_orders": {"J-1": {"source": "trade"}}}},
+     "trigger": [{"webhook": "r10-2-reply", "body": {"message_id": "M-1", "job_ref": "J-1", "from": "+1 555 0100", "text": "fridge leaking onto the floor"}}],
+     "expect": [
+       {"mock": "tasks/tasks/T-M-1", "field": "type", "equals": "urgent"},
+       {"mock": "helpdesk/tickets", "count": 1},
+       {"calls": "POST /anthropic/v1/messages", "count": 0}]},
+    {"case": "Refuse", "row": 5, "input": "\"Cancel it and refund me today\"", "needs_ai": true,
+     "trigger": [{"webhook": "r10-2-reply", "body": {"message_id": "M-1", "job_ref": "J-1", "from": "+1 555 0100", "text": "Cancel it and refund me today"}}],
+     "expect": [
+       {"mock": "tasks/tasks/T-M-1", "field": "type", "equals": "reply"},
+       {"mock": "messaging/messages", "count": 0},
+       {"calls": "PATCH /scheduling/work_orders/J-1", "count": 0},
+       {"calls": "DELETE /scheduling/work_orders/J-1", "count": 0}]},
+    {"case": "AI error", "row": 6, "input": "The AI call fails twice (companion extension)",
+     "fail": [{"method": "POST", "path": "/anthropic/v1/messages", "status": 529, "times": 2}],
+     "trigger": [{"webhook": "r10-2-reply", "body": {"message_id": "M-1", "job_ref": "J-1", "from": "+1 555 0100", "text": "Can we do Thursday instead?"}}],
+     "expect": [
+       {"mock": "tasks/tasks/T-M-1", "field": "reason", "contains": "AI error"},
+       {"mock": "tasks/tasks/T-M-1", "field": "reply", "equals": "Can we do Thursday instead?"},
+       {"calls": "POST /anthropic/v1/messages", "count": 2},
+       {"mock": "messaging/messages", "count": 0}]},
+    {"case": "Slot lookup fails", "row": 7, "input": "The open-slot read fails after a reschedule reply (companion extension)", "needs_ai": true,
+     "fail": [{"method": "GET", "path": "/scheduling/slots", "status": 500, "times": 3}],
+     "trigger": [{"webhook": "r10-2-reply", "body": {"message_id": "M-1", "job_ref": "J-1", "from": "+1 555 0100", "text": "Can we do Thursday instead?"}}],
+     "expect": [
+       {"mock": "tasks/tasks/T-M-1", "field": "reason", "contains": "slot lookup failed"},
+       {"mock": "messaging/messages", "count": 0}]},
+    {"case": "Trade reply", "row": 8, "input": "Trade account: \"Can we move it to next week?\" (companion extension)",
+     "seed": {"scheduling": {"work_orders": {"J-1": {"source": "trade"}}}},
+     "trigger": [{"webhook": "r10-2-reply", "body": {"message_id": "M-1", "job_ref": "J-1", "from": "+1 555 0100", "text": "Can we move it to next week?"}}],
+     "expect": [
+       {"mock": "tasks/tasks/T-M-1", "field": "type", "equals": "trade reply"},
+       {"calls": "POST /anthropic/v1/messages", "count": 0}]},
+    {"case": "Slot set", "row": 9, "input": "A slot is set (companion extension)",
+     "trigger": [{"webhook": "r10-2-slot", "body": {"job_id": "J-1"}}],
+     "expect": [
+       {"mock": "messaging/messages", "count": 1},
+       {"mock": "messaging/messages/1", "field": "text", "equals": "Your delivery is booked for {today+3}, 09:00-12:00. Please clear a path to the room."},
+       {"mock": "messaging/messages/1", "field": "to", "equals": "+1 555 0100"}]},
+    {"case": "Not delivered", "row": 10, "input": "The confirmation send fails (companion extension)",
+     "fail": [{"method": "POST", "path": "/messaging/messages", "status": 500, "times": 1}],
+     "trigger": [{"webhook": "r10-2-slot", "body": {"job_id": "J-1"}}],
+     "expect": [
+       {"calls": "POST /messaging/messages", "count": 1},
+       {"mock": "tasks/tasks/ND-J-1-confirmation", "field": "type", "equals": "message not delivered"}]},
+    {"case": "Reminders", "row": 11, "input": "One job tomorrow, one in three days (companion extension)",
+     "seed": {"scheduling": {"work_orders": {"J-2": {"id": "J-2", "source": "store", "slot_date": "{today+1}", "window": "13:00-16:00", "zone": "North",
+                                                     "customer": {"name": "Second Customer", "email": "second@example.test", "channel": "email"}}}}},
+     "trigger": [{"schedule": "Step 2: Each afternoon"}],
+     "expect": [
+       {"mock": "messaging/messages", "count": 1},
+       {"mock": "messaging/messages/R-J-2-{today+1}", "field": "to", "equals": "second@example.test"}]}
+  ]
+}

@@ -5,3 +5,9 @@ Duplicate,Ticket re-enters the queue,One draft
 Refuse,"Incident A's warranty question, article withheld",No draft; flagged
 Refuse,"Draft asks ""Would you like us to book a technician visit?""",Fails: offers are checked
 Race,Arrives before R4.2 logs it,Drafts once R4.2 clears it; flags after three checks
+Escalated,R4.2 has escalated the ticket (companion extension),No draft; no AI call
+AI error,The AI call fails twice (companion extension),No draft; flagged
+Lookup fails,The order lookup fails twice (companion extension),No draft; flagged; no AI call
+Article out of date,The returns article is past its review date (companion extension),"No draft; flagged ""no source"""
+Write fails,The note write fails (companion extension),Key marked failed; exception queue: write failed; never retried
+Draft outcome,The sender edits the draft and posts the reply (companion extension),"Logged as ""draft edited"""

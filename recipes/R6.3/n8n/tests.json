@@ -1,0 +1,848 @@
+{
+ "config": {
+  "export_url": "{mocks}/crm-export",
+  "queue_url": "{mocks}/queue",
+  "messaging_url": "{mocks}/messaging",
+  "expected_accounts": 4,
+  "excluded_domains": [
+   "webmail.example.test"
+  ],
+  "default_country_code": "1",
+  "other_field_terms": [
+   "quote",
+   "credit",
+   "terms",
+   "contact",
+   "link",
+   "owner",
+   "activity"
+  ],
+  "open_quote_confirmer": "Ben",
+  "credit_terms_confirmer": "Aisha",
+  "merger": "owen@northstar.example.test",
+  "export_owner": "owen@northstar.example.test",
+  "ai_url": "{mocks}/anthropic/v1/messages"
+ },
+ "seed": {
+  "crm-export": {
+   "accounts": {
+    "F-1": {
+     "id": "F-1",
+     "name": "Quayside Kitchens Inc",
+     "phone": "+1 555 090 0901",
+     "tax_id": null,
+     "billing_address": "1 Quay Street",
+     "email": "orders@quayside.example.test",
+     "open_quotes": [],
+     "credit_terms": null,
+     "links": {}
+    },
+    "F-2": {
+     "id": "F-2",
+     "name": "Northgate Builders",
+     "phone": "+1 555 090 0902",
+     "tax_id": "98-7654321",
+     "billing_address": "88 North Gate Road",
+     "email": "office@northgate.example.test",
+     "open_quotes": [],
+     "credit_terms": null,
+     "links": {}
+    }
+   },
+   "contacts": {}
+  },
+  "queue": {
+   "pairs": {},
+   "suppressions": {}
+  },
+  "messaging": {
+   "messages": {}
+  }
+ },
+ "cases": [
+  {
+   "case": "Normal",
+   "row": 1,
+   "input": "Same phone, name with and without \"LLC\"",
+   "needs_ai": true,
+   "seed": {
+    "crm-export": {
+     "accounts": {
+      "A-1": {
+       "id": "A-1",
+       "name": "Harborview Property Management LLC",
+       "phone": "+1 555 010 0100",
+       "tax_id": null,
+       "billing_address": "12 Harbor Road, Suite 4",
+       "email": "office@harborview.example.test",
+       "open_quotes": [],
+       "credit_terms": null,
+       "links": {
+        "accounting": "ACC-1"
+       }
+      },
+      "A-2": {
+       "id": "A-2",
+       "name": "Harborview Property Management",
+       "phone": "(555) 010-0100",
+       "tax_id": null,
+       "billing_address": null,
+       "email": null,
+       "open_quotes": [],
+       "credit_terms": null,
+       "links": {}
+      }
+     }
+    }
+   },
+   "trigger": [
+    {
+     "schedule": "Step 1: Weekly duplicate check"
+    }
+   ],
+   "expect": [
+    {
+     "mock": "queue/pairs/A-1:A-2",
+     "field": "signals",
+     "equals": [
+      "phone",
+      "name"
+     ]
+    },
+    {
+     "mock": "queue/pairs/A-1:A-2",
+     "field": "reason_check",
+     "equals": "passed"
+    },
+    {
+     "mock": "queue/pairs/A-1:A-2",
+     "field": "status",
+     "equals": "waiting"
+    },
+    {
+     "mock": "queue/pairs",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "case": "Edge",
+   "row": 2,
+   "input": "Managed owner accounts sharing the firm's phone, rejected; later one phone changes",
+   "seed": {
+    "crm-export": {
+     "accounts": {
+      "E-1": {
+       "id": "E-1",
+       "name": "Elm Court Owners Ltd",
+       "phone": "+1 555 070 0700",
+       "tax_id": null,
+       "billing_address": null,
+       "email": null,
+       "open_quotes": [],
+       "credit_terms": null,
+       "links": {}
+      },
+      "E-2": {
+       "id": "E-2",
+       "name": "Bay Terrace Owners",
+       "phone": "(555) 070-0700",
+       "tax_id": null,
+       "billing_address": null,
+       "email": null,
+       "open_quotes": [],
+       "credit_terms": null,
+       "links": {}
+      },
+      "E-3": {
+       "id": "E-3",
+       "name": "Pier Lofts Owners",
+       "phone": "+1 555 080 0800",
+       "tax_id": null,
+       "billing_address": null,
+       "email": null,
+       "open_quotes": [],
+       "credit_terms": null,
+       "links": {}
+      },
+      "E-4": {
+       "id": "E-4",
+       "name": "Dock Street Owners",
+       "phone": "+1 555 080 0800",
+       "tax_id": null,
+       "billing_address": null,
+       "email": null,
+       "open_quotes": [],
+       "credit_terms": null,
+       "links": {}
+      }
+     }
+    },
+    "queue": {
+     "suppressions": {
+      "E-1:E-2": {
+       "id": "E-1:E-2",
+       "rejected_by": "Owen Clarke",
+       "snapshot": {
+        "a": {
+         "tax_id": "",
+         "phone": "15550700700",
+         "billing_address": "",
+         "email_domain": [],
+         "name": "elm court owners"
+        },
+        "b": {
+         "tax_id": "",
+         "phone": "15550700700",
+         "billing_address": "",
+         "email_domain": [],
+         "name": "bay terrace owners"
+        }
+       }
+      },
+      "E-3:E-4": {
+       "id": "E-3:E-4",
+       "rejected_by": "Owen Clarke",
+       "snapshot": {
+        "a": {
+         "tax_id": "",
+         "phone": "15550800800",
+         "billing_address": "",
+         "email_domain": [],
+         "name": "pier lofts owners"
+        },
+        "b": {
+         "tax_id": "",
+         "phone": "15550800899",
+         "billing_address": "",
+         "email_domain": [],
+         "name": "dock street owners"
+        }
+       }
+      }
+     }
+    }
+   },
+   "trigger": [
+    {
+     "schedule": "Step 1: Weekly duplicate check"
+    }
+   ],
+   "expect": [
+    {
+     "mock": "queue/pairs",
+     "count": 1
+    },
+    {
+     "mock": "queue/pairs/E-3:E-4",
+     "field": "status",
+     "equals": "waiting"
+    },
+    {
+     "mock": "queue/pairs/E-1:E-2",
+     "field": "status",
+     "equals": null
+    },
+    {
+     "sql": "select rules->>'suppression' from decision_log where recipe='R6.3' and item='E-3:E-4'",
+     "equals": "lifted: a signal field changed"
+    }
+   ]
+  },
+  {
+   "case": "Duplicate",
+   "row": 3,
+   "input": "Pair already in the queue",
+   "seed": {
+    "crm-export": {
+     "accounts": {
+      "A-1": {
+       "id": "A-1",
+       "name": "Harborview Property Management LLC",
+       "phone": "+1 555 010 0100",
+       "tax_id": null,
+       "billing_address": null,
+       "email": null,
+       "open_quotes": [],
+       "credit_terms": null,
+       "links": {}
+      },
+      "A-2": {
+       "id": "A-2",
+       "name": "Harborview Property Management",
+       "phone": "(555) 010-0100",
+       "tax_id": null,
+       "billing_address": null,
+       "email": null,
+       "open_quotes": [],
+       "credit_terms": null,
+       "links": {}
+      }
+     }
+    }
+   },
+   "trigger": [
+    {
+     "schedule": "Step 1: Weekly duplicate check",
+     "pause": 1
+    },
+    {
+     "schedule": "Step 1: Weekly duplicate check"
+    }
+   ],
+   "expect": [
+    {
+     "calls": "POST /queue/pairs",
+     "count": 1
+    },
+    {
+     "sql": "select copies_skipped from key_log where recipe='R6.3' and key='A-1:A-2'",
+     "equals": "1"
+    },
+    {
+     "sql": "select count(*) from decision_log where recipe='R6.3'",
+     "equals": "1"
+    }
+   ]
+  },
+  {
+   "case": "Escalate",
+   "row": 4,
+   "input": "Open quote, or credit terms",
+   "seed": {
+    "crm-export": {
+     "accounts": {
+      "A-1": {
+       "id": "A-1",
+       "name": "Harborview Property Management LLC",
+       "phone": "+1 555 010 0100",
+       "tax_id": null,
+       "billing_address": null,
+       "email": null,
+       "open_quotes": [
+        "Q-1042"
+       ],
+       "credit_terms": null,
+       "links": {}
+      },
+      "A-2": {
+       "id": "A-2",
+       "name": "Harborview Property Management",
+       "phone": "(555) 010-0100",
+       "tax_id": null,
+       "billing_address": null,
+       "email": null,
+       "open_quotes": [],
+       "credit_terms": null,
+       "links": {}
+      },
+      "B-1": {
+       "id": "B-1",
+       "name": "Elm Street Builders",
+       "phone": "+1 555 020 0200",
+       "tax_id": "12-3456789",
+       "billing_address": "40 Elm Street",
+       "email": "info@elmstreet.example.test",
+       "open_quotes": [],
+       "credit_terms": "30 days",
+       "links": {}
+      },
+      "B-2": {
+       "id": "B-2",
+       "name": "Elm Street Building Co",
+       "phone": "+1 555 020 0299",
+       "tax_id": "123456789",
+       "billing_address": "Unit 2, 9 Mill Lane",
+       "email": "accounts@elmbuild.example.test",
+       "open_quotes": [],
+       "credit_terms": null,
+       "links": {}
+      }
+     }
+    }
+   },
+   "trigger": [
+    {
+     "schedule": "Step 1: Weekly duplicate check"
+    }
+   ],
+   "expect": [
+    {
+     "mock": "queue/pairs/A-1:A-2",
+     "field": "confirm_first",
+     "equals": [
+      "Ben confirms first"
+     ]
+    },
+    {
+     "mock": "queue/pairs/B-1:B-2",
+     "field": "confirm_first",
+     "equals": [
+      "Aisha confirms first"
+     ]
+    },
+    {
+     "mock": "queue/pairs/B-1:B-2",
+     "field": "signals",
+     "equals": [
+      "tax_id"
+     ]
+    }
+   ]
+  },
+  {
+   "case": "Refuse",
+   "row": 5,
+   "input": "Unrelated accounts on one webmail domain",
+   "seed": {
+    "crm-export": {
+     "accounts": {
+      "W-1": {
+       "id": "W-1",
+       "name": "Jo Rivera Interiors",
+       "phone": "+1 555 050 0501",
+       "tax_id": null,
+       "billing_address": "3 Birch Avenue",
+       "email": "jo.rivera@webmail.example.test",
+       "open_quotes": [],
+       "credit_terms": null,
+       "links": {}
+      },
+      "W-2": {
+       "id": "W-2",
+       "name": "Lakeside Lettings",
+       "phone": "+1 555 050 0502",
+       "tax_id": null,
+       "billing_address": "17 Shore Drive",
+       "email": "lakeside.lettings@webmail.example.test",
+       "open_quotes": [],
+       "credit_terms": null,
+       "links": {}
+      }
+     },
+     "contacts": {
+      "C-1": {
+       "id": "C-1",
+       "account_id": "W-1",
+       "email": "jo.rivera@webmail.example.test"
+      },
+      "C-2": {
+       "id": "C-2",
+       "account_id": "W-2",
+       "email": "bookings@webmail.example.test"
+      }
+     }
+    }
+   },
+   "trigger": [
+    {
+     "schedule": "Step 1: Weekly duplicate check"
+    }
+   ],
+   "expect": [
+    {
+     "calls": "POST /queue/pairs",
+     "count": 0
+    },
+    {
+     "calls": "POST /anthropic/v1/messages",
+     "count": 0
+    },
+    {
+     "sql": "select count(*) from key_log where recipe='R6.3'",
+     "equals": "0"
+    }
+   ]
+  },
+  {
+   "case": "AI error",
+   "row": 6,
+   "input": "The AI call fails on every try (companion extension)",
+   "seed": {
+    "crm-export": {
+     "accounts": {
+      "A-1": {
+       "id": "A-1",
+       "name": "Harborview Property Management LLC",
+       "phone": "+1 555 010 0100",
+       "tax_id": null,
+       "billing_address": null,
+       "email": null,
+       "open_quotes": [],
+       "credit_terms": null,
+       "links": {}
+      },
+      "A-2": {
+       "id": "A-2",
+       "name": "Harborview Property Management",
+       "phone": "(555) 010-0100",
+       "tax_id": null,
+       "billing_address": null,
+       "email": null,
+       "open_quotes": [],
+       "credit_terms": null,
+       "links": {}
+      }
+     }
+    }
+   },
+   "fail": [
+    {
+     "method": "POST",
+     "path": "/anthropic/v1/messages",
+     "status": 529,
+     "times": 10
+    }
+   ],
+   "trigger": [
+    {
+     "schedule": "Step 1: Weekly duplicate check"
+    }
+   ],
+   "expect": [
+    {
+     "calls": "POST /anthropic/v1/messages",
+     "count": 3
+    },
+    {
+     "mock": "queue/pairs/A-1:A-2",
+     "field": "reason",
+     "equals": null
+    },
+    {
+     "mock": "queue/pairs/A-1:A-2",
+     "field": "reason_check",
+     "equals": "AI error after three retries"
+    },
+    {
+     "mock": "queue/pairs/A-1:A-2",
+     "field": "signals",
+     "equals": [
+      "phone",
+      "name"
+     ]
+    }
+   ]
+  },
+  {
+   "case": "Export fails",
+   "row": 7,
+   "input": "The account export fails (companion extension)",
+   "fail": [
+    {
+     "method": "GET",
+     "path": "/crm-export/accounts",
+     "status": 500,
+     "times": 10
+    }
+   ],
+   "trigger": [
+    {
+     "schedule": "Step 1: Weekly duplicate check"
+    }
+   ],
+   "expect": [
+    {
+     "calls": "GET /crm-export/accounts",
+     "count": 3
+    },
+    {
+     "sql": "select reason || ' / ' || split_part(detail, ':', 1) from exception_queue where recipe='R6.3'",
+     "equals": "export check failed / export failed"
+    },
+    {
+     "mock": "messaging/messages",
+     "count": 1
+    },
+    {
+     "calls": "POST /queue/pairs",
+     "count": 0
+    }
+   ]
+  },
+  {
+   "case": "Export short",
+   "row": 8,
+   "input": "The export shrinks sharply (companion extension)",
+   "trigger": [
+    {
+     "schedule": "Step 1: Weekly duplicate check"
+    }
+   ],
+   "expect": [
+    {
+     "sql": "select detail from exception_queue where recipe='R6.3' and reason='export check failed'",
+     "equals": "export shrank: 2 accounts, expected about 4"
+    },
+    {
+     "mock": "messaging/messages",
+     "count": 1
+    },
+    {
+     "calls": "GET /queue/suppressions",
+     "count": 0
+    },
+    {
+     "calls": "POST /queue/pairs",
+     "count": 0
+    }
+   ]
+  },
+  {
+   "case": "Export changed",
+   "row": 9,
+   "input": "The export changes format (companion extension)",
+   "seed": {
+    "crm-export": {
+     "accounts": {
+      "G-1": {
+       "id": "G-1",
+       "name": "Harborview Property Management"
+      },
+      "G-2": {
+       "id": "G-2",
+       "name": "Harborview Property Mgmt"
+      },
+      "G-3": {
+       "id": "G-3",
+       "name": "Elm Street Builders"
+      }
+     }
+    }
+   },
+   "trigger": [
+    {
+     "schedule": "Step 1: Weekly duplicate check"
+    }
+   ],
+   "expect": [
+    {
+     "sql": "select count(*) from exception_queue where recipe='R6.3' and detail like 'export changed format: 3 account record(s)%'",
+     "equals": "1"
+    },
+    {
+     "mock": "messaging/messages",
+     "count": 1
+    },
+    {
+     "calls": "POST /queue/pairs",
+     "count": 0
+    }
+   ]
+  },
+  {
+   "case": "Queue write fails",
+   "row": 10,
+   "input": "The queue write fails (companion extension)",
+   "seed": {
+    "crm-export": {
+     "accounts": {
+      "A-1": {
+       "id": "A-1",
+       "name": "Harborview Property Management LLC",
+       "phone": "+1 555 010 0100",
+       "tax_id": null,
+       "billing_address": null,
+       "email": null,
+       "open_quotes": [],
+       "credit_terms": null,
+       "links": {}
+      },
+      "A-2": {
+       "id": "A-2",
+       "name": "Harborview Property Management",
+       "phone": "(555) 010-0100",
+       "tax_id": null,
+       "billing_address": null,
+       "email": null,
+       "open_quotes": [],
+       "credit_terms": null,
+       "links": {}
+      }
+     }
+    }
+   },
+   "fail": [
+    {
+     "method": "POST",
+     "path": "/queue/pairs",
+     "status": 500,
+     "times": 1
+    }
+   ],
+   "trigger": [
+    {
+     "schedule": "Step 1: Weekly duplicate check"
+    }
+   ],
+   "expect": [
+    {
+     "calls": "POST /queue/pairs",
+     "count": 1
+    },
+    {
+     "sql": "select status from key_log where recipe='R6.3'",
+     "equals": "failed"
+    },
+    {
+     "sql": "select reason from exception_queue where recipe='R6.3'",
+     "equals": "write failed"
+    }
+   ]
+  },
+  {
+   "case": "Rejection",
+   "row": 11,
+   "input": "The merger rejects a queued pair; the next weekly run (companion extension)",
+   "seed": {
+    "crm-export": {
+     "accounts": {
+      "A-1": {
+       "id": "A-1",
+       "name": "Harborview Property Management LLC",
+       "phone": "+1 555 010 0100",
+       "tax_id": null,
+       "billing_address": null,
+       "email": null,
+       "open_quotes": [],
+       "credit_terms": null,
+       "links": {}
+      },
+      "A-2": {
+       "id": "A-2",
+       "name": "Harborview Property Management",
+       "phone": "(555) 010-0100",
+       "tax_id": null,
+       "billing_address": null,
+       "email": null,
+       "open_quotes": [],
+       "credit_terms": null,
+       "links": {}
+      }
+     }
+    }
+   },
+   "trigger": [
+    {
+     "schedule": "Step 1: Weekly duplicate check",
+     "pause": 12
+    },
+    {
+     "webhook": "r6-3-decision",
+     "body": {
+      "pair_id": "A-1:A-2",
+      "decision": "reject",
+      "by": "Owen Clarke"
+     },
+     "pause": 3
+    },
+    {
+     "schedule": "Step 1: Weekly duplicate check"
+    }
+   ],
+   "expect": [
+    {
+     "calls": "POST /queue/pairs",
+     "count": 1
+    },
+    {
+     "mock": "queue/suppressions/A-1:A-2",
+     "field": "rejected_by",
+     "equals": "Owen Clarke"
+    },
+    {
+     "sql": "select count(*) from decision_log where recipe='R6.3' and decision='reject by Owen Clarke'",
+     "equals": "1"
+    },
+    {
+     "sql": "select count(*) from key_log where recipe='R6.3'",
+     "equals": "0"
+    }
+   ]
+  },
+  {
+   "case": "Reason names another field",
+   "row": 12,
+   "input": "The AI's reason names a field that did not match (companion extension)",
+   "seed": {
+    "crm-export": {
+     "accounts": {
+      "A-1": {
+       "id": "A-1",
+       "name": "Harborview Property Management LLC",
+       "phone": "+1 555 010 0100",
+       "tax_id": null,
+       "billing_address": null,
+       "email": null,
+       "open_quotes": [],
+       "credit_terms": null,
+       "links": {}
+      },
+      "A-2": {
+       "id": "A-2",
+       "name": "Harborview Property Management",
+       "phone": "(555) 010-0100",
+       "tax_id": null,
+       "billing_address": null,
+       "email": null,
+       "open_quotes": [],
+       "credit_terms": null,
+       "links": {}
+      }
+     }
+    }
+   },
+   "fail": [
+    {
+     "method": "POST",
+     "path": "/anthropic/v1/messages",
+     "status": 200,
+     "times": 1,
+     "body": {
+      "id": "msg_canned",
+      "type": "message",
+      "role": "assistant",
+      "model": "claude-haiku-5-5",
+      "content": [
+       {
+        "type": "text",
+        "text": "{\"reason\": \"Both accounts share a phone number, a name and a billing address.\"}"
+       }
+      ],
+      "stop_reason": "end_turn",
+      "stop_sequence": null,
+      "usage": {
+       "input_tokens": 0,
+       "output_tokens": 0
+      }
+     }
+    }
+   ],
+   "trigger": [
+    {
+     "schedule": "Step 1: Weekly duplicate check"
+    }
+   ],
+   "expect": [
+    {
+     "mock": "queue/pairs/A-1:A-2",
+     "field": "reason",
+     "equals": null
+    },
+    {
+     "mock": "queue/pairs/A-1:A-2",
+     "field": "reason_check",
+     "equals": "dropped: names address"
+    },
+    {
+     "mock": "queue/pairs/A-1:A-2",
+     "field": "signals",
+     "equals": [
+      "phone",
+      "name"
+     ]
+    }
+   ]
+  }
+ ]
+}

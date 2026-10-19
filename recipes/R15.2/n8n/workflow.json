@@ -1,0 +1,1079 @@
+{
+  "name": "R15.2 Check delivery and installation capacity before a promotion launches",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "r15-2-brief-ready",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "165257d3-4c27-550e-9fa6-5e1bff2ba521",
+      "name": "Step 1: Brief marked ready",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "notes": "Your brief list calls this when Ben marks a brief \"ready\". Body: {brief_id}.",
+      "notesInFlow": true,
+      "webhookId": "252f4a13-2df8-5b3a-8425-a1a7c7813a37"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 7 * * 1-5"
+            }
+          ]
+        }
+      },
+      "id": "28be42e9-6720-5611-9b5e-14b40a940fb1",
+      "name": "Step 1: Each working morning",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        400
+      ],
+      "notes": "Each working morning (07:00, Monday to Friday; edit for your week): live briefs, and held briefs again (step 7).",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "9edd16a1-209d-5256-a3e5-c25dfefda7ff",
+              "name": "stop_flag_url",
+              "value": "https://<your stop list API>/stop_flags/R15.2",
+              "type": "string"
+            },
+            {
+              "id": "2e647637-728a-5a10-a0f0-932d9558028f",
+              "name": "briefs_url",
+              "value": "https://<your promotion brief list API>",
+              "type": "string"
+            },
+            {
+              "id": "15be1d16-cdb2-5abb-9d3c-2ce5c904a16f",
+              "name": "scheduling_url",
+              "value": "https://<your delivery-scheduling export API>",
+              "type": "string"
+            },
+            {
+              "id": "e078c6b0-11cf-57ea-9f62-7ae8444c0383",
+              "name": "messaging_url",
+              "value": "https://<your messaging API>",
+              "type": "string"
+            },
+            {
+              "id": "7be6a70d-a66a-5d60-9588-bd56f1a98c8d",
+              "name": "export_max_age_hours",
+              "value": 24,
+              "type": "number"
+            },
+            {
+              "id": "c7cabd1d-76f4-55c7-aa70-09ccb62d9127",
+              "name": "watch_share_pct",
+              "value": 90,
+              "type": "number"
+            },
+            {
+              "id": "747c4a15-3552-5665-a07b-e2017ac7d93c",
+              "name": "capacity_owner",
+              "value": "<your operations manager>",
+              "type": "string"
+            },
+            {
+              "id": "a36497c4-2e2d-5540-83f2-0a7dd658817a",
+              "name": "promotion_owner",
+              "value": "<your promotion owner>",
+              "type": "string"
+            },
+            {
+              "id": "797c23f4-adc4-502a-abfa-a32f69a876ae",
+              "name": "systems_owner",
+              "value": "<your systems owner>",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "8789d5e9-c8e4-53c4-8ec9-d120ae5068e6",
+      "name": "Config",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        260,
+        200
+      ],
+      "notes": "Edit these values for your company; nothing else in the workflow hard-codes them.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $('Step 1: Each working morning').isExecuted }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "id": "9bcea6dd-8a28-52aa-9b31-33604ae9ba61"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "8388c221-21a4-5422-80c3-06f3c6ad0454",
+      "name": "Morning run?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1040,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Config').item.json.briefs_url }}/briefs/{{ $('Step 1: Brief marked ready').item.json.body.brief_id }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        }
+      },
+      "id": "fde78240-16b3-5afa-adca-fc0550557a2e",
+      "name": "Read the brief",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1300,
+        0
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "\n// Step 1: the brief Ben marked \"ready\".\nreturn [{ json: { brief: $('Read the brief').first().json, mode: 'check' } }];\n"
+      },
+      "id": "2a080222-92c4-5db5-b54a-62a7625b9eea",
+      "name": "Brief to check",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1560,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Config').item.json.briefs_url }}/briefs",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "_wrap",
+              "value": "1"
+            }
+          ]
+        }
+      },
+      "id": "66d5696a-6a29-5636-a128-c6f4aaf69545",
+      "name": "Read every brief",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1300,
+        400
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "\n// Step 1 (each working morning) and step 7: live briefs get step 2 and step 8;\n// a held brief not yet live is checked again, so Tom's added crew time clears it.\nconst briefs = $('Read every brief').first().json.items || [];\nconst out = [];\nfor (const b of briefs) {\n  if (b.live && b.capacity === 'cleared') out.push({ json: { brief: b, mode: 'live' } });\n  else if (!b.live && b.approval === 'ready' && b.capacity === 'held') out.push({ json: { brief: b, mode: 'check' } });\n}\nreturn out;\n"
+      },
+      "id": "f124b852-17a2-5c18-b738-2677c09eb333",
+      "name": "Rule: briefs to check this morning",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1560,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Config').first().json.scheduling_url }}/exports/latest",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        }
+      },
+      "id": "acc66449-b2cc-5c61-8f1b-ad0fad0d5c28",
+      "name": "Step 2: Read the slot export",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1820,
+        200
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Config').first().json.scheduling_url }}/averages/non-promoted",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        }
+      },
+      "id": "91c476e3-0a51-5bb3-be5e-9f99b65ae5b5",
+      "name": "Step 3: Read the non-promoted average",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2080,
+        200
+      ],
+      "notes": "The four-week average of non-promoted bookings.",
+      "notesInFlow": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "\n// Steps 2 to 6 and step 8 of the book's R15.2, one result per brief.\nconst cfg = $('Config').first().json;\nconst morning = $('Step 1: Each working morning').isExecuted;\nconst items = morning ? $('Rule: briefs to check this morning').all() : $('Brief to check').all();\nconst exp = $('Step 2: Read the slot export').first().json;\nconst avg = Number($('Step 3: Read the non-promoted average').first().json.weekly_average || 0);\nconst nowIso = new Date().toISOString();\nconst today = nowIso.slice(0, 10);\n\n// Step 2: the slot export is under the age limit; a changed format (no week columns) also holds.\nconst ageHours = (Date.now() - Date.parse(exp.exported_at)) / 3600000;\nconst stale = !exp.exported_at || !(ageHours < cfg.export_max_age_hours);\nconst rows = Array.isArray(exp.weeks) ? exp.weeks.filter(r => r && r.week != null && r.open_slots != null) : [];\nconst slots = Object.fromEntries(rows.map(r => [String(r.week), r]));\n\nreturn items.map((it, i) => {\n  const b = it.json.brief;\n  const mode = it.json.mode;\n  const key = mode === 'live' ? `${b.id}:live:${today}` : `${b.id}:${b.version}:${exp.exported_at}`;\n  const base = { brief_id: b.id, mode, key };\n  const hold = (reasons, notify, exception, extra = {}) => ({ json: Object.assign({}, base, {\n    outcome: 'held', reasons, notify, exception,\n    body: Object.assign({ capacity: 'held', capacity_checked_at: nowIso, capacity_reasons: reasons }, extra) }), pairedItem: i });\n\n  if (stale || !rows.length) {\n    const reason = stale ? 'slot export stale' : 'export format changed';\n    const detail = stale ? `Slot export from ${exp.exported_at || 'unknown'} is not under ${cfg.export_max_age_hours} hours old` : 'Slot export has no week columns';\n    return hold([reason], { to: [cfg.systems_owner], subject: `Promotion ${b.id} held: ${reason}`, text: detail },\n                { reason, detail, owner: cfg.systems_owner });\n  }\n\n  // Step 8: while live, a week at its share of the free slots counted at clearance holds the next wave.\n  if (mode === 'live') {\n    const planned = ((b.capacity_figures || {}).weeks || []);\n    const watch = planned.map(w => {\n      const booked = Number((slots[String(w.week)] || {}).promoted_booked || 0);\n      const share = Number(w.free) > 0 ? Math.round(booked / Number(w.free) * 100) : 100;\n      return { week: w.week, planned_share: Number(w.free), booked, share_pct: share };\n    });\n    const near = watch.filter(w => w.share_pct >= cfg.watch_share_pct);\n    if (near.length) {\n      const text = near.map(w => `week ${w.week}: ${w.booked} of ${w.planned_share} (${w.share_pct}%)`).join('; ');\n      return hold(near.map(w => `week ${w.week} at ${w.share_pct}% of its planned share`),\n                  { to: [cfg.capacity_owner, cfg.promotion_owner], subject: `Promotion ${b.id}: next wave held`, text },\n                  null, { live_watch: watch });\n    }\n    // Still fits: the clearance is dated again, so a wave can go on a clearance under 24 hours old.\n    return { json: Object.assign({}, base, { outcome: 'cleared', reasons: [], notify: null, exception: null,\n      body: { capacity: 'cleared', capacity_checked_at: nowIso, live_watch: watch } }), pairedItem: i };\n  }\n\n  // Table 15.2: R15.2 checks capacity only if delivery or installation is promised.\n  if (!b.promise) {\n    return { json: Object.assign({}, base, { outcome: 'no promise', reasons: [], notify: null, exception: null, body: null }), pairedItem: i };\n  }\n\n  // Step 3: free slots = open slots minus the non-promoted jobs still to come (the four-week average).\n  const weeks = (b.weeks || []).map(w => {\n    const s = slots[String(w.week)];\n    const open = s ? Number(s.open_slots) : null;\n    const free = s ? open - avg : null;\n    const forecast = w.forecast == null || w.forecast === '' ? null : Number(w.forecast);\n    return { week: w.week, open, non_promoted: avg, free, forecast,\n             shortfall: forecast != null && free != null && forecast > free ? forecast - free : 0 };\n  });\n  const figures = { checked_at: nowIso, export: exp.exported_at, weeks };\n  const noSlots = weeks.filter(w => w.open == null);\n  if (!weeks.length || noSlots.length) {\n    const detail = weeks.length ? `No slot figures for week ${noSlots.map(w => w.week).join(', ')}` : 'The brief has no weeks';\n    return hold(['export format changed'], { to: [cfg.systems_owner], subject: `Promotion ${b.id} held: export format changed`, text: detail },\n                { reason: 'export format changed', detail, owner: cfg.systems_owner }, { capacity_figures: figures });\n  }\n\n  // Step 4: each week's forecast fits its free slots; a week with no forecast goes to Tom.\n  const missing = weeks.filter(w => w.forecast == null);\n  const short = weeks.filter(w => w.shortfall > 0);\n  if (missing.length || short.length) {\n    const reasons = [...missing.map(w => `no forecast for week ${w.week}`),\n                     ...short.map(w => `week ${w.week} short by ${w.shortfall}`)];\n    // Step 6: held; Tom and Ben get the shortfall by week.\n    const to = short.length ? [cfg.capacity_owner, cfg.promotion_owner] : [cfg.capacity_owner];\n    return hold(reasons, { to, subject: `Promotion ${b.id} held`, text: reasons.join('; ') },\n                missing.length ? { reason: 'week with no forecast', detail: reasons.join('; '), owner: cfg.capacity_owner } : null,\n                { capacity_figures: figures });\n  }\n\n  // Step 5: cleared, dated, with the figures; each week's free slots are its planned share for step 8.\n  return { json: Object.assign({}, base, { outcome: 'cleared', reasons: [], notify: null, exception: null,\n    body: { capacity: 'cleared', capacity_checked_at: nowIso, capacity_reasons: [], capacity_figures: figures } }), pairedItem: i };\n});\n"
+      },
+      "id": "a9529960-6a34-5652-b4dc-70cded410b41",
+      "name": "Rules: steps 2 to 6 and 8",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2340,
+        200
+      ],
+      "notes": "Rules decide; R15.2 has no AI step. It never changes a schedule or forecasts demand.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH reserved AS (INSERT INTO key_log (recipe, key, status) VALUES ($1, $2, 'in progress') ON CONFLICT (recipe, key) DO NOTHING RETURNING key), skipped AS (UPDATE key_log SET copies_skipped = copies_skipped + 1 WHERE recipe = $1 AND key = $2 AND NOT EXISTS (SELECT 1 FROM reserved)) SELECT (SELECT count(*) FROM reserved) = 1 AS is_new, $2::text AS key",
+        "options": {
+          "queryReplacement": "={{ [\"R15.2\", $json.key] }}"
+        }
+      },
+      "id": "6038c41f-09fa-532f-b979-5b0a76d0c933",
+      "name": "Reserve key",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2600,
+        200
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "Key log: refuses a second copy in the same step (book Chapter 2).",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.is_new }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "id": "7a38a12a-1e41-5394-92eb-4a9b503053f0"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "c5cccf82-e9f2-507f-ab64-0529af63b6ae",
+      "name": "New key?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2860,
+        200
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "eb54d224-f58f-5cf5-8a8d-2310cc438b4f",
+      "name": "Duplicate: stop",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        3120,
+        0
+      ],
+      "notes": "This brief version was checked against this export before.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $('Rules: steps 2 to 6 and 8').item.json.body !== null }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "id": "b3c6294c-a3f7-51e0-b2aa-4d49a592d9f7"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "e6ae38e9-5e94-5e31-ae04-f822cc493c88",
+      "name": "Promise to check?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        3120,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $('Config').first().json.briefs_url }}/briefs/{{ $('Rules: steps 2 to 6 and 8').item.json.brief_id }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($('Rules: steps 2 to 6 and 8').item.json.body) }}"
+      },
+      "id": "aaba376a-0f50-5ba3-9912-e306820cdb41",
+      "name": "Steps 5, 6 and 8: Set capacity status",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3380,
+        200
+      ],
+      "notes": "Writes the capacity field only: \"cleared\" with the figures, or \"held\" with the shortfall by week. A write: never retried.",
+      "notesInFlow": true,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $('Rules: steps 2 to 6 and 8').item.json.notify !== null }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "id": "c38680cf-8848-5e02-a050-2033ce90cd3e"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "b4ff6fb5-a8d3-5cf4-acf9-821098a7a91d",
+      "name": "Tell someone?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        3640,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').first().json.messaging_url }}/messages",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($('Rules: steps 2 to 6 and 8').item.json.notify) }}"
+      },
+      "id": "b14b65a2-6b89-5a1b-ac00-149fef5d70e5",
+      "name": "Steps 2, 6 and 8: Tell Tom, Ben or Owen",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3900,
+        100
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $('Rules: steps 2 to 6 and 8').item.json.exception !== null }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "id": "341bbaaf-5f8a-56ce-8ff2-91116f2ee515"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "78fbe4df-6cc1-5747-b0b0-38099ed45853",
+      "name": "To the exception queue?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        4160,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO exception_queue (recipe, item, reason, detail, owner) VALUES ($1, $2, $3, $4, $5) RETURNING id",
+        "options": {
+          "queryReplacement": "={{ [\"R15.2\", $('Rules: steps 2 to 6 and 8').item.json.brief_id, \"capacity held\", $('Rules: steps 2 to 6 and 8').item.json.exception.reason + ': ' + $('Rules: steps 2 to 6 and 8').item.json.exception.detail, $('Rules: steps 2 to 6 and 8').item.json.exception.owner] }}"
+        }
+      },
+      "id": "359dde49-f0b3-58c8-b6c1-18826854250f",
+      "name": "Exception queue: held for a person",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        4420,
+        100
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "Exception queue: a named person works through it (book Chapters 2 and 16).",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE key_log SET status = $3, result = $4 WHERE recipe = $1 AND key = $2 RETURNING key",
+        "options": {
+          "queryReplacement": "={{ [\"R15.2\", $('Rules: steps 2 to 6 and 8').item.json.key, \"done\", $('Rules: steps 2 to 6 and 8').item.json.outcome] }}"
+        }
+      },
+      "id": "eb9b0cba-03a4-5d69-bf09-746af39f5b06",
+      "name": "Mark key done",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        4680,
+        200
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO decision_log (recipe, item, decision, rules) VALUES ($1, $2, $3, $4::jsonb) RETURNING id",
+        "options": {
+          "queryReplacement": "={{ [\"R15.2\", $('Rules: steps 2 to 6 and 8').item.json.brief_id, $('Rules: steps 2 to 6 and 8').item.json.mode + ': ' + $('Rules: steps 2 to 6 and 8').item.json.outcome, JSON.stringify({ reasons: $('Rules: steps 2 to 6 and 8').item.json.reasons, figures: ($('Rules: steps 2 to 6 and 8').item.json.body || {}).capacity_figures || ($('Rules: steps 2 to 6 and 8').item.json.body || {}).live_watch || null })] }}"
+        }
+      },
+      "id": "50b5376c-49ab-53db-b241-4a28792abf6a",
+      "name": "Decision log",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        4940,
+        200
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "Decision log: the item's ID, the decision and the rules; never the content (book Chapter 3).",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE key_log SET status = $3, result = $4 WHERE recipe = $1 AND key = $2 RETURNING key",
+        "options": {
+          "queryReplacement": "={{ [\"R15.2\", $('Rules: steps 2 to 6 and 8').item.json.key, \"failed\", 'write failed: ' + ($json.error && $json.error.message || 'unknown')] }}"
+        }
+      },
+      "id": "151cdd59-d1a9-5b07-bd56-3e1c085beb8f",
+      "name": "Mark key failed",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        3640,
+        520
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO exception_queue (recipe, item, reason, detail, owner) VALUES ($1, $2, $3, $4, $5) RETURNING id",
+        "options": {
+          "queryReplacement": "={{ [\"R15.2\", $('Rules: steps 2 to 6 and 8').item.json.brief_id, \"write failed\", 'Capacity status or message write failed; check the brief, never retried', $('Config').first().json.systems_owner] }}"
+        }
+      },
+      "id": "d64ff569-6e18-5061-b866-ac2650b071fb",
+      "name": "Exception queue: write failed",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        3900,
+        520
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "Exception queue: a named person works through it (book Chapters 2 and 16).",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Config').item.json.stop_flag_url }}",
+        "options": {}
+      },
+      "id": "b01b1706-8273-5a58-91ad-82635144c2c6",
+      "name": "Stop flag: read",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        520,
+        200
+      ],
+      "notes": "Kill switch: set stopped to true in your stop list and the next run ends quietly (book Chapter 3).",
+      "notesInFlow": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.stopped === true }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "id": "0ac535b7-f05c-5898-8e42-564c340c5b0e"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "1173e690-e683-512b-8432-1b57580ad6e5",
+      "name": "Stop flag set?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        780,
+        200
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "15a0b289-130a-5d64-a95a-d8cc713cc6a4",
+      "name": "Stopped by the stop flag",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        1040,
+        0
+      ],
+      "notes": "Ends quietly; nothing is read, written or sent.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO exception_queue (recipe, item, reason, detail, owner) VALUES ($1, $2, $3, $4, $5) RETURNING id",
+        "options": {
+          "queryReplacement": "={{ [\"R15.2\", 'run ' + $execution.id, \"stop list unreadable\", 'The stop list could not be read, so the run stopped; fix the stop list', '<your workflow owner>'] }}"
+        }
+      },
+      "id": "b2ef966c-b988-5929-a95c-8fb43e1f11ad",
+      "name": "Exception queue: stop list unreadable",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        780,
+        420
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "Exception queue: a named person works through it (book Chapters 2 and 16).",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    }
+  ],
+  "connections": {
+    "Step 1: Brief marked ready": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 1: Each working morning": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Morning run?": {
+      "main": [
+        [
+          {
+            "node": "Read every brief",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Read the brief",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read the brief": {
+      "main": [
+        [
+          {
+            "node": "Brief to check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read every brief": {
+      "main": [
+        [
+          {
+            "node": "Rule: briefs to check this morning",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Brief to check": {
+      "main": [
+        [
+          {
+            "node": "Step 2: Read the slot export",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rule: briefs to check this morning": {
+      "main": [
+        [
+          {
+            "node": "Step 2: Read the slot export",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 2: Read the slot export": {
+      "main": [
+        [
+          {
+            "node": "Step 3: Read the non-promoted average",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 3: Read the non-promoted average": {
+      "main": [
+        [
+          {
+            "node": "Rules: steps 2 to 6 and 8",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rules: steps 2 to 6 and 8": {
+      "main": [
+        [
+          {
+            "node": "Reserve key",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reserve key": {
+      "main": [
+        [
+          {
+            "node": "New key?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "New key?": {
+      "main": [
+        [
+          {
+            "node": "Promise to check?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Duplicate: stop",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Promise to check?": {
+      "main": [
+        [
+          {
+            "node": "Steps 5, 6 and 8: Set capacity status",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark key done",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Steps 5, 6 and 8: Set capacity status": {
+      "main": [
+        [
+          {
+            "node": "Tell someone?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark key failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tell someone?": {
+      "main": [
+        [
+          {
+            "node": "Steps 2, 6 and 8: Tell Tom, Ben or Owen",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "To the exception queue?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Steps 2, 6 and 8: Tell Tom, Ben or Owen": {
+      "main": [
+        [
+          {
+            "node": "To the exception queue?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark key failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "To the exception queue?": {
+      "main": [
+        [
+          {
+            "node": "Exception queue: held for a person",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark key done",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Exception queue: held for a person": {
+      "main": [
+        [
+          {
+            "node": "Mark key done",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark key done": {
+      "main": [
+        [
+          {
+            "node": "Decision log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark key failed": {
+      "main": [
+        [
+          {
+            "node": "Exception queue: write failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config": {
+      "main": [
+        [
+          {
+            "node": "Stop flag: read",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Stop flag: read": {
+      "main": [
+        [
+          {
+            "node": "Stop flag set?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Exception queue: stop list unreadable",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Stop flag set?": {
+      "main": [
+        [
+          {
+            "node": "Stopped by the stop flag",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Morning run?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataSuccessExecution": "all",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "pinData": {}
+}

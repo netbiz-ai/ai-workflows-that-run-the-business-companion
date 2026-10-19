@@ -3,3 +3,19 @@ Normal,Brief with three current claims,Three tags; approvers asked
 Edge,"""Delivered this week"" for ""delivery within five business days""",Redrafted in the list's words
 Duplicate,"Brief re-marked ""approved""",No second draft
 Refuse,"Retired ""install within 48 hours"" claim",Back to Ben; no AI call
+AI error,The drafting call fails three times (companion extension),Owen told; exception queue: AI error; no draft
+No clearance,"Delivery promise while R15.2's capacity is ""held"" (companion extension)",Back to Ben; no AI call
+Not reconfirmed,Warranty source changed after its owner last confirmed it (companion extension),Back to Ben; no AI call
+Last approver signs,Tom signs after Aisha (companion extension),Waiting for Ben; Ben asked
+Comparison struck,Helen strikes an untagged comparison (companion extension),Returned to Ben
+Ben approves,Ben approves a fully signed version (companion extension),Approved; text stored with its fingerprint
+Send unchanged,"The approved text, unchanged, before a send (companion extension)",Send check passed; no AI call
+Send changed,A sentence added after Ben's approval (companion extension),Send stopped; steps 5 and 6 rerun; Ben told
+Price changed,A price row changes after drafting (companion extension),Unsent version held; Ben told
+Approver away,Sign-off open three days (companion extension),Helen asked to name a stand-in
+Write fails,The claims report write fails (companion extension),Key marked failed; exception queue: write failed; never retried
+Redraft,"Canned draft shortens C07 and adds an untagged comparison, as in Example 15.1 (companion extension)",Redrafted once in the list's words; comparison to Helen; Aisha and Tom sign C12
+Redraft still fails,Canned draft shortens C07 twice (companion extension),Returned to Ben with the reason
+Untagged price,"Canned draft adds ""Save 20% today"" with no tag (companion extension)","Redrafted once, then returned to Ben"
+Bad output,Canned draft is not JSON three times (companion extension),Retried twice; then Owen told; exception queue: AI error
+Two channels,Canned drafts for an email and a social version (companion extension),"Two versions, each checked and sent for sign-off"

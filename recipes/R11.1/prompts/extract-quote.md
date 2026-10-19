@@ -1,8 +1,8 @@
 # R11.1 step 4: extract the fields of a supplier quote, each with its page
 
-Model: Claude Haiku 5.5 (Anthropic API) in the n8n build, temperature 0; on another platform, its AI step with these same instructions and schema. Tools: none.
+Model: Claude Haiku 5.5 (Anthropic API) in the n8n build; on another platform, its AI step with these same instructions and schema. Tools: none.
 Returns: JSON only, exactly the fields below; anything else fails the rule check in step 5.
-Status: draft; not yet run against the golden set.
+Status: run against the golden set in the n8n build on Claude Haiku 5.5, 2026-10-19 ([report](../n8n/test-report.md)).
 
 ## System prompt
 

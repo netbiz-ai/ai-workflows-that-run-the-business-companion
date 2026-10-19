@@ -5,3 +5,7 @@ Edge,"""Gate code 4821"" or ""key safe 19#73""","Masked before AI; ""missing det
 Edge,"AI returns ""elevator: yes""; notes say ""no elevator until November""","Rule rejects; ""missing details"""
 Duplicate,Paid-order webhook sent twice,One work order; duplicate logged
 Refuse,Address outside every zone,Held; Tom's team calls
+Changed order,The order changes after its work order is made (companion extension),Same work order updated; no second work order
+AI error,The AI call fails twice (companion extension),"""Missing details""; salesperson tasked with the gaps"
+Write fails,The scheduling system is down (companion extension),Key marked failed; exception queue: write failed; never retried
+Late task,A task open four days (companion extension),Exception queue: Tom's team takes it once

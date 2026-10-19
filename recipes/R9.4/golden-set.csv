@@ -4,3 +4,7 @@ Edge,Empty inventory,Stopped; Owen alerted
 Edge,Supplier-portal login lent after hire,Administrator task; open until ticked
 Duplicate,Leaver saved twice,Resumes; nothing twice
 Refuse,Entered by a store manager; an administrator,Nothing removed
+Disable fails,The SSO disable fails (companion extension),Never retried; IT ticket; Owen alerted; exception queue; case stays open
+Administrator does not tick,An item still open at the deadline (companion extension),IT ticket and Owen alerted
+Administrator ticks,The last open item is ticked (companion extension),"Confirmed, with who and when; Owen asked to close"
+Close refused,Closing with an item unconfirmed (companion extension),Not closed; Owen told what is open

@@ -1,0 +1,3273 @@
+{
+  "name": "R11.3 Route purchase approval by amount and remaining budget",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "r11-3-to-approval",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "76dc7488-194c-5f8b-9b57-6276421d90bf",
+      "name": "Step 1: Status set to checked; to approval",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "notes": "Your request list calls this when a request's status becomes \"checked; to approval\" (set by R11.2). Body: {request_id, version}.",
+      "notesInFlow": true,
+      "webhookId": "e8954914-2f5c-5bd5-bd60-6fc9d3f829af"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "r11-3-approval-answered",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "0fb358c2-2fe1-56d7-bf3e-2d87f1495968",
+      "name": "Step 9: Approval answered",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        800
+      ],
+      "notes": "Your approvals system calls this when an approver answers. Body: {approval_id, decision: approved | rejected, by, comment}.",
+      "notesInFlow": true,
+      "webhookId": "1fed3a74-b159-5d47-8eba-7ddcc71b4359"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 7
+            }
+          ]
+        }
+      },
+      "id": "441c184a-8a82-54dd-b5c3-dc505461a32f",
+      "name": "Steps 7 and 8: Each morning",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        1400
+      ],
+      "notes": "Steps 7 and 8: reminders and stand-ins for open approvals.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "r11-3-new-export",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "04b213e5-848e-56e2-8de7-994fe71e8837",
+      "name": "Step 12: New accounting export",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        1900
+      ],
+      "notes": "Your accounting platform calls this when a new export lands. Body: {export_date}.",
+      "notesInFlow": true,
+      "webhookId": "51cef240-061e-5b28-ad54-d25006ab9f43"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "bd9674f7-0609-5ead-b741-0af46603269a",
+              "name": "stop_flag_url",
+              "value": "https://<your stop list API>/stop_flags/R11.3",
+              "type": "string"
+            },
+            {
+              "id": "12dad276-7d4a-53da-9590-b1658a2f402d",
+              "name": "requests_url",
+              "value": "https://<your request list API>",
+              "type": "string"
+            },
+            {
+              "id": "b4a644a2-f19a-564f-bf36-d64692f22e6b",
+              "name": "budget_url",
+              "value": "https://<your budget list API>",
+              "type": "string"
+            },
+            {
+              "id": "f76f30cb-ea95-5f70-958d-6b6ffc0006e1",
+              "name": "approvals_url",
+              "value": "https://<your approvals API>",
+              "type": "string"
+            },
+            {
+              "id": "427ab9dd-d6fd-5ea8-81c3-7fb36deef3e7",
+              "name": "vendors_url",
+              "value": "https://<your vendor-record export API>",
+              "type": "string"
+            },
+            {
+              "id": "2705dc23-a099-512a-954c-3434622a8d3b",
+              "name": "policy_url",
+              "value": "https://<your policy list API>",
+              "type": "string"
+            },
+            {
+              "id": "e2650c4e-75e5-5e1c-a2e6-fe2979dc3135",
+              "name": "ledger_url",
+              "value": "https://<your accounting platform export API>",
+              "type": "string"
+            },
+            {
+              "id": "47c76383-142d-58d6-84b4-1766c9b10815",
+              "name": "messaging_url",
+              "value": "https://<your messaging API>",
+              "type": "string"
+            },
+            {
+              "id": "e96f9f53-9f69-5b54-9b8b-b10e1d5fe2a1",
+              "name": "budget_export_max_days",
+              "value": 7,
+              "type": "number"
+            },
+            {
+              "id": "63ba6ff8-66b5-5e25-8781-8a9c7636ceb1",
+              "name": "senior_limit",
+              "value": 10000,
+              "type": "number"
+            },
+            {
+              "id": "9e524b42-c7a0-55c8-abd7-425313060db3",
+              "name": "release_margin_working_days",
+              "value": 2,
+              "type": "number"
+            },
+            {
+              "id": "f73f21ca-e1d8-53f6-aa54-4fa7961b6b69",
+              "name": "remind_working_days",
+              "value": 2,
+              "type": "number"
+            },
+            {
+              "id": "a266d8fa-d9b9-5891-a416-a653be291294",
+              "name": "standin_working_days",
+              "value": 3,
+              "type": "number"
+            },
+            {
+              "id": "cf5cd837-b1ae-59df-8eb9-bf327588774c",
+              "name": "bill_tolerance",
+              "value": "<your bill tolerance, in dollars>",
+              "type": "string"
+            },
+            {
+              "id": "c8d79f3a-a71f-51f7-94a2-35187583ca85",
+              "name": "approver",
+              "value": "<your approver up to the limit>",
+              "type": "string"
+            },
+            {
+              "id": "a1d0fbbc-e286-57b3-be11-db4bad44f763",
+              "name": "senior_approver",
+              "value": "<your senior approver>",
+              "type": "string"
+            },
+            {
+              "id": "8728fc40-4a9e-58b5-b3a8-0a11529ca282",
+              "name": "payment_approver",
+              "value": "<your payment approver>",
+              "type": "string"
+            },
+            {
+              "id": "3edcb0ff-3b6a-527f-8ac9-c0af434872bc",
+              "name": "budget_owner",
+              "value": "<your budget owner>",
+              "type": "string"
+            },
+            {
+              "id": "045e23dd-919a-5e19-9d59-01262c7a9f1e",
+              "name": "buyer",
+              "value": "<your buyer>",
+              "type": "string"
+            },
+            {
+              "id": "25d17e8a-8d98-5ffa-9a13-21edccf2902f",
+              "name": "editor",
+              "value": "<your workflow editor>",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "e1adb61f-171d-59a6-abaa-a3e2e7e65f1f",
+      "name": "Config",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        260,
+        900
+      ],
+      "notes": "Edit these values for your company; nothing else in the workflow hard-codes them.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "0724c495-b39d-5878-9598-862aa958a819",
+                    "leftValue": "={{ $('Step 1: Status set to checked; to approval').isExecuted ? 'request' : $('Step 9: Approval answered').isExecuted ? 'answer' : $('Steps 7 and 8: Each morning').isExecuted ? 'morning' : 'export' }}",
+                    "rightValue": "request",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "request"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "8891bc62-89d8-5802-af1b-775df5436325",
+                    "leftValue": "={{ $('Step 1: Status set to checked; to approval').isExecuted ? 'request' : $('Step 9: Approval answered').isExecuted ? 'answer' : $('Steps 7 and 8: Each morning').isExecuted ? 'morning' : 'export' }}",
+                    "rightValue": "answer",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "answer"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "ccb22ac0-ce59-5687-b8d6-baca24f564b7",
+                    "leftValue": "={{ $('Step 1: Status set to checked; to approval').isExecuted ? 'request' : $('Step 9: Approval answered').isExecuted ? 'answer' : $('Steps 7 and 8: Each morning').isExecuted ? 'morning' : 'export' }}",
+                    "rightValue": "morning",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "morning"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "138047ee-a233-5ee5-98e5-19a2657ade93",
+                    "leftValue": "={{ $('Step 1: Status set to checked; to approval').isExecuted ? 'request' : $('Step 9: Approval answered').isExecuted ? 'answer' : $('Steps 7 and 8: Each morning').isExecuted ? 'morning' : 'export' }}",
+                    "rightValue": "export",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "export"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "503e897c-509c-57f7-a53b-fc62a093bd05",
+      "name": "Which event?",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        1040,
+        900
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Config').item.json.requests_url }}/requests/{{ $('Step 1: Status set to checked; to approval').item.json.body.request_id }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        }
+      },
+      "id": "87a64c23-1902-5189-ac5c-b10fe27684d7",
+      "name": "Read request",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1300,
+        0
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH reserved AS (INSERT INTO key_log (recipe, key, status) VALUES ($1, $2, 'in progress') ON CONFLICT (recipe, key) DO NOTHING RETURNING key), skipped AS (UPDATE key_log SET copies_skipped = copies_skipped + 1 WHERE recipe = $1 AND key = $2 AND NOT EXISTS (SELECT 1 FROM reserved)) SELECT (SELECT count(*) FROM reserved) = 1 AS is_new, $2::text AS key",
+        "options": {
+          "queryReplacement": "={{ [\"R11.3\", $('Step 1: Status set to checked; to approval').item.json.body.request_id + ':' + $('Step 1: Status set to checked; to approval').item.json.body.version] }}"
+        }
+      },
+      "id": "07591034-17e4-5517-bdb0-dac4f714bf17",
+      "name": "Step 2: Reserve key",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1560,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "Key log: refuses a second copy in the same step (book Chapter 2).",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.is_new }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "id": "1657e74c-75e5-50f1-b927-49d34af5b7c4"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "46dbe13e-4f1a-5476-8efb-08f42dd921e9",
+      "name": "New key?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1820,
+        0
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "e2be1356-3167-5cba-8cda-31fa4b6b8faa",
+      "name": "Duplicate: stop",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        2080,
+        -160
+      ],
+      "notes": "An approval for this request version is open or decided.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Config').item.json.budget_url }}/lines/{{ $('Read request').item.json.budget_line }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        }
+      },
+      "id": "69c4e771-0e68-5624-bdf1-05a1e324988e",
+      "name": "Read budget line",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2080,
+        0
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Config').item.json.budget_url }}/commitments",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "_wrap",
+              "value": "1"
+            },
+            {
+              "name": "budget_line",
+              "value": "={{ $('Read request').item.json.budget_line }}"
+            }
+          ]
+        }
+      },
+      "id": "335043db-82b8-5d9d-8511-193286fe5d10",
+      "name": "Read commitments",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2340,
+        0
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "\nconst iso = d => d.toISOString().slice(0, 10);\nconst day = s => new Date(String(s).slice(0, 10) + 'T00:00:00Z');\nconst today = day(iso(new Date()));\nconst addWorkingDays = (d, n) => { let x = new Date(d), k = 0; while (k < n) { x = new Date(x.getTime() + 86400000); if (x.getUTCDay() % 6 !== 0) k++; } return x; };\nconst same = (a, b) => String(a || '').trim().toLowerCase() === String(b || '').trim().toLowerCase();\n\n// Steps 3 to 5 of the book's R11.3, in Table 11.2's order.\nconst cfg = $('Config').first().json;\nconst ev = $('Step 1: Status set to checked; to approval').first().json.body;\nconst req = $('Read request').first().json;\nconst line = $('Read budget line').first().json;\nconst commitments = $('Read commitments').first().json.items || [];\nconst amount = Number(req.amount);\nconst total = Number(req.total != null ? req.total : req.amount);\n\n// Step 10's lock: a released request is never approved again; an edit needs a new request.\nif (req.locked) {\n  return [{ json: { route: 'edit_refused', decision: 'edit refused; new request needed',\n    rules: { locked: true, approved_version: req.approved_version, version: ev.version } } }];\n}\n\n// Step 3: remaining budget is budget less spent and committed; an export over the limit waits for the budget owner.\nconst committed = commitments.reduce((s, c) => s + Number(c.remaining || 0), 0);\nconst remaining = Number(line.budget) - Number(line.spent) - committed;\nconst age = line.export_date ? Math.round((today - day(line.export_date)) / 86400000) : null;\nconst rules = { export_date: line.export_date || null, export_age_days: age, budget: Number(line.budget), spent: Number(line.spent),\n  committed, budget_before: remaining, amount, total };\nif (age === null || !(age <= cfg.budget_export_max_days)) {\n  return [{ json: { route: 'held', decision: 'held: budget export stale', rules,\n    detail: `Budget export for ${req.budget_line} is ${age === null ? 'missing' : age + ' days old'}; refresh it, then rerun request ${req.id}` } }];\n}\n\n// Step 4: over remaining budget on this request alone (budget owner copied), or over the limit on R11.2's split total, goes to the senior approver.\nconst overBudget = amount > remaining;\nconst overLimit = total > cfg.senior_limit;\nrules.over_budget = overBudget;\nrules.over_limit = overLimit;\nconst chain = overBudget || overLimit ? [cfg.senior_approver, cfg.approver] : [cfg.approver, cfg.senior_approver];\n\n// Step 5: skip any approver or stand-in who is the requester or the payment approver; the senior approver's own go to the approver.\nconst barred = p => same(p, req.requester) || same(p, cfg.payment_approver);\nconst eligible = chain.filter(p => !barred(p));\nrules.skipped = chain.filter(barred);\nif (!eligible.length) {\n  return [{ json: { route: 'no_approver', decision: 'no eligible approver', rules,\n    detail: `Every approver and stand-in for request ${req.id} is the requester or the payment approver` } }];\n}\nconst approval = {\n  id: `${req.id}-v${ev.version}`, request_id: req.id, version: ev.version, status: 'open',\n  approver: eligible[0], standin: eligible[1] || null, requester: req.requester,\n  amount, total, valid_until: (req.quote && req.quote.valid_until) || null, waiver: !!req.waiver,\n  comparison_link: (req.comparison && req.comparison.link) || null,\n  budget_line: req.budget_line, budget_before: remaining, budget_after: remaining - amount,\n  created: iso(today),\n  remind_on: iso(addWorkingDays(today, cfg.remind_working_days)),\n  standin_on: iso(addWorkingDays(today, cfg.standin_working_days)),\n};\nrules.approver = approval.approver;\nrules.standin = approval.standin;\nrules.budget_after = approval.budget_after;\nreturn [{ json: { route: 'approval', decision: `sent to ${approval.approver}`, copy_budget_owner: overBudget, approval, rules } }];\n"
+      },
+      "id": "5c44967f-9ba2-59a5-919e-1e5c96226aa7",
+      "name": "Rules: steps 3 to 5",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2600,
+        0
+      ],
+      "notes": "Table 11.2, R11.3 rows: budget export age, remaining budget and amount, then who may approve.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "7fe93815-6a41-5f5d-91ab-832c64542e20",
+                    "leftValue": "={{ $json.route }}",
+                    "rightValue": "approval",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "approval"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "8ae93cbf-5a7f-5700-ad9e-f1d0276d42e5",
+                    "leftValue": "={{ $json.route }}",
+                    "rightValue": "held",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "held"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "40fa9fd6-a4ff-5851-90e8-a74be4d965a6",
+                    "leftValue": "={{ $json.route }}",
+                    "rightValue": "edit_refused",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "edit_refused"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "adf6e22a-ccc2-5b0e-a0e6-e5cc2af9b12e",
+                    "leftValue": "={{ $json.route }}",
+                    "rightValue": "no_approver",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "no_approver"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "7699c3f4-950e-5334-b250-a138379b8b13",
+      "name": "Route",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        2860,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').item.json.approvals_url }}/approvals",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($('Rules: steps 3 to 5').item.json.approval) }}"
+      },
+      "id": "4db85d87-17ef-56d5-b5db-e2972e5bd843",
+      "name": "Step 6: Start one approval",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3120,
+        -240
+      ],
+      "notes": "Shows amount, valid-until date, comparison link and budget after. A write: never retried.",
+      "notesInFlow": true,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $('Rules: steps 3 to 5').item.json.copy_budget_owner }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "id": "e82b91e7-bdcd-501a-85e0-b577440565c5"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "666b7385-7f1a-52f3-82f2-886018e01069",
+      "name": "Over budget?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        3380,
+        -240
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').item.json.messaging_url }}/messages",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ to: $('Config').item.json.budget_owner, subject: 'Over budget: request ' + $('Step 1: Status set to checked; to approval').item.json.body.request_id, text: 'Sent to ' + $('Rules: steps 3 to 5').item.json.approval.approver + ': ' + $('Rules: steps 3 to 5').item.json.approval.amount + ' against ' + $('Rules: steps 3 to 5').item.json.approval.budget_before + ' remaining on ' + $('Rules: steps 3 to 5').item.json.approval.budget_line }) }}"
+      },
+      "id": "77de3e9b-30fa-5a34-9092-d7c0fad73adf",
+      "name": "Step 4: Copy the budget owner",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3640,
+        -320
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO exception_queue (recipe, item, reason, detail, owner) VALUES ($1, $2, $3, $4, $5) RETURNING id",
+        "options": {
+          "queryReplacement": "={{ [\"R11.3\", $('Step 1: Status set to checked; to approval').item.json.body.request_id, \"budget export stale\", $('Rules: steps 3 to 5').item.json.detail, $('Config').item.json.budget_owner] }}"
+        }
+      },
+      "id": "bf27b609-1aec-5b52-98bc-7452e558e5cd",
+      "name": "Step 3: Exception queue: budget export stale",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        3120,
+        -40
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "Exception queue: a named person works through it (book Chapters 2 and 16).",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').item.json.messaging_url }}/messages",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ to: $('Config').item.json.budget_owner, subject: 'Refresh the budget export', text: $('Rules: steps 3 to 5').item.json.detail }) }}"
+      },
+      "id": "dbe0bdbf-1c62-5144-b944-a926eb29a9d8",
+      "name": "Step 3: Tell the budget owner",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3380,
+        -40
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $('Config').item.json.requests_url }}/requests/{{ $('Step 1: Status set to checked; to approval').item.json.body.request_id }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ status: 'approved', edit_refused: 'new request needed' }) }}"
+      },
+      "id": "3f012d7d-8702-547c-8247-1b95de27ce6d",
+      "name": "Step 10: Keep it approved; edit refused",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3120,
+        140
+      ],
+      "notes": "The request was approved and locked; its edit does not reopen it.",
+      "notesInFlow": true,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').item.json.messaging_url }}/messages",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ to: $('Read request').item.json.requester, subject: 'Request ' + $('Step 1: Status set to checked; to approval').item.json.body.request_id + ' is approved and locked', text: 'Edit refused: this request was approved and released. Raise a new request for the change.' }) }}"
+      },
+      "id": "610a84a2-8704-5134-b54f-c3b49e553dd5",
+      "name": "Step 10: Tell the requester a new request is needed",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3380,
+        140
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO exception_queue (recipe, item, reason, detail, owner) VALUES ($1, $2, $3, $4, $5) RETURNING id",
+        "options": {
+          "queryReplacement": "={{ [\"R11.3\", $('Step 1: Status set to checked; to approval').item.json.body.request_id, \"no eligible approver\", $('Rules: steps 3 to 5').item.json.detail, $('Config').item.json.senior_approver] }}"
+        }
+      },
+      "id": "b018323f-1c98-59f1-a226-3ec3d42b7878",
+      "name": "Exception queue: no eligible approver",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        3120,
+        320
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "Exception queue: a named person works through it (book Chapters 2 and 16).",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "DELETE FROM key_log WHERE recipe = $1 AND key = $2 RETURNING key",
+        "options": {
+          "queryReplacement": "={{ [\"R11.3\", $('Step 1: Status set to checked; to approval').item.json.body.request_id + ':' + $('Step 1: Status set to checked; to approval').item.json.body.version] }}"
+        }
+      },
+      "id": "75f8c472-392a-5207-9699-7880cae1995a",
+      "name": "Release key: no approval open",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        3900,
+        120
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "No approval is open or decided, so a rerun after the fix must not stop at step 2.",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE key_log SET status = $3, result = $4 WHERE recipe = $1 AND key = $2 RETURNING key",
+        "options": {
+          "queryReplacement": "={{ [\"R11.3\", $('Step 1: Status set to checked; to approval').item.json.body.request_id + ':' + $('Step 1: Status set to checked; to approval').item.json.body.version, \"done\", $('Rules: steps 3 to 5').item.json.decision] }}"
+        }
+      },
+      "id": "ac92db66-d401-5594-a27e-25af3eb5be56",
+      "name": "Mark key done",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        3900,
+        -160
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO decision_log (recipe, item, decision, rules) VALUES ($1, $2, $3, $4::jsonb) RETURNING id",
+        "options": {
+          "queryReplacement": "={{ [\"R11.3\", $('Step 1: Status set to checked; to approval').item.json.body.request_id + ' v' + $('Step 1: Status set to checked; to approval').item.json.body.version, $('Rules: steps 3 to 5').item.json.decision, JSON.stringify($('Rules: steps 3 to 5').item.json.rules)] }}"
+        }
+      },
+      "id": "19702467-a998-58ba-921f-6fef3cbfcce2",
+      "name": "Decision log",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        4160,
+        -40
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "Decision log: the item's ID, the decision and the rules; never the content (book Chapter 3).",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE key_log SET status = $3, result = $4 WHERE recipe = $1 AND key = $2 RETURNING key",
+        "options": {
+          "queryReplacement": "={{ [\"R11.3\", $('Step 1: Status set to checked; to approval').item.json.body.request_id + ':' + $('Step 1: Status set to checked; to approval').item.json.body.version, \"failed\", 'write failed: ' + ($json.error && $json.error.message || 'unknown')] }}"
+        }
+      },
+      "id": "009c1756-f16b-5088-ac7a-83e8654944b9",
+      "name": "Mark key failed",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        3900,
+        400
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO exception_queue (recipe, item, reason, detail, owner) VALUES ($1, $2, $3, $4, $5) RETURNING id",
+        "options": {
+          "queryReplacement": "={{ [\"R11.3\", $('Step 1: Status set to checked; to approval').item.json.body.request_id, \"write failed\", 'Approval write failed; check the request list, then rerun it', $('Config').item.json.editor] }}"
+        }
+      },
+      "id": "a6c6bde2-9070-5b45-86a0-413e8a8ded8b",
+      "name": "Exception queue: write failed",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        4160,
+        400
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "Exception queue: a named person works through it (book Chapters 2 and 16).",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Config').item.json.approvals_url }}/approvals/{{ $('Step 9: Approval answered').item.json.body.approval_id }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        }
+      },
+      "id": "82261e42-6116-5cb9-a3da-6640a9159bb2",
+      "name": "Read the approval",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1300,
+        800
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH reserved AS (INSERT INTO key_log (recipe, key, status) VALUES ($1, $2, 'in progress') ON CONFLICT (recipe, key) DO NOTHING RETURNING key), skipped AS (UPDATE key_log SET copies_skipped = copies_skipped + 1 WHERE recipe = $1 AND key = $2 AND NOT EXISTS (SELECT 1 FROM reserved)) SELECT (SELECT count(*) FROM reserved) = 1 AS is_new, $2::text AS key",
+        "options": {
+          "queryReplacement": "={{ [\"R11.3\", 'answer:' + $('Step 9: Approval answered').item.json.body.approval_id] }}"
+        }
+      },
+      "id": "44731efe-74c1-572e-84ac-8cb0f7c18c84",
+      "name": "Reserve key: approval answer",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1560,
+        800
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "Key log: refuses a second copy in the same step (book Chapter 2).",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.is_new }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "id": "ebfcbf0d-f7d8-5f4a-8bee-e26bd538fc4c"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "08966e72-dbeb-52e3-804a-63633c462bf0",
+      "name": "New answer?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1820,
+        800
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "2a3df333-5fd4-57af-bcfe-572cdef955ed",
+      "name": "Duplicate answer: stop",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        2080,
+        640
+      ],
+      "notes": "This approval's answer was handled before.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Config').item.json.requests_url }}/requests/{{ $('Read the approval').item.json.request_id }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        }
+      },
+      "id": "136b7944-fa72-54e2-aeca-d44adb8b2653",
+      "name": "Read request at answer",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2080,
+        800
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Config').item.json.vendors_url }}/records/{{ $('Read request at answer').item.json.supplier_id }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        }
+      },
+      "id": "cf588cef-917d-53fc-842c-e70ef48de0a4",
+      "name": "Read supplier record",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2340,
+        800
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Config').item.json.policy_url }}/budget_lines/{{ $('Read request at answer').item.json.budget_line }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        }
+      },
+      "id": "68854d05-403d-5f66-a819-c6fdb8807bf6",
+      "name": "Read policy list",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2600,
+        800
+      ],
+      "notes": "For R11.2's waiver rule: who may grant a waiver.",
+      "notesInFlow": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "\nconst iso = d => d.toISOString().slice(0, 10);\nconst day = s => new Date(String(s).slice(0, 10) + 'T00:00:00Z');\nconst today = day(iso(new Date()));\nconst addWorkingDays = (d, n) => { let x = new Date(d), k = 0; while (k < n) { x = new Date(x.getTime() + 86400000); if (x.getUTCDay() % 6 !== 0) k++; } return x; };\nconst same = (a, b) => String(a || '').trim().toLowerCase() === String(b || '').trim().toLowerCase();\n\n// Steps 9 to 11: an answer counts only for an open approval of the request's current version.\nconst cfg = $('Config').first().json;\nconst ans = $('Step 9: Approval answered').first().json.body;\nconst appr = $('Read the approval').first().json;\nconst req = $('Read request at answer').first().json;\nconst supplier = $('Read supplier record').first().json;\nconst policy = $('Read policy list').first().json;\nconst by = ans.by || appr.approver;\nconst base = { approval: appr.id, version: appr.version, approver: appr.approver, answered_by: by,\n  budget_before: appr.budget_before, budget_after: appr.budget_after };\n\nif (appr.status !== 'open') return [{ json: { outcome: 'void', decision: `answer ignored: approval ${appr.status}`, rules: base } }];\nif (Number(req.version) !== Number(appr.version)) {\n  return [{ json: { outcome: 'void', decision: 'answer ignored: request changed since the approval started', rules: base } }];\n}\nif (ans.decision === 'rejected') {\n  return [{ json: { outcome: 'rejected', decision: 'rejected', by, comment: ans.comment || '', rules: base } }];\n}\nif (ans.decision !== 'approved') return [{ json: { outcome: 'void', decision: `answer ignored: unknown decision ${ans.decision}`, rules: base } }];\n\n// Step 9: rerun R11.2's supplier rule and its step 6 with the release margin; a waiver skips the quote half.\nconst reasons = [];\nif (!supplier.active) reasons.push('supplier inactive');\nif (supplier.hold) reasons.push('supplier on hold');\nconst waiver = req.waiver && (policy.waiver_grantors || []).includes(req.waiver.by) ? req.waiver : null;\nif (!waiver) {\n  const q = req.quote || {};\n  const margin = addWorkingDays(today, cfg.release_margin_working_days);\n  if (!q.valid_until || day(q.valid_until) < today) reasons.push('quote expired during approval');\n  else if (day(q.valid_until) < margin) reasons.push('expires within release margin');\n  if (!q.matches) reasons.push('quote not matched');\n  if (!['stated', 'included'].includes(q.freight)) reasons.push('freight not stated');\n}\nconst rules = Object.assign(base, { supplier: supplier.active && !supplier.hold ? 'passed' : 'failed',\n  quote: waiver ? `waiver by ${waiver.by}` : (reasons.some(r => r.startsWith('quote') || r.startsWith('expires') || r.startsWith('freight')) ? 'failed' : 'passed'),\n  reasons });\nif (reasons.length) return [{ json: { outcome: 'blocked', decision: 'blocked', by, reasons, rules } }];\nreturn [{ json: { outcome: 'release', decision: 'approved', by, rules } }];\n"
+      },
+      "id": "c9976b2e-7da7-5ae7-a3e6-9b728166a211",
+      "name": "Rules: steps 9 to 11",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2860,
+        800
+      ],
+      "notes": "Table 11.2, last row: the quote and supplier are checked again when the approval arrives.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.outcome }}",
+              "rightValue": "void",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              },
+              "id": "c3fc34fc-1bc7-518e-8a2d-cf477350e2c3"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "8ba45c1d-aedf-5dd5-b0df-951577f7c0d4",
+      "name": "Answer counts?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        3120,
+        800
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "4a0b7eb2-249f-5ca0-9963-0d160ecbbbe4",
+      "name": "Answer ignored",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        3380,
+        960
+      ],
+      "notes": "The approval is no longer open, or the request changed since it started.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $('Config').item.json.approvals_url }}/approvals/{{ $('Step 9: Approval answered').item.json.body.approval_id }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ status: $('Step 9: Approval answered').item.json.body.decision, decided_by: $('Rules: steps 9 to 11').item.json.by, comment: $('Step 9: Approval answered').item.json.body.comment || '', decided_on: $now.toISODate() }) }}"
+      },
+      "id": "b11a9d82-89a7-5e0a-81dd-107dcee26d7b",
+      "name": "Step 9: Record the answer",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3380,
+        760
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "e980aa29-1bb8-5cf2-b5ad-84f37acbdc14",
+                    "leftValue": "={{ $('Rules: steps 9 to 11').item.json.outcome }}",
+                    "rightValue": "release",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "release"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "adaebafa-7253-54e8-b837-f05673cf44bd",
+                    "leftValue": "={{ $('Rules: steps 9 to 11').item.json.outcome }}",
+                    "rightValue": "blocked",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "blocked"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "57122bbc-06a9-5e05-83cc-faa2d3a7ca28",
+                    "leftValue": "={{ $('Rules: steps 9 to 11').item.json.outcome }}",
+                    "rightValue": "rejected",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "rejected"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "2132e050-bf42-5b99-884b-59bde414e2eb",
+      "name": "Decision",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        3640,
+        760
+      ]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $('Config').item.json.requests_url }}/requests/{{ $('Read the approval').item.json.request_id }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ status: 'approved', locked: true, approved_by: $('Rules: steps 9 to 11').item.json.by, approved_version: $('Read the approval').item.json.version }) }}"
+      },
+      "id": "ffd87475-2776-5d7d-a2b6-d0773d77cf2e",
+      "name": "Step 10: Set approved and lock it",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3900,
+        600
+      ],
+      "notes": "Locked: an edit needs a new request.",
+      "notesInFlow": true,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').item.json.budget_url }}/commitments",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ id: $('Read the approval').item.json.request_id, request_id: $('Read the approval').item.json.request_id, budget_line: $('Read the approval').item.json.budget_line, amount: $('Read the approval').item.json.amount, billed: 0, remaining: $('Read the approval').item.json.amount }) }}"
+      },
+      "id": "75125cfa-054b-5490-8e16-7272c12625af",
+      "name": "Step 10: Write the commitment",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        4160,
+        600
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').item.json.messaging_url }}/messages",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ to: $('Config').item.json.buyer, subject: 'Raise the PO: request ' + $('Read the approval').item.json.request_id, text: 'Approved by ' + $('Rules: steps 9 to 11').item.json.by + ' for ' + $('Read the approval').item.json.amount + '; quote valid until ' + $('Read the approval').item.json.valid_until }) }}"
+      },
+      "id": "3bb6b397-c23d-53da-8d1e-bea1d76d58ec",
+      "name": "Step 10: Tell the buyer to raise the PO",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        4420,
+        600
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $('Config').item.json.requests_url }}/requests/{{ $('Read the approval').item.json.request_id }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ status: 'blocked', reasons: $('Rules: steps 9 to 11').item.json.reasons }) }}"
+      },
+      "id": "ba2e83ad-45a3-5e3c-96e6-835ae70e355a",
+      "name": "Step 9: Set blocked",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3900,
+        760
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').item.json.messaging_url }}/messages",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ to: $('Read request at answer').item.json.requester, subject: 'Purchase request ' + $('Read the approval').item.json.request_id + ' blocked at release', text: 'Approved, but not released: ' + $('Rules: steps 9 to 11').item.json.reasons.join('; ') + '. Fix and raise it again.' }) }}"
+      },
+      "id": "51201d2d-4621-5cc4-b641-611c7ad2fcc9",
+      "name": "Step 9: Tell the requester",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        4160,
+        760
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $('Config').item.json.requests_url }}/requests/{{ $('Read the approval').item.json.request_id }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ status: 'rejected', rejected_by: $('Rules: steps 9 to 11').item.json.by, rejection_comment: $('Rules: steps 9 to 11').item.json.comment }) }}"
+      },
+      "id": "660ce397-d86e-5d6b-a888-e0ac21ebf9de",
+      "name": "Step 11: Record the comment",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3900,
+        920
+      ],
+      "notes": "Rejected: no commitment is written.",
+      "notesInFlow": true,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE key_log SET status = $3, result = $4 WHERE recipe = $1 AND key = $2 RETURNING key",
+        "options": {
+          "queryReplacement": "={{ [\"R11.3\", 'answer:' + $('Step 9: Approval answered').item.json.body.approval_id, \"done\", $('Rules: steps 9 to 11').item.json.decision] }}"
+        }
+      },
+      "id": "14519b67-74b5-57d4-baaf-a716fbfca378",
+      "name": "Mark answer key done",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        4680,
+        760
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO decision_log (recipe, item, decision, rules) VALUES ($1, $2, $3, $4::jsonb) RETURNING id",
+        "options": {
+          "queryReplacement": "={{ [\"R11.3\", $('Read the approval').item.json.request_id + ' v' + $('Read the approval').item.json.version, $('Rules: steps 9 to 11').item.json.decision, JSON.stringify($('Rules: steps 9 to 11').item.json.rules)] }}"
+        }
+      },
+      "id": "497287ba-c098-5989-a52d-598b8c421a2e",
+      "name": "Decision log: answer",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        4940,
+        760
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "Decision log: the item's ID, the decision and the rules; never the content (book Chapter 3).",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE key_log SET status = $3, result = $4 WHERE recipe = $1 AND key = $2 RETURNING key",
+        "options": {
+          "queryReplacement": "={{ [\"R11.3\", 'answer:' + $('Step 9: Approval answered').item.json.body.approval_id, \"failed\", 'write failed: ' + ($json.error && $json.error.message || 'unknown')] }}"
+        }
+      },
+      "id": "d7687cc9-6299-5828-815f-4c3b2069acd0",
+      "name": "Mark answer key failed",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        4680,
+        1100
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO exception_queue (recipe, item, reason, detail, owner) VALUES ($1, $2, $3, $4, $5) RETURNING id",
+        "options": {
+          "queryReplacement": "={{ [\"R11.3\", $('Read the approval').item.json.request_id, \"write failed\", 'Write after the approval answer failed; check the request, approval and commitment before rerunning', $('Config').item.json.editor] }}"
+        }
+      },
+      "id": "deee6eae-7058-56d0-9e3e-759a4a467baf",
+      "name": "Exception queue: answer write failed",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        4940,
+        1100
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "Exception queue: a named person works through it (book Chapters 2 and 16).",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Config').item.json.approvals_url }}/approvals",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "_wrap",
+              "value": "1"
+            },
+            {
+              "name": "status",
+              "value": "open"
+            }
+          ]
+        }
+      },
+      "id": "1f71d320-1770-5a96-b2ca-1d9ca53e77e9",
+      "name": "Read open approvals",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1300,
+        1400
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "\nconst iso = d => d.toISOString().slice(0, 10);\nconst day = s => new Date(String(s).slice(0, 10) + 'T00:00:00Z');\nconst today = day(iso(new Date()));\nconst addWorkingDays = (d, n) => { let x = new Date(d), k = 0; while (k < n) { x = new Date(x.getTime() + 86400000); if (x.getUTCDay() % 6 !== 0) k++; } return x; };\nconst same = (a, b) => String(a || '').trim().toLowerCase() === String(b || '').trim().toLowerCase();\n\n// Steps 7 and 8: remind after two working days (warning the requester if the quote expires first), then the stand-in after three.\nconst cfg = $('Config').first().json;\nconst open = $('Read open approvals').first().json.items || [];\nconst t = iso(today);\nconst out = [];\nfor (const a of open) {\n  const what = `Approval ${a.id}: request ${a.request_id}, ${a.amount}`;\n  if (a.escalated) {\n    if (!a.final_sent && a.final_on && t >= a.final_on) {\n      out.push({ action: 'final', id: a.id, request_id: a.request_id, patch: { final_sent: true },\n        to: cfg.senior_approver, subject: `No answer after the stand-in: ${a.id}`, text: `${what}; no answer from ${a.approver}. Decide it.` });\n    }\n    continue;\n  }\n  if (a.standin_on && t >= a.standin_on) {\n    if (a.standin) {\n      out.push({ action: 'standin', id: a.id, request_id: a.request_id,\n        patch: { approver: a.standin, standin: null, escalated: true, final_on: iso(addWorkingDays(today, cfg.standin_working_days)) },\n        to: a.standin, subject: `Approval waiting for you as stand-in: ${a.id}`, text: `${what}; no answer from ${a.approver}.` });\n    } else {\n      out.push({ action: 'final', id: a.id, request_id: a.request_id, patch: { escalated: true, final_sent: true },\n        to: cfg.senior_approver, subject: `No answer and no stand-in: ${a.id}`, text: `${what}; no answer from ${a.approver} and no eligible stand-in. Decide it.` });\n    }\n    continue;\n  }\n  if (!a.reminded && a.remind_on && t >= a.remind_on) {\n    out.push({ action: 'remind', id: a.id, request_id: a.request_id, patch: { reminded: true },\n      to: a.approver, subject: `Reminder: approval ${a.id}`, text: `${what} is waiting for your answer.` });\n    if (!a.waiver && a.valid_until && day(a.valid_until) < addWorkingDays(today, cfg.release_margin_working_days)) {\n      out.push({ action: 'warn', id: a.id, request_id: a.request_id, to: a.requester,\n        subject: `Quote may expire before approval: ${a.request_id}`,\n        text: `The quote is valid until ${a.valid_until}; if it expires before the approval arrives, the request is blocked and needs a fresh quote.` });\n    }\n  }\n}\nreturn out.map(json => ({ json }));\n"
+      },
+      "id": "44307089-a1ba-5348-9d8a-9e6ae52d0e4a",
+      "name": "Rules: steps 7 and 8",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1560,
+        1400
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "f8d09ad5-5f13-504c-acd7-6a4fad495d91",
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "remind",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "remind"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "c41a8b8e-47c3-5892-b25c-8d369597692f",
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "warn",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "warn"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "b702bdcf-6c59-57c2-8f43-efa40554208a",
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "standin",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "standin"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "c3c32765-d931-5fe0-8a00-bd01e3c51234",
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "final",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "final"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "49a9b5b8-e0b9-5194-a49e-5242bf6d638b",
+      "name": "Action",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        1820,
+        1400
+      ]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $('Config').item.json.approvals_url }}/approvals/{{ $('Action').item.json.id }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($('Action').item.json.patch) }}"
+      },
+      "id": "a27c346d-dfa5-59cd-bf02-0760700971e2",
+      "name": "Step 7: Record the reminder",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2080,
+        1240
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').item.json.messaging_url }}/messages",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ to: $('Action').item.json.to, subject: $('Action').item.json.subject, text: $('Action').item.json.text }) }}"
+      },
+      "id": "5b09ca52-650a-55b4-b41a-feaf2dc7473d",
+      "name": "Step 7: Remind the approver",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2340,
+        1240
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').item.json.messaging_url }}/messages",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ to: $('Action').item.json.to, subject: $('Action').item.json.subject, text: $('Action').item.json.text }) }}"
+      },
+      "id": "b6f1aad6-d32b-5966-b44d-1c6fd9e58995",
+      "name": "Step 7: Warn the requester",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2080,
+        1400
+      ],
+      "notes": "The quote expires within the release margin, so it would be blocked at step 9.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $('Config').item.json.approvals_url }}/approvals/{{ $('Action').item.json.id }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($('Action').item.json.patch) }}"
+      },
+      "id": "f5e8e60d-e2bd-58e4-8043-feb6aa6a892f",
+      "name": "Step 8: Send to the stand-in",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2080,
+        1560
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').item.json.messaging_url }}/messages",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ to: $('Action').item.json.to, subject: $('Action').item.json.subject, text: $('Action').item.json.text }) }}"
+      },
+      "id": "db108265-77df-557a-bba4-1432f2f8144a",
+      "name": "Step 8: Tell the stand-in",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2340,
+        1560
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO exception_queue (recipe, item, reason, detail, owner) VALUES ($1, $2, $3, $4, $5) RETURNING id",
+        "options": {
+          "queryReplacement": "={{ [\"R11.3\", $('Action').item.json.request_id, \"no answer after the stand-in\", $('Action').item.json.text, $('Config').item.json.senior_approver] }}",
+          "queryBatching": "independently"
+        }
+      },
+      "id": "295cdde6-3f47-5e17-9c45-4f3ea3e8a06d",
+      "name": "Exception queue: no answer after the stand-in",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2080,
+        1720
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "Exception queue: a named person works through it (book Chapters 2 and 16).",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $('Config').item.json.approvals_url }}/approvals/{{ $('Action').item.json.id }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($('Action').item.json.patch) }}"
+      },
+      "id": "c8d0b2bf-8c1c-528b-9147-5fcda488aaa9",
+      "name": "Record the final escalation",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2340,
+        1720
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').item.json.messaging_url }}/messages",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ to: $('Action').item.json.to, subject: $('Action').item.json.subject, text: $('Action').item.json.text }) }}"
+      },
+      "id": "50fe61ba-2607-597f-88b0-5cba37c3ee73",
+      "name": "Tell the senior approver",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2600,
+        1720
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Config').item.json.ledger_url }}/bills",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "_wrap",
+              "value": "1"
+            }
+          ]
+        }
+      },
+      "id": "e66f091f-0632-5f02-87e6-92944e6a63c0",
+      "name": "Read the export's bills",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1300,
+        1900
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Config').item.json.budget_url }}/commitments",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "_wrap",
+              "value": "1"
+            }
+          ]
+        }
+      },
+      "id": "da07a441-d7ee-56d2-861c-4c1e323ae6bc",
+      "name": "Read commitments for bills",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1560,
+        1900
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "\n// Step 12: only bills against a commitment count; each bill is counted once (key log).\nconst bills = $('Read the export\\'s bills').first().json.items || [];\nconst commitments = new Set(($('Read commitments for bills').first().json.items || []).map(c => c.request_id));\nconst keys = bills.filter(b => commitments.has(b.request_id)).map(b => 'bill:' + b.id);\nreturn keys.length ? [{ json: { keys: keys.join('|') } }] : [];\n"
+      },
+      "id": "78474bd1-b449-5ca0-91ed-127c84bf9240",
+      "name": "Bills against a commitment",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1820,
+        1900
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH input AS (SELECT DISTINCT unnest(string_to_array($2, '|')) AS key), reserved AS (INSERT INTO key_log (recipe, key, status) SELECT $1, key, 'in progress' FROM input ON CONFLICT (recipe, key) DO NOTHING RETURNING key), skipped AS (UPDATE key_log SET copies_skipped = copies_skipped + 1 WHERE recipe = $1 AND key IN (SELECT key FROM input) AND key NOT IN (SELECT key FROM reserved) RETURNING key) SELECT coalesce((SELECT string_agg(key, '|') FROM reserved), '') AS new_keys",
+        "options": {
+          "queryReplacement": "={{ [\"R11.3\", $json.keys] }}"
+        }
+      },
+      "id": "b9c2f035-e0cb-5594-b494-e717f0a5c492",
+      "name": "Reserve bill keys",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2080,
+        1900
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "Key log: each bill reduces its commitment once, however many exports carry it.",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "\n// Step 12: reduce each commitment by its new bills; a bill over its commitment by more than the tolerance goes to the budget owner.\nconst cfg = $('Config').first().json;\nconst tolerance = Number(cfg.bill_tolerance);\nif (!Number.isFinite(tolerance)) throw new Error('Set bill_tolerance in Config to a number of dollars');\nconst fresh = new Set(String($('Reserve bill keys').first().json.new_keys || '').split('|').filter(Boolean));\nconst bills = ($('Read the export\\'s bills').first().json.items || []).filter(b => fresh.has('bill:' + b.id));\nconst out = [];\nfor (const c of $('Read commitments for bills').first().json.items || []) {\n  const mine = bills.filter(b => b.request_id === c.request_id);\n  if (!mine.length) continue;\n  const billed = Number(c.billed || 0) + mine.reduce((s, b) => s + Number(b.amount), 0);\n  const remaining = Math.max(0, Number(c.amount) - billed);\n  const over = billed > Number(c.amount) + tolerance;\n  out.push({ json: { commitment: c.id, request_id: c.request_id, amount: Number(c.amount), billed, remaining, over,\n    bills: mine.map(b => b.id), keys: mine.map(b => 'bill:' + b.id).join('|'),\n    detail: `Commitment ${c.id}: ${c.amount}; billed ${billed} (${mine.map(b => b.id).join(', ')}); tolerance ${tolerance}` } });\n}\nreturn out;\n"
+      },
+      "id": "2c163c41-fdfb-5632-8d33-ecf280a8b305",
+      "name": "Step 12: Rule: reduce commitments by bills",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2340,
+        1900
+      ]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $('Config').item.json.budget_url }}/commitments/{{ $('Step 12: Rule: reduce commitments by bills').item.json.commitment }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ billed: $('Step 12: Rule: reduce commitments by bills').item.json.billed, remaining: $('Step 12: Rule: reduce commitments by bills').item.json.remaining }) }}"
+      },
+      "id": "fe19d3bf-c55a-5bbf-9f54-1cc9f30727e2",
+      "name": "Step 12: Reduce the commitment",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2600,
+        1900
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $('Step 12: Rule: reduce commitments by bills').item.json.over }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "id": "b65c2942-2c0d-5f45-8fd3-8d60b7d3da58"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "f97734ec-b068-55eb-963e-f1b09e66c0bf",
+      "name": "Over tolerance?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2860,
+        1900
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO exception_queue (recipe, item, reason, detail, owner) VALUES ($1, $2, $3, $4, $5) RETURNING id",
+        "options": {
+          "queryReplacement": "={{ [\"R11.3\", $('Step 12: Rule: reduce commitments by bills').item.json.request_id, \"bill over commitment\", $('Step 12: Rule: reduce commitments by bills').item.json.detail, $('Config').item.json.budget_owner] }}",
+          "queryBatching": "independently"
+        }
+      },
+      "id": "52a2251d-a2bd-5c29-a1ea-2913947a212a",
+      "name": "Step 12: Exception queue: bill over commitment",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        3120,
+        1820
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "Exception queue: a named person works through it (book Chapters 2 and 16).",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').item.json.messaging_url }}/messages",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ to: $('Config').item.json.budget_owner, subject: 'Bill over its commitment: request ' + $('Step 12: Rule: reduce commitments by bills').item.json.request_id, text: $('Step 12: Rule: reduce commitments by bills').item.json.detail }) }}"
+      },
+      "id": "f4564669-1d4a-5d39-a228-a0761b906bfb",
+      "name": "Step 12: Tell the budget owner",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3380,
+        1820
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH marked AS (UPDATE key_log SET status = $3, result = $4 WHERE recipe = $1 AND key = ANY(string_to_array($2, '|')) RETURNING key) SELECT count(*) AS marked FROM marked",
+        "options": {
+          "queryReplacement": "={{ [\"R11.3\", $('Step 12: Rule: reduce commitments by bills').item.json.keys, \"done\", 'billed ' + $('Step 12: Rule: reduce commitments by bills').item.json.billed + ', remaining ' + $('Step 12: Rule: reduce commitments by bills').item.json.remaining] }}",
+          "queryBatching": "independently"
+        }
+      },
+      "id": "349e4923-8259-5a06-bd2d-67a972d80d55",
+      "name": "Mark bill keys done",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        3640,
+        1900
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO decision_log (recipe, item, decision, rules) VALUES ($1, $2, $3, $4::jsonb) RETURNING id",
+        "options": {
+          "queryReplacement": "={{ [\"R11.3\", $('Step 12: Rule: reduce commitments by bills').item.json.commitment, $('Step 12: Rule: reduce commitments by bills').item.json.over ? 'bill over commitment' : 'commitment reduced by bills', JSON.stringify({ amount: $('Step 12: Rule: reduce commitments by bills').item.json.amount, billed: $('Step 12: Rule: reduce commitments by bills').item.json.billed, remaining: $('Step 12: Rule: reduce commitments by bills').item.json.remaining, bills: $('Step 12: Rule: reduce commitments by bills').item.json.bills })] }}",
+          "queryBatching": "independently"
+        }
+      },
+      "id": "a87e64af-7732-5ccf-afa1-78c1ac959f4a",
+      "name": "Decision log: commitment",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        3900,
+        1900
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "Decision log: the item's ID, the decision and the rules; never the content (book Chapter 3).",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH marked AS (UPDATE key_log SET status = $3, result = $4 WHERE recipe = $1 AND key = ANY(string_to_array($2, '|')) RETURNING key) SELECT count(*) AS marked FROM marked",
+        "options": {
+          "queryReplacement": "={{ [\"R11.3\", $('Step 12: Rule: reduce commitments by bills').item.json.keys, \"failed\", 'write failed: ' + ($json.error && $json.error.message || 'unknown')] }}",
+          "queryBatching": "independently"
+        }
+      },
+      "id": "036360b6-e019-57c5-a8b0-8b791637c2e6",
+      "name": "Mark bill keys failed",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2860,
+        2100
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO exception_queue (recipe, item, reason, detail, owner) VALUES ($1, $2, $3, $4, $5) RETURNING id",
+        "options": {
+          "queryReplacement": "={{ [\"R11.3\", $('Step 12: Rule: reduce commitments by bills').item.json.request_id, \"write failed\", 'Commitment write failed; check the budget list before rerunning', $('Config').item.json.editor] }}",
+          "queryBatching": "independently"
+        }
+      },
+      "id": "10d8a802-3042-53a8-be1f-afe35a38e2f9",
+      "name": "Exception queue: commitment write failed",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        3120,
+        2100
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "Exception queue: a named person works through it (book Chapters 2 and 16).",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Config').item.json.stop_flag_url }}",
+        "options": {}
+      },
+      "id": "0a2b2eca-4ba5-56fa-b640-7651203efd88",
+      "name": "Stop flag: read",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        520,
+        900
+      ],
+      "notes": "Kill switch: set stopped to true in your stop list and the next run ends quietly (book Chapter 3).",
+      "notesInFlow": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.stopped === true }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "id": "c87f2cb4-a69d-5af1-9e93-950e2ecf3fb4"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "019dd2b9-ac86-5c28-8ee9-668f5953fdce",
+      "name": "Stop flag set?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        780,
+        900
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "50031cb2-38d6-528d-95b4-afd4ef8dbdde",
+      "name": "Stopped by the stop flag",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        1040,
+        700
+      ],
+      "notes": "Ends quietly; nothing is read, written or sent.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO exception_queue (recipe, item, reason, detail, owner) VALUES ($1, $2, $3, $4, $5) RETURNING id",
+        "options": {
+          "queryReplacement": "={{ [\"R11.3\", 'run ' + $execution.id, \"stop list unreadable\", 'The stop list could not be read, so the run stopped; fix the stop list', '<your workflow owner>'] }}"
+        }
+      },
+      "id": "e951ba9f-2fe5-5075-815c-71dcff47e841",
+      "name": "Exception queue: stop list unreadable",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        780,
+        1120
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "Exception queue: a named person works through it (book Chapters 2 and 16).",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    }
+  ],
+  "connections": {
+    "Step 1: Status set to checked; to approval": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 9: Approval answered": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Steps 7 and 8: Each morning": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 12: New accounting export": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Which event?": {
+      "main": [
+        [
+          {
+            "node": "Read request",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Read the approval",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Read open approvals",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Read the export's bills",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read request": {
+      "main": [
+        [
+          {
+            "node": "Step 2: Reserve key",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 2: Reserve key": {
+      "main": [
+        [
+          {
+            "node": "New key?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "New key?": {
+      "main": [
+        [
+          {
+            "node": "Read budget line",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Duplicate: stop",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read budget line": {
+      "main": [
+        [
+          {
+            "node": "Read commitments",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read commitments": {
+      "main": [
+        [
+          {
+            "node": "Rules: steps 3 to 5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rules: steps 3 to 5": {
+      "main": [
+        [
+          {
+            "node": "Route",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route": {
+      "main": [
+        [
+          {
+            "node": "Step 6: Start one approval",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Step 3: Exception queue: budget export stale",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Step 10: Keep it approved; edit refused",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Exception queue: no eligible approver",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 6: Start one approval": {
+      "main": [
+        [
+          {
+            "node": "Over budget?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark key failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Over budget?": {
+      "main": [
+        [
+          {
+            "node": "Step 4: Copy the budget owner",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark key done",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 3: Exception queue: budget export stale": {
+      "main": [
+        [
+          {
+            "node": "Step 3: Tell the budget owner",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 10: Keep it approved; edit refused": {
+      "main": [
+        [
+          {
+            "node": "Step 10: Tell the requester a new request is needed",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark key failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 3: Tell the budget owner": {
+      "main": [
+        [
+          {
+            "node": "Release key: no approval open",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark key failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Exception queue: no eligible approver": {
+      "main": [
+        [
+          {
+            "node": "Release key: no approval open",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 4: Copy the budget owner": {
+      "main": [
+        [
+          {
+            "node": "Mark key done",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark key failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 10: Tell the requester a new request is needed": {
+      "main": [
+        [
+          {
+            "node": "Mark key done",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark key failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark key done": {
+      "main": [
+        [
+          {
+            "node": "Decision log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Release key: no approval open": {
+      "main": [
+        [
+          {
+            "node": "Decision log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark key failed": {
+      "main": [
+        [
+          {
+            "node": "Exception queue: write failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read the approval": {
+      "main": [
+        [
+          {
+            "node": "Reserve key: approval answer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reserve key: approval answer": {
+      "main": [
+        [
+          {
+            "node": "New answer?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "New answer?": {
+      "main": [
+        [
+          {
+            "node": "Read request at answer",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Duplicate answer: stop",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read request at answer": {
+      "main": [
+        [
+          {
+            "node": "Read supplier record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read supplier record": {
+      "main": [
+        [
+          {
+            "node": "Read policy list",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read policy list": {
+      "main": [
+        [
+          {
+            "node": "Rules: steps 9 to 11",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rules: steps 9 to 11": {
+      "main": [
+        [
+          {
+            "node": "Answer counts?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Answer counts?": {
+      "main": [
+        [
+          {
+            "node": "Answer ignored",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Step 9: Record the answer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 9: Record the answer": {
+      "main": [
+        [
+          {
+            "node": "Decision",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark answer key failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Decision": {
+      "main": [
+        [
+          {
+            "node": "Step 10: Set approved and lock it",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Step 9: Set blocked",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Step 11: Record the comment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 10: Set approved and lock it": {
+      "main": [
+        [
+          {
+            "node": "Step 10: Write the commitment",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark answer key failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 10: Write the commitment": {
+      "main": [
+        [
+          {
+            "node": "Step 10: Tell the buyer to raise the PO",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark answer key failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 9: Set blocked": {
+      "main": [
+        [
+          {
+            "node": "Step 9: Tell the requester",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark answer key failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Answer ignored": {
+      "main": [
+        [
+          {
+            "node": "Mark answer key done",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 10: Tell the buyer to raise the PO": {
+      "main": [
+        [
+          {
+            "node": "Mark answer key done",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark answer key failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 9: Tell the requester": {
+      "main": [
+        [
+          {
+            "node": "Mark answer key done",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark answer key failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 11: Record the comment": {
+      "main": [
+        [
+          {
+            "node": "Mark answer key done",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark answer key failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark answer key done": {
+      "main": [
+        [
+          {
+            "node": "Decision log: answer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark answer key failed": {
+      "main": [
+        [
+          {
+            "node": "Exception queue: answer write failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read open approvals": {
+      "main": [
+        [
+          {
+            "node": "Rules: steps 7 and 8",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rules: steps 7 and 8": {
+      "main": [
+        [
+          {
+            "node": "Action",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Action": {
+      "main": [
+        [
+          {
+            "node": "Step 7: Record the reminder",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Step 7: Warn the requester",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Step 8: Send to the stand-in",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Exception queue: no answer after the stand-in",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 7: Record the reminder": {
+      "main": [
+        [
+          {
+            "node": "Step 7: Remind the approver",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 8: Send to the stand-in": {
+      "main": [
+        [
+          {
+            "node": "Step 8: Tell the stand-in",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Exception queue: no answer after the stand-in": {
+      "main": [
+        [
+          {
+            "node": "Record the final escalation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Record the final escalation": {
+      "main": [
+        [
+          {
+            "node": "Tell the senior approver",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read the export's bills": {
+      "main": [
+        [
+          {
+            "node": "Read commitments for bills",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read commitments for bills": {
+      "main": [
+        [
+          {
+            "node": "Bills against a commitment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Bills against a commitment": {
+      "main": [
+        [
+          {
+            "node": "Reserve bill keys",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reserve bill keys": {
+      "main": [
+        [
+          {
+            "node": "Step 12: Rule: reduce commitments by bills",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 12: Rule: reduce commitments by bills": {
+      "main": [
+        [
+          {
+            "node": "Step 12: Reduce the commitment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 12: Reduce the commitment": {
+      "main": [
+        [
+          {
+            "node": "Over tolerance?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark bill keys failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Over tolerance?": {
+      "main": [
+        [
+          {
+            "node": "Step 12: Exception queue: bill over commitment",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark bill keys done",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 12: Exception queue: bill over commitment": {
+      "main": [
+        [
+          {
+            "node": "Step 12: Tell the budget owner",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 12: Tell the budget owner": {
+      "main": [
+        [
+          {
+            "node": "Mark bill keys done",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark bill keys done": {
+      "main": [
+        [
+          {
+            "node": "Decision log: commitment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark bill keys failed": {
+      "main": [
+        [
+          {
+            "node": "Exception queue: commitment write failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config": {
+      "main": [
+        [
+          {
+            "node": "Stop flag: read",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Stop flag: read": {
+      "main": [
+        [
+          {
+            "node": "Stop flag set?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Exception queue: stop list unreadable",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Stop flag set?": {
+      "main": [
+        [
+          {
+            "node": "Stopped by the stop flag",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Which event?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataSuccessExecution": "all",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "pinData": {}
+}

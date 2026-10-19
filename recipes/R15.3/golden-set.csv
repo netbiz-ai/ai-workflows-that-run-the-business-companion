@@ -3,3 +3,9 @@ Normal,Unsubscribe clicked,All lists confirmed
 Edge,Older opt-in arrives late,Opt-out stands
 Duplicate,Same unsubscribe twice,One change
 Escalate,Shop's API down,Shop paused
+Opt-in without proof,An opt-in with no wording version (companion extension),"Logged, not applied"
+Read-back fails,Shop takes the write; its read-back fails (companion extension),Suppressed on the shop; exception queue; Owen told; never retried
+Master write fails,The CRM consent write fails (companion extension),Key marked failed; exception queue: write failed; no list changed
+POS sign-up,"POS sign-up with wording version, newer than the opt-out (companion extension)",Opt-in recorded with its wording version; that channel's lists confirmed
+Nightly drift,Shop still subscribed after the master opted out (companion extension),Shop corrected to the master
+Write still failing,Shop still down at the nightly check (companion extension),List held; exception queue; Owen told

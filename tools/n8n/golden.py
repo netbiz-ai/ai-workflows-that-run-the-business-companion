@@ -106,7 +106,9 @@ def test_copy(wf: dict, tests: dict) -> tuple[dict, dict]:
     """Return the test workflow and a map of schedule node -> test webhook path."""
     t = copy.deepcopy(wf)
     t["name"] = f"[test] {t['name']}"
-    cfg = {k: (v.replace("{mocks}", MOCKS_IN) if isinstance(v, str) else v) for k, v in tests.get("config", {}).items()}
+    t["settings"] = {**t.get("settings", {}), "saveDataSuccessExecution": "all", "saveDataErrorExecution": "all"}
+    cfg = mocks_urls(tests.get("config", {}))
+    cfg.setdefault("stop_flag_url", f"{MOCKS_IN}/control/stop_flags/{tests['_rid']}")
     sched = {}
     for n in t["nodes"]:
         if n["name"] == "Config":
@@ -120,7 +122,8 @@ def test_copy(wf: dict, tests: dict) -> tuple[dict, dict]:
             if cred["id"] == "ANTHROPIC_CREDENTIAL_ID":
                 cred.update(id=os.environ["ANTHROPIC_CREDENTIAL_ID"], name="Companion Anthropic")
         if n["type"] == "n8n-nodes-base.scheduleTrigger":
-            path = "test-" + n["name"].lower().replace(" ", "-").replace(":", "")
+            slug = "".join(ch if ch.isalnum() else "-" for ch in n["name"].lower()).strip("-")
+            path = f"test-{tests['_rid'].lower().replace('.', '-')}-{slug}"
             sched[n["name"]] = path
             n.update(type="n8n-nodes-base.webhook", typeVersion=2.1, webhookId=_uid(f"test/{wf['name']}/{path}"),
                      parameters={"httpMethod": "POST", "path": path, "responseMode": "onReceived", "options": {}})
@@ -158,6 +161,17 @@ def wait_executions(wid: str, after: set, expected: int, timeout: float = 90) ->
     raise RuntimeError(f"timed out waiting for {expected} execution(s)")
 
 
+def mocks_urls(v):
+    """Expand {mocks} to the mock systems' address anywhere in a value."""
+    if isinstance(v, str):
+        return v.replace("{mocks}", MOCKS_IN)
+    if isinstance(v, list):
+        return [mocks_urls(x) for x in v]
+    if isinstance(v, dict):
+        return {mocks_urls(k): mocks_urls(x) for k, x in v.items()}
+    return v
+
+
 def dates(v):
     """Expand {today}, {today+N} and {today-N} (calendar days, ISO format) anywhere in a value."""
     import re
@@ -169,7 +183,7 @@ def dates(v):
     if isinstance(v, list):
         return [dates(x) for x in v]
     if isinstance(v, dict):
-        return {k: dates(x) for k, x in v.items()}
+        return {dates(k): dates(x) for k, x in v.items()}
     return v
 
 
@@ -200,6 +214,10 @@ def check(exp: dict) -> tuple[bool, str]:
         _, calls = http("GET", f"{MOCKS}/_calls")
         got = sum(1 for c in calls if c["method"] == method and c["path"] == path)
         return got == exp["count"], f"{exp['calls']}: {got} call(s)"
+    if "writes" in exp:
+        _, calls = http("GET", f"{MOCKS}/_calls")
+        got = [f"{c['method']} {c['path']}" for c in calls if c["method"] != "GET"]
+        return len(got) == exp["writes"], f"writes to systems: {got or 'none'}"
     if "sql" in exp:
         got = sql(exp["sql"])
         return got == str(exp["equals"]), f"{exp['sql']} -> {got}"
@@ -230,7 +248,17 @@ def _run(rid: str, build_only: bool = False) -> int:
         print(f"wrote {folder / 'workflow.json'}")
         return 0
     import_check(reader_copy(wf))
-    tests = dates(json.loads((folder / "tests.json").read_text()))
+    tests = mocks_urls(dates(json.loads((folder / "tests.json").read_text())))
+    tests["_rid"] = rid
+    stop = {"control": {"stop_flags": {rid: {"id": rid, "stopped": False}}}}
+    tests["seed"] = merge(stop, tests.get("seed", {}))
+    first = tests["cases"][0]
+    tests["cases"].append({
+        "case": "Stop flag", "input": "The stop flag is set (companion extension)", "auto": True,
+        "seed": merge(first.get("seed", {}), {"control": {"stop_flags": {rid: {"stopped": True}}}}),
+        "trigger": [t for t in first["trigger"] if "sql" not in t][:1],
+        "expect": [{"writes": 0}, {"sql": "select count(*) from key_log", "equals": "0"},
+                   {"sql": "select count(*) from decision_log", "equals": "0"}]})
     twf, sched = test_copy(wf, tests)
     wid = deploy(twf)
     lines, failed = [], 0
@@ -242,15 +270,28 @@ def _run(rid: str, build_only: bool = False) -> int:
             continue
         http("POST", f"{MOCKS}/_reset", {"seed": merge(tests.get("seed", {}), case.get("seed", {}))})
         sql("TRUNCATE key_log, decision_log, exception_queue RESTART IDENTITY")
+        for q in case.get("sql_seed", []):
+            sql(q)
         for f in case.get("fail", []):
             http("POST", f"{MOCKS}/_fail", f)
         before = {e["id"] for e in api("GET", f"/executions?workflowId={wid}&limit=100")["data"]}
         for trig in case["trigger"]:
+            if "sql" in trig:
+                sql(trig["sql"])
+                time.sleep(trig.get("pause", 0.3))
+                continue
             path = sched.get(trig.get("schedule"), trig.get("webhook"))
             http("POST", f"{N8N}/webhook/{path}", trig.get("body", {}))
             time.sleep(trig.get("pause", 0.3))
-        ex = wait_executions(wid, before, len(case["trigger"]))
+        ex = wait_executions(wid, before, sum(1 for t in case["trigger"] if "sql" not in t))
         results = [check(e) for e in case["expect"]]
+        if case.get("needs_ai"):
+            # A case that depends on the model's answer must actually get one: a safe fallback
+            # after an AI error (manual triage, exception queue) must never count as a pass.
+            _, calls = http("GET", f"{MOCKS}/_calls")
+            bad = [c.get("status") for c in calls if c["path"] == "/anthropic/v1/messages" and c.get("status") != 200]
+            if bad:
+                results.append((False, f"AI call(s) failed with status {bad}, so the model's answer was never tested"))
         errors = [e for e in ex if e.get("status") == "error"]
         ok = all(r[0] for r in results) and (not errors or case.get("allow_error"))
         failed += not ok

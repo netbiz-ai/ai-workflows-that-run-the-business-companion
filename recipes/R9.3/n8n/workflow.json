@@ -1,0 +1,2272 @@
+{
+  "name": "R9.3 Take leave requests, check the balance and route to the manager",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "r9-3-leave",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "637bb411-68bd-5d09-bb12-70c431d17b1c",
+      "name": "Step 1: Request or cancellation",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "notes": "Your signed-in leave form calls this. Body: {request_id, employee (the signed-in email), type, start, end, action: request | cancel}; no free-text reason.",
+      "notesInFlow": true,
+      "webhookId": "7a6cef5d-c8a4-5c6a-ad39-e3f5b283f40f"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "r9-3-decision",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "3cd1debb-47db-57e6-b7fd-1cc90b4fdf7f",
+      "name": "Step 6: Manager decides",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        900
+      ],
+      "notes": "The approval calls this when the manager, stand-in or HR decides. Body: {request_id, decision: approved | declined, by}.",
+      "notesInFlow": true,
+      "webhookId": "b95a24fd-438c-5274-9be0-a960e81e8fc0"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 8
+            }
+          ]
+        }
+      },
+      "id": "b1f90764-145c-5c27-826e-5a96cf564d43",
+      "name": "Step 6: Morning reminders",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        1200
+      ],
+      "notes": "Step 6's reminders: 2 working days to the manager, 4 to the stand-in and HR.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "2abbcd60-f989-572f-bde5-658e1079d360",
+              "name": "stop_flag_url",
+              "value": "https://<your stop list API>/stop_flags/R9.3",
+              "type": "string"
+            },
+            {
+              "id": "0acd7c2a-2c83-5ed7-ab67-006c4cea3cef",
+              "name": "employees_url",
+              "value": "https://<your employee list API>",
+              "type": "string"
+            },
+            {
+              "id": "df699455-7f7a-50e8-ac17-b34f8f76d97c",
+              "name": "balances_url",
+              "value": "https://<your daily balance export API>",
+              "type": "string"
+            },
+            {
+              "id": "a7f3aefe-76f6-5808-9589-56d7fbb989e0",
+              "name": "requests_url",
+              "value": "https://<your leave request list API>",
+              "type": "string"
+            },
+            {
+              "id": "c9e81526-5565-5eb6-97b4-a58de277a59a",
+              "name": "record_list_url",
+              "value": "https://<your HR to-record list API>",
+              "type": "string"
+            },
+            {
+              "id": "fae443e5-d8ad-52d5-b2fa-09f607f67003",
+              "name": "messaging_url",
+              "value": "https://<your messaging API>",
+              "type": "string"
+            },
+            {
+              "id": "1ed18d26-c222-550a-bd04-005834f6f1d9",
+              "name": "hr_owner",
+              "value": "<your HR owner>",
+              "type": "string"
+            },
+            {
+              "id": "5cd135da-08fa-576e-a9d9-356beac56145",
+              "name": "protected_types",
+              "value": "[\"<leave types that go to HR alone, such as sick and family>\"]",
+              "type": "array"
+            },
+            {
+              "id": "b464a256-de5a-5d26-b00d-523afa48e8a4",
+              "name": "notice_days",
+              "value": "{\"<leave type>\": 0}",
+              "type": "object"
+            },
+            {
+              "id": "d35679d2-e606-5219-a96d-089370a814e6",
+              "name": "remind_working_days",
+              "value": 2,
+              "type": "number"
+            },
+            {
+              "id": "e42cc0a8-a5b3-536a-9400-7eb04746da13",
+              "name": "standin_working_days",
+              "value": 4,
+              "type": "number"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "222c2c1e-e335-52e1-9a7d-15784f565f0c",
+      "name": "Config",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        260,
+        600
+      ],
+      "notes": "Edit these values for your company; nothing else in the workflow hard-codes them.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "afc8aecc-ec36-5bd2-a364-e1acfe1b2553",
+                    "leftValue": "={{ $('Step 6: Manager decides').isExecuted ? 'decision' : $('Step 6: Morning reminders').isExecuted ? 'morning' : 'request' }}",
+                    "rightValue": "request",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "request"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "56ebc580-ba63-55d0-a82b-7e538fc0657b",
+                    "leftValue": "={{ $('Step 6: Manager decides').isExecuted ? 'decision' : $('Step 6: Morning reminders').isExecuted ? 'morning' : 'request' }}",
+                    "rightValue": "decision",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "decision"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "0f640171-9f73-547a-8df4-c4304e0c1899",
+                    "leftValue": "={{ $('Step 6: Manager decides').isExecuted ? 'decision' : $('Step 6: Morning reminders').isExecuted ? 'morning' : 'request' }}",
+                    "rightValue": "morning",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "morning"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "859d1a0f-010d-5469-917f-15473f4fc366",
+      "name": "Which event?",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        1040,
+        600
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Config').item.json.employees_url }}/employees",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "_wrap",
+              "value": "1"
+            },
+            {
+              "name": "email",
+              "value": "={{ $('Step 1: Request or cancellation').first().json.body.employee }}"
+            }
+          ]
+        }
+      },
+      "id": "965b725c-63d1-5423-beaf-1655a1934ffd",
+      "name": "Step 2: Read the employee list",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1300,
+        0
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "\n// Step 2: an unlisted requester gets nothing sent and HR is told; sick or family leave goes to HR alone.\nconst cfg = $('Config').first().json;\nconst b = $('Step 1: Request or cancellation').first().json.body;\nconst employee = ($('Step 2: Read the employee list').first().json.items || [])[0] || null;\nlet route = 'check';\nif (!employee) route = 'unlisted';\nelse if (b.action === 'cancel') route = 'cancel';\nelse if ((cfg.protected_types || []).map(t => String(t).toLowerCase()).includes(String(b.type || '').toLowerCase())) route = 'hr';\nreturn [{ json: { route, employee } }];\n"
+      },
+      "id": "2e0a418a-0644-5188-9c8d-159596e85dcf",
+      "name": "Step 2: Rule: listed? protected?",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1560,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "03d9b4c2-27b2-5024-98a4-a6dff53f769a",
+                    "leftValue": "={{ $json.route }}",
+                    "rightValue": "check",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "check"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "3c086498-c37b-5ed2-833f-5691b084cacc",
+                    "leftValue": "={{ $json.route }}",
+                    "rightValue": "hr",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "hr"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "35cc2572-b92c-522b-9393-684b1b6dcffd",
+                    "leftValue": "={{ $json.route }}",
+                    "rightValue": "unlisted",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "unlisted"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "417a6c00-8427-5c02-9e18-2712a8e18aea",
+                    "leftValue": "={{ $json.route }}",
+                    "rightValue": "cancel",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "cancel"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "76d55dc1-8142-59d6-b9dd-024ff7e3ac38",
+      "name": "Route",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        1820,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "={{ $('Config').item.json.requests_url }}/requests/{{ $('Step 1: Request or cancellation').first().json.body.request_id }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ id: $('Step 1: Request or cancellation').first().json.body.request_id, employee_id: $('Step 2: Rule: listed? protected?').first().json.employee.id, employee: $('Step 1: Request or cancellation').first().json.body.employee, name: $('Step 2: Rule: listed? protected?').first().json.employee.name, type: $('Step 1: Request or cancellation').first().json.body.type, start: $('Step 1: Request or cancellation').first().json.body.start, end: $('Step 1: Request or cancellation').first().json.body.end, status: 'with HR', decider: $('Config').first().json.hr_owner, sent_on: new Date().toISOString().slice(0, 10) }) }}"
+      },
+      "id": "5d8e2743-dcce-5c29-a10e-1244883faff0",
+      "name": "Step 2: To HR alone",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2080,
+        -400
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').item.json.messaging_url }}/messages",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ to: $('Config').first().json.hr_owner, subject: 'Leave request ' + $('Step 1: Request or cancellation').first().json.body.request_id + ' for you alone', text: $('Step 2: Rule: listed? protected?').first().json.employee.name + ': ' + $('Step 1: Request or cancellation').first().json.body.type + ' leave, ' + $('Step 1: Request or cancellation').first().json.body.start + ' to ' + $('Step 1: Request or cancellation').first().json.body.end + '. Not sent to the manager.' }) }}"
+      },
+      "id": "5b974f04-5509-529b-b04f-528a11a96ec2",
+      "name": "Step 2: Send it to Aisha",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2340,
+        -400
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO decision_log (recipe, item, decision, rules) VALUES ($1, $2, $3, $4::jsonb) RETURNING id",
+        "options": {
+          "queryReplacement": "={{ [\"R9.3\", $('Step 1: Request or cancellation').first().json.body.request_id, 'to HR alone', JSON.stringify({ route: 'protected type' })] }}"
+        }
+      },
+      "id": "998a2911-ab9d-57b0-9b4d-b099bd313502",
+      "name": "Step 2: Decision log: to HR alone",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2600,
+        -400
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "Decision log: the item's ID, the decision and the rules; never the content (book Chapter 3).",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO exception_queue (recipe, item, reason, detail, owner) VALUES ($1, $2, $3, $4, $5) RETURNING id",
+        "options": {
+          "queryReplacement": "={{ [\"R9.3\", $('Step 1: Request or cancellation').first().json.body.request_id, \"unlisted requester\", 'Requester ' + $('Step 1: Request or cancellation').first().json.body.employee + ' is not on the employee list; nothing sent', $('Config').first().json.hr_owner] }}"
+        }
+      },
+      "id": "831b84d3-bc4d-5a70-af37-12b310f35f22",
+      "name": "Step 2: Exception queue: unlisted requester",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2080,
+        -240
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "Exception queue: a named person works through it (book Chapters 2 and 16).",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').item.json.messaging_url }}/messages",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ to: $('Config').first().json.hr_owner, subject: 'Leave request from an unlisted requester', text: $('Step 1: Request or cancellation').first().json.body.employee + ' asked for ' + $('Step 1: Request or cancellation').first().json.body.type + ' leave, ' + $('Step 1: Request or cancellation').first().json.body.start + ' to ' + $('Step 1: Request or cancellation').first().json.body.end + '. Nothing was sent.' }) }}"
+      },
+      "id": "064ce5d0-1d37-51da-9f95-2d8306610db3",
+      "name": "Step 2: Tell Aisha",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2340,
+        -240
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Config').item.json.requests_url }}/requests",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "_wrap",
+              "value": "1"
+            },
+            {
+              "name": "id",
+              "value": "={{ $('Step 1: Request or cancellation').first().json.body.request_id }}"
+            }
+          ]
+        }
+      },
+      "id": "346f0809-bf9e-5f44-84ed-51680f97b7e3",
+      "name": "Step 8: Read the request to cancel",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2080,
+        -80
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "\n// Step 8: a cancellation of a request that is not already closed.\nconst r = ($('Step 8: Read the request to cancel').first().json.items || [])[0];\nif (!r || ['cancelled', 'declined'].includes(r.status)) return [];\nreturn [{ json: Object.assign({}, r, { was: r.status }) }];\n"
+      },
+      "id": "76ca0353-4d6d-5607-a884-c1b784fca08e",
+      "name": "Step 8: Rule: still cancellable?",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2340,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $('Config').item.json.requests_url }}/requests/{{ $json.id }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ status: 'cancelled', cancelled_on: new Date().toISOString().slice(0, 10) }) }}"
+      },
+      "id": "9fad6a46-28e5-51d2-aa17-95d8dbb0f9bc",
+      "name": "Step 8: Mark it cancelled",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2600,
+        -80
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').item.json.messaging_url }}/messages",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ to: $('Config').first().json.hr_owner, subject: 'Leave cancelled: ' + $('Step 8: Rule: still cancellable?').item.json.id, text: $('Step 8: Rule: still cancellable?').item.json.name + ' cancelled ' + $('Step 8: Rule: still cancellable?').item.json.type + ' leave, ' + $('Step 8: Rule: still cancellable?').item.json.start + ' to ' + $('Step 8: Rule: still cancellable?').item.json.end + ' (was ' + $('Step 8: Rule: still cancellable?').item.json.was + '). Reverse it if recorded.' }) }}"
+      },
+      "id": "c1cee4e4-128a-5656-b6bf-e5f793091fda",
+      "name": "Step 8: Ask Aisha to reverse it",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2860,
+        -80
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH reserved AS (INSERT INTO key_log (recipe, key, status) VALUES ($1, $2, 'in progress') ON CONFLICT (recipe, key) DO UPDATE SET status = 'in progress', result = NULL, reserved_at = now() WHERE key_log.status = 'done' RETURNING key), skipped AS (UPDATE key_log SET copies_skipped = copies_skipped + 1 WHERE recipe = $1 AND key = $2 AND NOT EXISTS (SELECT 1 FROM reserved)) SELECT (SELECT count(*) FROM reserved) = 1 AS is_new, $2::text AS key",
+        "options": {
+          "queryReplacement": "={{ [\"R9.3\", $('Step 2: Rule: listed? protected?').first().json.employee.id + ':' + $('Step 1: Request or cancellation').first().json.body.type + ':' + $('Step 1: Request or cancellation').first().json.body.start + ':' + $('Step 1: Request or cancellation').first().json.body.end] }}"
+        }
+      },
+      "id": "b4631e65-696e-5856-84a2-c6aa3a051be0",
+      "name": "Step 3: Reserve key",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2080,
+        160
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "Key log: an open request with the same employee, type and dates stops here; a closed one may be asked again.",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.is_new }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "id": "fab7ba93-8cd4-58d8-be64-cf354b790bed"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "2d3b3eb1-9e0f-5bb6-b356-d969cea5fb2a",
+      "name": "New or closed key?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2340,
+        160
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "b039de5f-4477-5c3e-a9fd-9aadbde9c260",
+      "name": "Open duplicate: stop",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        2600,
+        40
+      ],
+      "notes": "The same request is already open.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Config').item.json.balances_url }}/balances",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "_wrap",
+              "value": "1"
+            },
+            {
+              "name": "employee_id",
+              "value": "={{ $('Step 2: Rule: listed? protected?').first().json.employee.id }}"
+            }
+          ]
+        }
+      },
+      "id": "d0c8f8da-3684-56fe-a299-6acb976649a8",
+      "name": "Step 4: Read today's balance",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2600,
+        200
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Config').item.json.requests_url }}/requests",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "_wrap",
+              "value": "1"
+            }
+          ]
+        }
+      },
+      "id": "9bd60c12-97f0-5ff6-9c47-0106249908f3",
+      "name": "Step 5: Read the request list",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2860,
+        200
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "\nconst isoToday = () => new Date().toISOString().slice(0, 10);\nconst day = d => new Date(String(d).slice(0, 10) + 'T00:00:00Z');\nconst isDate = d => /^\\d{4}-\\d{2}-\\d{2}$/.test(String(d || '')) && !isNaN(day(d));\n// Working days (Monday to Friday) after the date, up to and including today.\nfunction workingDaysSince(d) {\n  let n = 0;\n  for (let x = new Date(day(d).getTime() + 86400000); x <= day(isoToday()); x = new Date(x.getTime() + 86400000)) {\n    if (x.getUTCDay() % 6 !== 0) n++;\n  }\n  return n;\n}\n\n// Step 4 and step 5: today's balance, then dates, notice, balance less open requests, overlap.\n// Each failure is a warning for the manager; none ends the request.\nconst cfg = $('Config').first().json;\nconst b = $('Step 1: Request or cancellation').first().json.body;\nconst emp = $('Step 2: Rule: listed? protected?').first().json.employee;\nconst all = $('Step 5: Read the request list').first().json.items || [];\nconst OPEN = ['with manager', 'with stand-in'];\nconst TAKEN = ['with manager', 'with stand-in', 'approved'];\nconst overlaps = r => isDate(r.start) && isDate(r.end) && day(r.start) <= day(b.end) && day(r.end) >= day(b.start);\nconst workDays = emp.work_days || [1, 2, 3, 4, 5];\nconst warnings = [];\nlet days = 0;\nconst valid = isDate(b.start) && isDate(b.end) && day(b.end) >= day(b.start) && day(b.start) >= day(isoToday());\nif (valid) {\n  for (let x = day(b.start); x <= day(b.end); x = new Date(x.getTime() + 86400000)) if (workDays.includes(x.getUTCDay() || 7)) days++;\n}\nif (!valid || days === 0) warnings.push('dates not valid');\nconst notice = Number((cfg.notice_days || {})[b.type] || 0);\nconst given = valid ? Math.round((day(b.start) - day(isoToday())) / 86400000) : 0;\nif (valid && given < notice) warnings.push(`notice not met: ${given} days given, ${notice} needed`);\nconst balance = ($('Step 4: Read today\\'s balance').first().json.items || []).find(r => r.type === b.type);\nlet available = null;\nif (!balance || String(balance.as_of).slice(0, 10) !== isoToday()) warnings.push('balance not checked');\nelse {\n  const open = all.filter(r => r.employee_id === emp.id && r.type === b.type && OPEN.includes(r.status) && r.id !== b.request_id);\n  available = Number(balance.days) - open.reduce((s, r) => s + Number(r.days || 0), 0);\n  if (available < days) warnings.push(`balance less open requests (${available}) does not cover ${days} days`);\n}\nconst own = all.filter(r => r.employee_id === emp.id && r.id !== b.request_id && TAKEN.includes(r.status) && overlaps(r));\nif (own.length) warnings.push('overlaps request ' + own.map(r => r.id).join(', '));\nconst others = all.filter(r => r.employee_id !== emp.id && r.manager === emp.manager && TAKEN.includes(r.status) && overlaps(r));\nreturn [{ json: { days, warnings, available, who_else_off: [...new Set(others.map(r => r.name))] } }];\n"
+      },
+      "id": "4900fe33-cff9-5c0c-bf14-6832a6f58bdb",
+      "name": "Step 5: Rules: dates, notice, balance, overlap",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3120,
+        200
+      ],
+      "notes": "Warnings tell the manager a fact; never a reason to refuse.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "={{ $('Config').item.json.requests_url }}/requests/{{ $('Step 1: Request or cancellation').first().json.body.request_id }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ id: $('Step 1: Request or cancellation').first().json.body.request_id, key: $('Step 2: Rule: listed? protected?').first().json.employee.id + ':' + $('Step 1: Request or cancellation').first().json.body.type + ':' + $('Step 1: Request or cancellation').first().json.body.start + ':' + $('Step 1: Request or cancellation').first().json.body.end, employee_id: $('Step 2: Rule: listed? protected?').first().json.employee.id, employee: $('Step 1: Request or cancellation').first().json.body.employee, name: $('Step 2: Rule: listed? protected?').first().json.employee.name, type: $('Step 1: Request or cancellation').first().json.body.type, start: $('Step 1: Request or cancellation').first().json.body.start, end: $('Step 1: Request or cancellation').first().json.body.end, days: $json.days, warnings: $json.warnings, who_else_off: $json.who_else_off, manager: $('Step 2: Rule: listed? protected?').first().json.employee.manager, stand_in: $('Step 2: Rule: listed? protected?').first().json.employee.stand_in, decider: $('Step 2: Rule: listed? protected?').first().json.employee.manager, status: 'with manager', sent_on: new Date().toISOString().slice(0, 10), reminded: false }) }}"
+      },
+      "id": "50d5d7b4-b596-5472-8375-3c118b7ee88b",
+      "name": "Step 6: Put it before the manager",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3380,
+        200
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').item.json.messaging_url }}/messages",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ to: $('Step 2: Rule: listed? protected?').first().json.employee.manager, subject: 'Leave request ' + $('Step 1: Request or cancellation').first().json.body.request_id + ' from ' + $('Step 2: Rule: listed? protected?').first().json.employee.name, text: $('Step 1: Request or cancellation').first().json.body.type + ' leave, ' + $('Step 1: Request or cancellation').first().json.body.start + ' to ' + $('Step 1: Request or cancellation').first().json.body.end + ' (' + $('Step 5: Rules: dates, notice, balance, overlap').first().json.days + ' days). Warnings: ' + ($('Step 5: Rules: dates, notice, balance, overlap').first().json.warnings.join('; ') || 'none') + '. Also off: ' + ($('Step 5: Rules: dates, notice, balance, overlap').first().json.who_else_off.join(', ') || 'nobody') + '.' }) }}"
+      },
+      "id": "0aad85a4-a6eb-59b6-9b68-2a3bc3ab6bb7",
+      "name": "Step 6: Ask the manager",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3640,
+        200
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO decision_log (recipe, item, decision, rules) VALUES ($1, $2, $3, $4::jsonb) RETURNING id",
+        "options": {
+          "queryReplacement": "={{ [\"R9.3\", $('Step 1: Request or cancellation').first().json.body.request_id, 'to the manager', JSON.stringify({ days: $('Step 5: Rules: dates, notice, balance, overlap').first().json.days, warnings: $('Step 5: Rules: dates, notice, balance, overlap').first().json.warnings })] }}"
+        }
+      },
+      "id": "e38220e2-4d9b-5c78-ab3d-799c23c6cf56",
+      "name": "Step 8: Decision log: to the manager",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        3900,
+        200
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "Decision log: the item's ID, the decision and the rules; never the content (book Chapter 3).",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Config').item.json.requests_url }}/requests",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "_wrap",
+              "value": "1"
+            },
+            {
+              "name": "id",
+              "value": "={{ $('Step 6: Manager decides').first().json.body.request_id }}"
+            }
+          ]
+        }
+      },
+      "id": "9ccf98ba-02cd-5832-a678-73abb633f881",
+      "name": "Step 6: Read the request",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1300,
+        900
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "\n// Step 6: the manager, stand-in or HR decides a request that is still open.\nconst d = $('Step 6: Manager decides').first().json.body;\nconst r = ($('Step 6: Read the request').first().json.items || [])[0];\nif (!r || !['with manager', 'with stand-in', 'with HR'].includes(r.status) || !['approved', 'declined'].includes(d.decision)) return [];\nreturn [{ json: Object.assign({}, r, { decision: d.decision, decided_by: d.by || r.decider, decided_on: new Date().toISOString().slice(0, 10) }) }];\n"
+      },
+      "id": "de1c4a40-fc77-5d67-bdae-7874ee54cded",
+      "name": "Step 6: Rule: still open?",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1560,
+        900
+      ]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $('Config').item.json.requests_url }}/requests/{{ $json.id }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ status: $json.decision, decided_by: $json.decided_by, decided_on: $json.decided_on }) }}"
+      },
+      "id": "f9b97a7b-3c0e-5f58-a153-2ebd921722de",
+      "name": "Step 6: Record the decision",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1820,
+        900
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $('Step 6: Rule: still open?').item.json.decision }}",
+              "rightValue": "approved",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              },
+              "id": "cab2460c-e1d6-5699-975d-5c3962231a4c"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "761c7fc2-c7f8-5c7f-8db9-3d8621ed7074",
+      "name": "Approved?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2080,
+        900
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').item.json.record_list_url }}/items",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ request_id: $('Step 6: Rule: still open?').item.json.id, employee_id: $('Step 6: Rule: still open?').item.json.employee_id, name: $('Step 6: Rule: still open?').item.json.name, type: $('Step 6: Rule: still open?').item.json.type, start: $('Step 6: Rule: still open?').item.json.start, end: $('Step 6: Rule: still open?').item.json.end, days: $('Step 6: Rule: still open?').item.json.days, warnings: $('Step 6: Rule: still open?').item.json.warnings || [], decided_by: $('Step 6: Rule: still open?').item.json.decided_by, task: 'Re-check the balance as you record it' }) }}"
+      },
+      "id": "5fae0bbb-f36b-57fe-bf0e-e3d7c9f51460",
+      "name": "Step 7: To Aisha's to-record list",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2340,
+        820
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').item.json.messaging_url }}/messages",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ to: $('Step 6: Rule: still open?').item.json.employee, subject: 'Your leave request ' + $('Step 6: Rule: still open?').item.json.id + ' was ' + $('Step 6: Rule: still open?').item.json.decision, text: $('Step 6: Rule: still open?').item.json.type + ' leave, ' + $('Step 6: Rule: still open?').item.json.start + ' to ' + $('Step 6: Rule: still open?').item.json.end + ': ' + $('Step 6: Rule: still open?').item.json.decision + ' by ' + $('Step 6: Rule: still open?').item.json.decided_by + '.' }) }}"
+      },
+      "id": "593ce4d3-5a91-515a-bc99-19d3ab07a775",
+      "name": "Step 8: Notify the employee",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2600,
+        900
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE key_log SET status = $3, result = $4 WHERE recipe = $1 AND key = $2 RETURNING key",
+        "options": {
+          "queryReplacement": "={{ [\"R9.3\", $('Step 6: Rule: still open?').item.json.key || '', \"done\", 'closed: ' + $('Step 6: Rule: still open?').item.json.decision] }}"
+        }
+      },
+      "id": "20bf5c51-dbbf-5987-9d8a-03648bd77738",
+      "name": "Close the key",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2860,
+        900
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO decision_log (recipe, item, decision, rules) VALUES ($1, $2, $3, $4::jsonb) RETURNING id",
+        "options": {
+          "queryReplacement": "={{ [\"R9.3\", $('Step 6: Rule: still open?').item.json.id, $('Step 6: Rule: still open?').item.json.decision, JSON.stringify({ decided_by: $('Step 6: Rule: still open?').item.json.decided_by, warnings: $('Step 6: Rule: still open?').item.json.warnings || [] })] }}"
+        }
+      },
+      "id": "2e332e47-fb2b-5a2c-9a2b-495168557fab",
+      "name": "Step 8: Decision log: decided",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        3120,
+        900
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "Decision log: the item's ID, the decision and the rules; never the content (book Chapter 3).",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').item.json.messaging_url }}/messages",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ to: $('Step 8: Rule: still cancellable?').item.json.employee, subject: 'Your leave request ' + $('Step 8: Rule: still cancellable?').item.json.id + ' is cancelled', text: $('Step 8: Rule: still cancellable?').item.json.type + ' leave, ' + $('Step 8: Rule: still cancellable?').item.json.start + ' to ' + $('Step 8: Rule: still cancellable?').item.json.end + ' is cancelled.' }) }}"
+      },
+      "id": "d82044a6-5363-555e-8b8e-4ac97f2ceb70",
+      "name": "Step 8: Notify the employee of the cancellation",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3120,
+        -80
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE key_log SET status = $3, result = $4 WHERE recipe = $1 AND key = $2 RETURNING key",
+        "options": {
+          "queryReplacement": "={{ [\"R9.3\", $('Step 8: Rule: still cancellable?').item.json.key || '', \"done\", 'closed: cancelled'] }}"
+        }
+      },
+      "id": "58e52820-9cf9-51dd-8d8a-96f23b0c6d81",
+      "name": "Close the key: cancelled",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        3380,
+        -80
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO decision_log (recipe, item, decision, rules) VALUES ($1, $2, $3, $4::jsonb) RETURNING id",
+        "options": {
+          "queryReplacement": "={{ [\"R9.3\", $('Step 8: Rule: still cancellable?').item.json.id, 'cancelled', JSON.stringify({ was: $('Step 8: Rule: still cancellable?').item.json.was })] }}"
+        }
+      },
+      "id": "0d91b7ae-a15d-5eb3-bc13-c803605c7d3b",
+      "name": "Step 8: Decision log: cancelled",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        3640,
+        -80
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "Decision log: the item's ID, the decision and the rules; never the content (book Chapter 3).",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Config').item.json.requests_url }}/requests",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "_wrap",
+              "value": "1"
+            },
+            {
+              "name": "status",
+              "value": "with manager"
+            }
+          ]
+        }
+      },
+      "id": "015ab2a0-5811-5676-8c09-424ac7168b55",
+      "name": "Step 6: Read requests with the manager",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1300,
+        1200
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "\nconst isoToday = () => new Date().toISOString().slice(0, 10);\nconst day = d => new Date(String(d).slice(0, 10) + 'T00:00:00Z');\nconst isDate = d => /^\\d{4}-\\d{2}-\\d{2}$/.test(String(d || '')) && !isNaN(day(d));\n// Working days (Monday to Friday) after the date, up to and including today.\nfunction workingDaysSince(d) {\n  let n = 0;\n  for (let x = new Date(day(d).getTime() + 86400000); x <= day(isoToday()); x = new Date(x.getTime() + 86400000)) {\n    if (x.getUTCDay() % 6 !== 0) n++;\n  }\n  return n;\n}\n\n// Step 6: remind the manager at 2 working days; at 4 go to the stand-in and tell HR.\nconst cfg = $('Config').first().json;\nconst open = $('Step 6: Read requests with the manager').first().json.items || [];\nconst out = [];\nfor (const r of open) {\n  const n = workingDaysSince(r.sent_on);\n  if (n >= cfg.standin_working_days) out.push({ json: Object.assign({}, r, { action: 'stand-in', waited: n }) });\n  else if (n >= cfg.remind_working_days && !r.reminded) out.push({ json: Object.assign({}, r, { action: 'remind', waited: n }) });\n}\nreturn out;\n"
+      },
+      "id": "d1f9eb76-6a08-5cb1-b971-3a956eccdcfa",
+      "name": "Step 6: Rule: 2 or 4 working days?",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1560,
+        1200
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "9a3c9a5b-8103-5fe1-b7a4-3cd8e5580786",
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "remind",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "remind"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "8d2a3ec6-4427-5c18-8a56-b3943a21e651",
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "stand-in",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "stand-in"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "d2931e81-a3db-5e68-9902-a4fa64de4039",
+      "name": "Remind or stand-in?",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        1820,
+        1200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').item.json.messaging_url }}/messages",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ to: $('Step 6: Rule: 2 or 4 working days?').item.json.manager, subject: 'Reminder: leave request ' + $('Step 6: Rule: 2 or 4 working days?').item.json.id + ' from ' + $('Step 6: Rule: 2 or 4 working days?').item.json.name, text: 'Waiting ' + $('Step 6: Rule: 2 or 4 working days?').item.json.waited + ' working days. Warnings: ' + (($('Step 6: Rule: 2 or 4 working days?').item.json.warnings || []).join('; ') || 'none') }) }}"
+      },
+      "id": "300b2447-c3ea-5034-b520-93dbd5a9f37e",
+      "name": "Step 6: Remind the manager",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2080,
+        1120
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $('Config').item.json.requests_url }}/requests/{{ $('Step 6: Rule: 2 or 4 working days?').item.json.id }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ reminded: true }) }}"
+      },
+      "id": "9e5b058a-d7a0-5b4d-b1d6-47b35fbcf1c9",
+      "name": "Step 6: Mark reminded",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2340,
+        1120
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $('Config').item.json.requests_url }}/requests/{{ $json.id }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ status: 'with stand-in', decider: $json.stand_in }) }}"
+      },
+      "id": "d5fd6b0d-1a23-5ab5-896f-02d13d86486a",
+      "name": "Step 6: Move it to the stand-in",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2080,
+        1300
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').item.json.messaging_url }}/messages",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ to: $('Step 6: Rule: 2 or 4 working days?').item.json.stand_in, subject: 'Leave request ' + $('Step 6: Rule: 2 or 4 working days?').item.json.id + ' from ' + $('Step 6: Rule: 2 or 4 working days?').item.json.name + ': please decide', text: $('Step 6: Rule: 2 or 4 working days?').item.json.manager + ' has not answered in ' + $('Step 6: Rule: 2 or 4 working days?').item.json.waited + ' working days. Warnings: ' + (($('Step 6: Rule: 2 or 4 working days?').item.json.warnings || []).join('; ') || 'none') }) }}"
+      },
+      "id": "fbf3fbd4-fa5a-54bb-b812-ac5ea1fad1f6",
+      "name": "Step 6: Ask the stand-in",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2340,
+        1300
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').item.json.messaging_url }}/messages",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ to: $('Config').first().json.hr_owner, subject: 'Leave request ' + $('Step 6: Rule: 2 or 4 working days?').item.json.id + ' moved to the stand-in', text: 'No answer from ' + $('Step 6: Rule: 2 or 4 working days?').item.json.manager + ' in ' + $('Step 6: Rule: 2 or 4 working days?').item.json.waited + ' working days; sent to ' + $('Step 6: Rule: 2 or 4 working days?').item.json.stand_in + '.' }) }}"
+      },
+      "id": "01130427-90b2-5734-9581-d5b0d0771d53",
+      "name": "Step 6: Tell Aisha",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2600,
+        1300
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO exception_queue (recipe, item, reason, detail, owner) VALUES ($1, $2, $3, $4, $5) RETURNING id",
+        "options": {
+          "queryReplacement": "={{ [\"R9.3\", $('Step 6: Rule: still open?').item.json.id, \"employee notice failed\", 'The employee was not told (' + (($json.error && $json.error.message) || 'send error') + '); HR tells them', $('Config').first().json.hr_owner] }}"
+        }
+      },
+      "id": "b7b6c754-f6e4-5789-ba1f-aa3cc27c306b",
+      "name": "Exception queue: employee notice failed",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2860,
+        1100
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "Exception queue: a named person works through it (book Chapters 2 and 16).",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO exception_queue (recipe, item, reason, detail, owner) VALUES ($1, $2, $3, $4, $5) RETURNING id",
+        "options": {
+          "queryReplacement": "={{ [\"R9.3\", $('Step 8: Rule: still cancellable?').item.json.id, \"employee notice failed\", 'The employee was not told of the cancellation; HR tells them', $('Config').first().json.hr_owner] }}"
+        }
+      },
+      "id": "f72dda92-c6e8-5bbd-920a-6299811d93d0",
+      "name": "Exception queue: cancellation notice failed",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        3380,
+        100
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "Exception queue: a named person works through it (book Chapters 2 and 16).",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE key_log SET status = $3, result = $4 WHERE recipe = $1 AND key = $2 RETURNING key",
+        "options": {
+          "queryReplacement": "={{ [\"R9.3\", $('Step 2: Rule: listed? protected?').first().json.employee.id + ':' + $('Step 1: Request or cancellation').first().json.body.type + ':' + $('Step 1: Request or cancellation').first().json.body.start + ':' + $('Step 1: Request or cancellation').first().json.body.end, \"failed\", 'write failed: ' + (($json.error && $json.error.message) || 'unknown')] }}"
+        }
+      },
+      "id": "0cb7cabf-128f-59e9-828c-d5fcad31a637",
+      "name": "Mark key failed",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        3640,
+        500
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO exception_queue (recipe, item, reason, detail, owner) VALUES ($1, $2, $3, $4, $5) RETURNING id",
+        "options": {
+          "queryReplacement": "={{ [\"R9.3\", $('Step 1: Request or cancellation').first().json.body.request_id, \"write failed\", 'The request or the manager message was not written, never retried; check it', $('Config').first().json.hr_owner] }}"
+        }
+      },
+      "id": "5be94535-a796-5ca9-9404-e4d34c607917",
+      "name": "Exception queue: request write failed",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        3900,
+        500
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "Exception queue: a named person works through it (book Chapters 2 and 16).",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO exception_queue (recipe, item, reason, detail, owner) VALUES ($1, $2, $3, $4, $5) RETURNING id",
+        "options": {
+          "queryReplacement": "={{ [\"R9.3\", ($('Step 1: Request or cancellation').isExecuted ? $('Step 1: Request or cancellation').first().json.body.request_id : $('Step 6: Manager decides').first().json.body.request_id), \"write failed\", 'A leave write failed, never retried: ' + (($json.error && $json.error.message) || 'unknown'), $('Config').first().json.hr_owner] }}"
+        }
+      },
+      "id": "e9d7a708-0176-5d5c-a231-0ccf262259ab",
+      "name": "Exception queue: write failed",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        3900,
+        700
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "Exception queue: a named person works through it (book Chapters 2 and 16).",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO exception_queue (recipe, item, reason, detail, owner) VALUES ($1, $2, $3, $4, $5) RETURNING id",
+        "options": {
+          "queryReplacement": "={{ [\"R9.3\", $('Step 6: Rule: 2 or 4 working days?').item.json.id, \"reminder failed\", 'A reminder or stand-in step failed, never retried; chase the decider', $('Config').first().json.hr_owner] }}"
+        }
+      },
+      "id": "bc77a4ac-5497-562c-ad8e-db3a0e872611",
+      "name": "Exception queue: reminder failed",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2860,
+        1500
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "Exception queue: a named person works through it (book Chapters 2 and 16).",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Config').item.json.stop_flag_url }}",
+        "options": {}
+      },
+      "id": "d098649c-0691-5487-a812-92b5c9d5f720",
+      "name": "Stop flag: read",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        520,
+        600
+      ],
+      "notes": "Kill switch: set stopped to true in your stop list and the next run ends quietly (book Chapter 3).",
+      "notesInFlow": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.stopped === true }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "id": "b73dc334-d821-5c0c-9458-e750e7bca990"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "83c45a95-b8ef-543d-9a07-37b6875b13d5",
+      "name": "Stop flag set?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        780,
+        600
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "bec78faa-b99a-5e39-804e-303b1790bfd7",
+      "name": "Stopped by the stop flag",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        1040,
+        400
+      ],
+      "notes": "Ends quietly; nothing is read, written or sent.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO exception_queue (recipe, item, reason, detail, owner) VALUES ($1, $2, $3, $4, $5) RETURNING id",
+        "options": {
+          "queryReplacement": "={{ [\"R9.3\", 'run ' + $execution.id, \"stop list unreadable\", 'The stop list could not be read, so the run stopped; fix the stop list', '<your workflow owner>'] }}"
+        }
+      },
+      "id": "ce652734-f579-541d-a3a6-f13a19148d24",
+      "name": "Exception queue: stop list unreadable",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        780,
+        820
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "Exception queue: a named person works through it (book Chapters 2 and 16).",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    }
+  ],
+  "connections": {
+    "Step 1: Request or cancellation": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 6: Manager decides": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 6: Morning reminders": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Which event?": {
+      "main": [
+        [
+          {
+            "node": "Step 2: Read the employee list",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Step 6: Read the request",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Step 6: Read requests with the manager",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 2: Read the employee list": {
+      "main": [
+        [
+          {
+            "node": "Step 2: Rule: listed? protected?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 2: Rule: listed? protected?": {
+      "main": [
+        [
+          {
+            "node": "Route",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route": {
+      "main": [
+        [
+          {
+            "node": "Step 3: Reserve key",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Step 2: To HR alone",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Step 2: Exception queue: unlisted requester",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Step 8: Read the request to cancel",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 2: To HR alone": {
+      "main": [
+        [
+          {
+            "node": "Step 2: Send it to Aisha",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Exception queue: write failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 2: Send it to Aisha": {
+      "main": [
+        [
+          {
+            "node": "Step 2: Decision log: to HR alone",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Exception queue: write failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 2: Exception queue: unlisted requester": {
+      "main": [
+        [
+          {
+            "node": "Step 2: Tell Aisha",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 8: Read the request to cancel": {
+      "main": [
+        [
+          {
+            "node": "Step 8: Rule: still cancellable?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 8: Rule: still cancellable?": {
+      "main": [
+        [
+          {
+            "node": "Step 8: Mark it cancelled",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 8: Mark it cancelled": {
+      "main": [
+        [
+          {
+            "node": "Step 8: Ask Aisha to reverse it",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Exception queue: write failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 3: Reserve key": {
+      "main": [
+        [
+          {
+            "node": "New or closed key?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "New or closed key?": {
+      "main": [
+        [
+          {
+            "node": "Step 4: Read today's balance",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Open duplicate: stop",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 4: Read today's balance": {
+      "main": [
+        [
+          {
+            "node": "Step 5: Read the request list",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 5: Read the request list": {
+      "main": [
+        [
+          {
+            "node": "Step 5: Rules: dates, notice, balance, overlap",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 5: Rules: dates, notice, balance, overlap": {
+      "main": [
+        [
+          {
+            "node": "Step 6: Put it before the manager",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 6: Put it before the manager": {
+      "main": [
+        [
+          {
+            "node": "Step 6: Ask the manager",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark key failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 6: Ask the manager": {
+      "main": [
+        [
+          {
+            "node": "Step 8: Decision log: to the manager",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark key failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 6: Read the request": {
+      "main": [
+        [
+          {
+            "node": "Step 6: Rule: still open?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 6: Rule: still open?": {
+      "main": [
+        [
+          {
+            "node": "Step 6: Record the decision",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 6: Record the decision": {
+      "main": [
+        [
+          {
+            "node": "Approved?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Exception queue: write failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Approved?": {
+      "main": [
+        [
+          {
+            "node": "Step 7: To Aisha's to-record list",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Step 8: Notify the employee",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 7: To Aisha's to-record list": {
+      "main": [
+        [
+          {
+            "node": "Step 8: Notify the employee",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Exception queue: write failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 8: Notify the employee": {
+      "main": [
+        [
+          {
+            "node": "Close the key",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Exception queue: employee notice failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Close the key": {
+      "main": [
+        [
+          {
+            "node": "Step 8: Decision log: decided",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 8: Ask Aisha to reverse it": {
+      "main": [
+        [
+          {
+            "node": "Step 8: Notify the employee of the cancellation",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Exception queue: write failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 8: Notify the employee of the cancellation": {
+      "main": [
+        [
+          {
+            "node": "Close the key: cancelled",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Exception queue: cancellation notice failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Close the key: cancelled": {
+      "main": [
+        [
+          {
+            "node": "Step 8: Decision log: cancelled",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 6: Read requests with the manager": {
+      "main": [
+        [
+          {
+            "node": "Step 6: Rule: 2 or 4 working days?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 6: Rule: 2 or 4 working days?": {
+      "main": [
+        [
+          {
+            "node": "Remind or stand-in?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Remind or stand-in?": {
+      "main": [
+        [
+          {
+            "node": "Step 6: Remind the manager",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Step 6: Move it to the stand-in",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 6: Remind the manager": {
+      "main": [
+        [
+          {
+            "node": "Step 6: Mark reminded",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Exception queue: reminder failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 6: Move it to the stand-in": {
+      "main": [
+        [
+          {
+            "node": "Step 6: Ask the stand-in",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Exception queue: reminder failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 6: Ask the stand-in": {
+      "main": [
+        [
+          {
+            "node": "Step 6: Tell Aisha",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Exception queue: reminder failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark key failed": {
+      "main": [
+        [
+          {
+            "node": "Exception queue: request write failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 6: Mark reminded": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Exception queue: reminder failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 6: Tell Aisha": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Exception queue: reminder failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config": {
+      "main": [
+        [
+          {
+            "node": "Stop flag: read",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Stop flag: read": {
+      "main": [
+        [
+          {
+            "node": "Stop flag set?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Exception queue: stop list unreadable",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Stop flag set?": {
+      "main": [
+        [
+          {
+            "node": "Stopped by the stop flag",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Which event?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataSuccessExecution": "all",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "pinData": {}
+}

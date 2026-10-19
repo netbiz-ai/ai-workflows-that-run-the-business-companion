@@ -1,0 +1,103 @@
+{
+  "config": {
+    "register_url": "{mocks}/register",
+    "actions_url": "{mocks}/actions",
+    "directory_url": "{mocks}/directory",
+    "tasks_url": "{mocks}/tasks",
+    "minutes_url": "{mocks}/minutes",
+    "messaging_url": "{mocks}/messaging",
+    "register_owner": "tom@example.test",
+    "exception_owner": "owen@example.test"
+  },
+  "seed": {
+    "register": {"series": {
+      "S-DEL": {"id": "S-DEL", "name": "Delivery planning", "chair": "tom@example.test", "backup": "owen@example.test", "in_scope": true}
+    }},
+    "directory": {"staff": {
+      "U-1": {"id": "U-1", "name": "Tom Rivera", "email": "tom@example.test", "active": true},
+      "U-2": {"id": "U-2", "name": "Owen Clarke", "email": "owen@example.test", "active": true},
+      "U-3": {"id": "U-3", "name": "Nadia Ferreira", "email": "nadia@example.test", "active": true}
+    }},
+    "actions": {"items": {
+      "OCC-1-000412-1": {"id": "OCC-1-000412-1", "occurrence_id": "OCC-1", "series_id": "S-DEL", "status": "approved",
+                         "action": "Send reschedule list to crews", "owner": "Nadia Ferreira", "due_date": "{today+3}",
+                         "time_stamp": "00:04:12", "quoted_line": "Nadia, can you send the reschedule list to the crews by Thursday?",
+                         "source_link": "https://transcripts.example.test/TR-1?t=00%3A04%3A12"}
+    }},
+    "tasks": {"tasks": {}},
+    "minutes": {"entries": {}}
+  },
+  "cases": [
+    {"case": "Normal", "row": 1, "input": "Complete verified item",
+     "trigger": [{"webhook": "r14-2-list-verified", "body": {"series_id": "S-DEL", "occurrence_id": "OCC-1", "verified_by": "tom@example.test"}}],
+     "expect": [
+       {"mock": "tasks/tasks", "count": 1},
+       {"mock": "tasks/tasks/1", "field": "item_id", "equals": "OCC-1-000412-1"},
+       {"mock": "tasks/tasks/1", "field": "owner_email", "equals": "nadia@example.test"},
+       {"mock": "tasks/tasks/1", "field": "series", "equals": "Delivery planning"},
+       {"mock": "actions/items/OCC-1-000412-1", "field": "task_id", "equals": "1"},
+       {"mock": "actions/items/OCC-1-000412-1", "field": "verified_due_date", "equals": "{today+3}"},
+       {"mock": "messaging/messages", "count": 1},
+       {"mock": "messaging/messages/2", "field": "to", "equals": ["nadia@example.test"]},
+       {"sql": "select approved_by from decision_log where recipe='R14.2' and decision='task created'", "equals": "tom@example.test"}]},
+    {"case": "Edge", "row": 2, "input": "Due date still \"next week\"",
+     "seed": {"actions": {"items": {"OCC-1-000412-1": {"due_date": "next week"}}}},
+     "trigger": [{"webhook": "r14-2-list-verified", "body": {"series_id": "S-DEL", "occurrence_id": "OCC-1", "verified_by": "tom@example.test"}}],
+     "expect": [
+       {"mock": "tasks/tasks", "count": 0},
+       {"calls": "POST /tasks/tasks", "count": 0},
+       {"mock": "actions/items/OCC-1-000412-1", "field": "status", "equals": "returned"},
+       {"mock": "actions/items/OCC-1-000412-1", "field": "return_reason", "contains": "due date is not a calendar date"},
+       {"mock": "messaging/messages", "count": 1}]},
+    {"case": "Duplicate", "row": 3, "input": "Chair presses \"verified\" twice",
+     "trigger": [{"webhook": "r14-2-list-verified", "body": {"series_id": "S-DEL", "occurrence_id": "OCC-1", "verified_by": "tom@example.test"}, "pause": 3},
+                 {"webhook": "r14-2-list-verified", "body": {"series_id": "S-DEL", "occurrence_id": "OCC-1", "verified_by": "tom@example.test"}}],
+     "expect": [
+       {"calls": "POST /tasks/tasks", "count": 1},
+       {"mock": "tasks/tasks", "count": 1},
+       {"mock": "messaging/messages", "count": 1}]},
+    {"case": "Refuse", "row": 4, "input": "Verified by someone not registered",
+     "trigger": [{"webhook": "r14-2-list-verified", "body": {"series_id": "S-DEL", "occurrence_id": "OCC-1", "verified_by": "someone@example.test"}}],
+     "expect": [
+       {"calls": "POST /tasks/tasks", "count": 0},
+       {"calls": "GET /tasks/tasks", "count": 0},
+       {"sql": "select reason || ' / ' || owner from exception_queue where recipe='R14.2'", "equals": "verifier not chair or backup / tom@example.test"},
+       {"mock": "messaging/messages", "count": 1},
+       {"mock": "messaging/messages/1", "field": "to", "equals": ["tom@example.test"]}]},
+    {"case": "Owner has left", "row": 5, "input": "Owner's staff account inactive (companion extension)",
+     "seed": {"directory": {"staff": {"U-3": {"active": false}}}},
+     "trigger": [{"webhook": "r14-2-list-verified", "body": {"series_id": "S-DEL", "occurrence_id": "OCC-1", "verified_by": "owen@example.test"}}],
+     "expect": [
+       {"calls": "POST /tasks/tasks", "count": 0},
+       {"mock": "actions/items/OCC-1-000412-1", "field": "status", "equals": "returned"},
+       {"mock": "actions/items/OCC-1-000412-1", "field": "return_reason", "equals": "owner not an active staff account"},
+       {"mock": "messaging/messages/1", "field": "to", "equals": ["tom@example.test"]}]},
+    {"case": "Task system down", "row": 6, "input": "Task creation fails twice (companion extension)",
+     "fail": [{"method": "POST", "path": "/tasks/tasks", "status": 503, "times": 2}],
+     "trigger": [{"webhook": "r14-2-list-verified", "body": {"series_id": "S-DEL", "occurrence_id": "OCC-1", "verified_by": "tom@example.test"}}],
+     "expect": [
+       {"calls": "POST /tasks/tasks", "count": 2},
+       {"mock": "tasks/tasks", "count": 0},
+       {"mock": "actions/items/OCC-1-000412-1", "field": "task_id", "equals": null},
+       {"sql": "select reason || ' / ' || owner from exception_queue where recipe='R14.2'", "equals": "task system error / tom@example.test"},
+       {"mock": "messaging/messages", "count": 1},
+       {"mock": "messaging/messages/1", "field": "to", "equals": ["tom@example.test"]}]},
+    {"case": "Rerun", "row": 7, "input": "Rerun after a task was created but its ID not written back (companion extension)",
+     "seed": {"tasks": {"tasks": {"TK-7": {"id": "TK-7", "item_id": "OCC-1-000412-1", "title": "Send reschedule list to crews", "status": "open"}}}},
+     "trigger": [{"webhook": "r14-2-list-verified", "body": {"series_id": "S-DEL", "occurrence_id": "OCC-1", "verified_by": "tom@example.test"}}],
+     "expect": [
+       {"calls": "POST /tasks/tasks", "count": 0},
+       {"mock": "actions/items/OCC-1-000412-1", "field": "task_id", "equals": "TK-7"},
+       {"mock": "messaging/messages", "count": 0}]},
+    {"case": "Outside owner", "row": 8, "input": "Item owned by a supplier (companion extension)",
+     "seed": {"actions": {"items": {"OCC-1-000412-1": {"owner": "Brightline Freight", "action": "Confirm the Saturday collection slot"}}}},
+     "trigger": [{"webhook": "r14-2-list-verified", "body": {"series_id": "S-DEL", "occurrence_id": "OCC-1", "verified_by": "tom@example.test"}}],
+     "expect": [
+       {"mock": "minutes/entries/OCC-1-000412-1", "field": "text", "contains": "Brightline Freight"},
+       {"mock": "tasks/tasks", "count": 1},
+       {"mock": "tasks/tasks/1", "field": "owner_email", "equals": "tom@example.test"},
+       {"mock": "tasks/tasks/1", "field": "title", "contains": "Follow up with Brightline Freight"},
+       {"mock": "messaging/messages", "count": 1},
+       {"mock": "messaging/messages/2", "field": "to", "equals": ["tom@example.test"]}]}
+  ]
+}

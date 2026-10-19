@@ -1,0 +1,2063 @@
+{
+  "name": "R14.3 Chase overdue actions and carry them into the next agenda",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 6
+            }
+          ]
+        }
+      },
+      "id": "9164c15a-b17d-5676-a675-613465d72374",
+      "name": "Step 1: Early each working day",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "notes": "Early each day; step 1's rule skips weekends and holidays.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "weeks",
+              "weeksInterval": 1,
+              "triggerAtDay": [
+                5
+              ],
+              "triggerAtHour": 6
+            }
+          ]
+        }
+      },
+      "id": "7789cffb-a882-52c1-acbe-f14c7e612140",
+      "name": "Step 8: Each Friday",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        200
+      ],
+      "notes": "Step 8: the Friday comparison and count. No Friday count by noon means the run never fired.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "r14-3-meeting-decided",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "fbe3f688-3696-50f0-860b-ed72817b1852",
+      "name": "Step 9: Meeting decisions recorded",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        900
+      ],
+      "notes": "Your agenda list calls this after each meeting, once the chair has recorded decisions. Body: {meeting_id}.",
+      "notesInFlow": true,
+      "webhookId": "fae2e0b4-df31-5060-836d-bc21124fafc0"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "6a3c2df7-9a9f-590a-bc6f-da59a5107d45",
+              "name": "stop_flag_url",
+              "value": "https://<your stop list API>/stop_flags/R14.3",
+              "type": "string"
+            },
+            {
+              "id": "11420176-09ee-52e1-92fc-997164ec0fff",
+              "name": "register_url",
+              "value": "https://<your meeting register API>",
+              "type": "string"
+            },
+            {
+              "id": "3bcbe353-f66f-5bea-b7db-115ce4164180",
+              "name": "tasks_url",
+              "value": "https://<your task system API>",
+              "type": "string"
+            },
+            {
+              "id": "0de327db-98f6-55c0-bb6c-e82a41b56a08",
+              "name": "tracking_url",
+              "value": "https://<your tracking list API>",
+              "type": "string"
+            },
+            {
+              "id": "90d5aa06-015b-5216-8a30-92b8770891e2",
+              "name": "calendar_url",
+              "value": "https://<your calendar API>",
+              "type": "string"
+            },
+            {
+              "id": "139916a1-a6e7-5719-b491-b8f421c57416",
+              "name": "agenda_url",
+              "value": "https://<your agenda list API>",
+              "type": "string"
+            },
+            {
+              "id": "55754820-70b7-5e3b-b83b-d12dd0bef7da",
+              "name": "workdays_url",
+              "value": "https://<your working-day calendar API>",
+              "type": "string"
+            },
+            {
+              "id": "ceed30b1-c302-5134-a714-aa1d6ba3ad53",
+              "name": "messaging_url",
+              "value": "https://<your messaging API>",
+              "type": "string"
+            },
+            {
+              "id": "5ae44c07-d2a7-50ed-a8bf-3c037fa295b2",
+              "name": "working_weekdays",
+              "value": "[1, 2, 3, 4, 5]",
+              "type": "array"
+            },
+            {
+              "id": "d9fe841f-7cf6-56dd-868c-09968e11d716",
+              "name": "meeting_window_days",
+              "value": 14,
+              "type": "number"
+            },
+            {
+              "id": "9440e85f-b4fe-554f-aa16-40f6cc4b0247",
+              "name": "register_owner",
+              "value": "<your register owner>",
+              "type": "string"
+            },
+            {
+              "id": "b755e0a2-73f0-5d20-81ed-450a6457a0b1",
+              "name": "exception_owner",
+              "value": "<your workflow editor>",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "18f78887-18e2-5787-a347-4a6a5c8babcb",
+      "name": "Config",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        260,
+        300
+      ],
+      "notes": "Edit these values for your company; nothing else in the workflow hard-codes them.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $('Step 9: Meeting decisions recorded').isExecuted }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "id": "f57ab41e-36ed-548b-b7fa-ec13dfa142b5"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "537f05bd-0e2c-564e-af7c-37af9c543bc4",
+      "name": "After a meeting?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1040,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Config').first().json.workdays_url }}/holidays",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "_wrap",
+              "value": "1"
+            }
+          ]
+        }
+      },
+      "id": "66479003-7e86-54c8-aa30-9a2dea56277c",
+      "name": "Read holidays",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1300,
+        0
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "\n// Working days: the weekdays in Config, less the holidays in your working-day calendar.\nconst iso = d => d.toISOString().slice(0, 10);\nconst todayUtc = () => new Date(iso(new Date()) + 'T00:00:00Z');\nconst addDays = (d, n) => new Date(d.getTime() + n * 86400000);\nconst isWorkday = (d, cfg, holidays) => cfg.working_weekdays.includes(d.getUTCDay()) && !holidays.includes(iso(d));\n\n// Step 1: the morning run skips weekends and holidays; the Friday count (step 8) always runs, as the heartbeat.\nconst cfg = $('Config').first().json;\nconst holidays = ($('Read holidays').first().json.items || []).map(h => String(h.date).slice(0, 10));\nconst friday = $('Step 8: Each Friday').isExecuted;\nreturn [{ json: { run: friday || isWorkday(todayUtc(), cfg, holidays), friday } }];\n"
+      },
+      "id": "e92177ca-9b17-5f4a-8d14-5b2c5c76528d",
+      "name": "Step 1: Rule: working day?",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1560,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.run }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "id": "1e3f20de-5fb8-5513-b1bf-c0717f437685"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "cd7d1fe2-ec1c-5b0c-9099-1d28985932b2",
+      "name": "Run today?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1820,
+        0
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "6a18e6d6-1772-5d53-a214-88b03728b2a8",
+      "name": "Not a working day: stop",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        2080,
+        -200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Config').first().json.register_url }}/series",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "_wrap",
+              "value": "1"
+            }
+          ]
+        }
+      },
+      "id": "8efb4fac-cd90-58d6-a006-0edfd4145650",
+      "name": "Read the register",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2080,
+        0
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Config').first().json.tasks_url }}/tasks",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "_wrap",
+              "value": "1"
+            }
+          ]
+        }
+      },
+      "id": "67792443-c10f-5cfe-96c4-640ffa588412",
+      "name": "Read tasks",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2340,
+        0
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Config').first().json.tracking_url }}/rows",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "_wrap",
+              "value": "1"
+            }
+          ]
+        }
+      },
+      "id": "9bf83101-221d-5339-82f6-16e7b4b4ef69",
+      "name": "Read the tracking list",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2600,
+        0
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Config').first().json.calendar_url }}/meetings",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "_wrap",
+              "value": "1"
+            }
+          ]
+        }
+      },
+      "id": "5c1633e7-c4db-5880-abdc-82da7533c1df",
+      "name": "Read series meetings",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2860,
+        0
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Config').first().json.agenda_url }}/items",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "_wrap",
+              "value": "1"
+            },
+            {
+              "name": "status",
+              "value": "listed"
+            }
+          ]
+        }
+      },
+      "id": "5c34cda3-f3e6-5d21-829e-d253bd04f3e5",
+      "name": "Read listed agenda items",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3120,
+        0
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "\n// Working days: the weekdays in Config, less the holidays in your working-day calendar.\nconst iso = d => d.toISOString().slice(0, 10);\nconst todayUtc = () => new Date(iso(new Date()) + 'T00:00:00Z');\nconst addDays = (d, n) => new Date(d.getTime() + n * 86400000);\nconst isWorkday = (d, cfg, holidays) => cfg.working_weekdays.includes(d.getUTCDay()) && !holidays.includes(iso(d));\n\n// Steps 2 to 8 and 10 of the book's R14.3. Each output item is one action, with its duplicate key.\nconst cfg = $('Config').first().json;\nconst friday = $('Step 1: Rule: working day?').first().json.friday;\nconst holidays = ($('Read holidays').first().json.items || []).map(h => String(h.date).slice(0, 10));\nconst series = Object.fromEntries(($('Read the register').first().json.items || []).map(s => [s.id, s]));\nconst allTasks = $('Read tasks').first().json.items || [];\nconst tracking = Object.fromEntries(($('Read the tracking list').first().json.items || []).map(r => [r.id, r]));\nconst meetings = $('Read series meetings').first().json.items || [];\nconst listed = $('Read listed agenda items').first().json.items || [];\nconst today = todayUtc(), t = iso(today);\nlet prev = addDays(today, -1);\nwhile (!isWorkday(prev, cfg, holidays)) prev = addDays(prev, -1);\nconst windowEnd = iso(addDays(today, cfg.meeting_window_days));\n\n// Step 2: open tasks tagged with a registered series; a hand-made task's first-seen date counts as verified.\nconst open = allTasks.filter(k => k.status === 'open' && series[k.series_id]);\nconst verifiedOf = (k, row) => (row && row.verified_date) || k.verified_due_date || k.due_date;\nconst newRow = k => ({ id: k.id, series_id: k.series_id, verified_date: verifiedOf(k, null), first_seen: t, last_due_seen: k.due_date,\n                       changes: 0, reminder_key: '', reminder_state: 'none', reminded_on: '' });\nconst base = (k, row) => ({ task_id: k.id, title: k.title, owner: k.owner, owner_email: k.owner_email, due_date: k.due_date,\n                            source_link: k.source_link || '', series_id: k.series_id, series: series[k.series_id].name,\n                            verified_date: verifiedOf(k, row),\n                            days_overdue: Math.max(0, Math.round((today - new Date(k.due_date + 'T00:00:00Z')) / 86400000)) });\nconst out = [];\n\n// Steps 5 to 7: the series' next meeting within the window gets an agenda item; none, and the register owner is told once.\nfunction carry(k, row, why) {\n  const m = meetings.filter(x => x.series_id === k.series_id && String(x.start).slice(0, 10) >= t && String(x.start).slice(0, 10) <= windowEnd)\n    .sort((a, b) => String(a.start).localeCompare(String(b.start)))[0];\n  const b = base(k, row);\n  if (m) out.push({ ...b, kind: 'agenda', why, meeting_id: m.id, meeting_start: String(m.start).slice(0, 10), key: `${k.id}:${m.id}` });\n  else out.push({ ...b, kind: 'no_meeting', why, key: `${k.id}:${b.verified_date}:no meeting` });\n}\n\nif (!friday) {\n  for (const k of open.filter(k => k.due_date < t)) {\n    const row = tracking[k.id];\n    const key = `${k.id}:${verifiedOf(k, row)}`;   // Step 3: task ID plus current verified date\n    if (!row || row.reminder_key !== key) {\n      // Step 4: not yet reminded for this date.\n      out.push({ ...base(k, row), kind: 'remind', key, row: { ...(row || newRow(k)), reminder_key: key, reminder_state: 'pending' } });\n    } else if (row.reminder_state !== 'sent') {\n      // A \"pending\" key is never resent; Owen checks it.\n      out.push({ ...base(k, row), kind: 'pending', key });\n    } else if (row.reminded_on && row.reminded_on <= iso(prev)) {\n      carry(k, row, 'overdue after one reminder');\n    }\n  }\n  // Step 10: a task closed after listing is marked, never removed.\n  const byId = Object.fromEntries(allTasks.map(k => [k.id, k]));\n  for (const a of listed) if (byId[a.task_id] && byId[a.task_id].status !== 'open') out.push({ kind: 'closed', agenda_item_id: a.id, task_id: a.task_id });\n} else {\n  // Step 8: compare due dates with the tracking list; a second change goes on the agenda.\n  for (const k of open) {\n    const row = tracking[k.id];\n    if (!row) { out.push({ kind: 'track', task_id: k.id, row: newRow(k) }); continue; }\n    if (k.due_date !== row.last_due_seen) {\n      const changes = (Number(row.changes) || 0) + 1;\n      out.push({ kind: 'track', task_id: k.id, row: { ...row, last_due_seen: k.due_date, changes } });\n      if (changes >= 2) carry(k, row, `due date moved ${changes} times`);\n    }\n  }\n  // The count is by series, never by person.\n  const counts = {};\n  for (const k of open.filter(k => k.due_date < t)) counts[series[k.series_id].name] = (counts[series[k.series_id].name] || 0) + 1;\n  out.push({ kind: 'count', counts, total: Object.values(counts).reduce((a, b) => a + b, 0), date: t });\n}\nreturn out.map(j => ({ json: j }));\n"
+      },
+      "id": "ce615e49-b480-518d-87fe-980ba90a3cdb",
+      "name": "Steps 2 to 8: Rules",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3380,
+        0
+      ],
+      "notes": "Rules decide; there is no AI step in R14.3. It never moves a date, reassigns or closes a task.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "f39ba084-3ded-5618-b8a7-c68c5ef267ba",
+                    "leftValue": "={{ $json.kind }}",
+                    "rightValue": "remind",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "remind"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "dc040c23-c3f7-5b03-9212-a716c7629278",
+                    "leftValue": "={{ $json.kind }}",
+                    "rightValue": "pending",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "pending"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "b32618c4-8d22-5bec-9cb0-1caaba0d0f02",
+                    "leftValue": "={{ $json.kind }}",
+                    "rightValue": "agenda",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "agenda"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "fc1f415a-6b8f-56a3-bacf-205e674d8617",
+                    "leftValue": "={{ $json.kind }}",
+                    "rightValue": "no_meeting",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "no_meeting"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "4f7d03c9-e874-5fe0-a942-e934423f72aa",
+                    "leftValue": "={{ $json.kind }}",
+                    "rightValue": "closed",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "closed"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "4f102a85-9858-52c2-b27e-64453ab3cae8",
+                    "leftValue": "={{ $json.kind }}",
+                    "rightValue": "track",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "track"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "5f5436b9-8006-5d5d-bad1-fcdede0ea270",
+                    "leftValue": "={{ $json.kind }}",
+                    "rightValue": "count",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "count"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "ad385617-afe9-56e8-b270-beb9c522c607",
+      "name": "Action",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        3640,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH reserved AS (INSERT INTO key_log (recipe, key, status) VALUES ($1, $2, 'in progress') ON CONFLICT (recipe, key) DO NOTHING RETURNING key), skipped AS (UPDATE key_log SET copies_skipped = copies_skipped + 1 WHERE recipe = $1 AND key = $2 AND NOT EXISTS (SELECT 1 FROM reserved)) SELECT (SELECT count(*) FROM reserved) = 1 AS is_new, $2::text AS key",
+        "options": {
+          "queryReplacement": "={{ [\"R14.3\", $('Steps 2 to 8: Rules').item.json.key] }}"
+        }
+      },
+      "id": "256c49e5-a8b2-5e39-bb66-4f19fc97a7d9",
+      "name": "Step 3: Reserve reminder key",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        3900,
+        -600
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "Key log: refuses a second copy in the same step (book Chapter 2).",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.is_new }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "id": "3d3c69a1-310e-55ed-89e8-9512a6ef86a8"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "b4444061-d935-5006-962e-ad8190ad4fc6",
+      "name": "New reminder key?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        4160,
+        -600
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "a14bfc81-1e3b-5259-887a-2d9144bbf64b",
+      "name": "Reminder key logged: stop",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        4420,
+        -760
+      ],
+      "notes": "This verified date has a reminder already, or one in flight.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "={{ $('Config').first().json.tracking_url }}/rows/{{ encodeURIComponent($('Steps 2 to 8: Rules').item.json.task_id) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($('Steps 2 to 8: Rules').item.json.row) }}"
+      },
+      "id": "e30e3bc6-428c-52de-88ee-f709c1d11b20",
+      "name": "Step 4: Write the key pending",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        4420,
+        -600
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').first().json.messaging_url }}/messages",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ to: [$('Steps 2 to 8: Rules').item.json.owner_email], subject: 'Overdue action: ' + $('Steps 2 to 8: Rules').item.json.title, text: $('Steps 2 to 8: Rules').item.json.title + ' was due ' + $('Steps 2 to 8: Rules').item.json.due_date + ' (' + $('Steps 2 to 8: Rules').item.json.series + '). Source: ' + $('Steps 2 to 8: Rules').item.json.source_link }) }}"
+      },
+      "id": "ed22e6c2-ed9e-5deb-bb23-9585d0864423",
+      "name": "Step 4: Remind the owner",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        4680,
+        -600
+      ],
+      "notes": "One reminder for each agreed date; the next step is a meeting, never a second message.",
+      "notesInFlow": true,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $('Config').first().json.tracking_url }}/rows/{{ encodeURIComponent($('Steps 2 to 8: Rules').item.json.task_id) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ reminder_state: 'sent', reminded_on: new Date().toISOString().slice(0, 10) }) }}"
+      },
+      "id": "d1c69edf-8e0a-5e24-bee8-a3befc64cf5e",
+      "name": "Step 4: Mark it sent",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        4940,
+        -600
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO exception_queue (recipe, item, reason, detail, owner) SELECT $1, $2, $3, $4, $5 WHERE NOT EXISTS (SELECT 1 FROM exception_queue WHERE recipe = $1 AND item = $2 AND status = 'open') RETURNING id",
+        "options": {
+          "queryReplacement": "={{ [\"R14.3\", $('Steps 2 to 8: Rules').item.json.key, \"reminder key pending\", 'The reminder may have been sent but was never marked sent; it is not resent. Release or close the key.', $('Config').first().json.exception_owner] }}"
+        }
+      },
+      "id": "4e3b3d03-6e8a-58d2-8ee8-5b2893d7feb0",
+      "name": "Step 4: Pending key: Owen checks",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        3900,
+        -400
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "A \"pending\" key is never resent; one open exception per key.",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH reserved AS (INSERT INTO key_log (recipe, key, status) VALUES ($1, $2, 'in progress') ON CONFLICT (recipe, key) DO NOTHING RETURNING key), skipped AS (UPDATE key_log SET copies_skipped = copies_skipped + 1 WHERE recipe = $1 AND key = $2 AND NOT EXISTS (SELECT 1 FROM reserved)) SELECT (SELECT count(*) FROM reserved) = 1 AS is_new, $2::text AS key",
+        "options": {
+          "queryReplacement": "={{ [\"R14.3\", $('Steps 2 to 8: Rules').item.json.key] }}"
+        }
+      },
+      "id": "bf808c10-4432-5c8b-9a0b-cec0dfd2363c",
+      "name": "Step 6: Reserve agenda key",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        3900,
+        -200
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "Key log: refuses a second copy in the same step (book Chapter 2).",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.is_new }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "id": "5542291c-aad8-599f-894c-7a77f05e4133"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "b15259b3-45ff-5011-abe1-0bbac9aa6c02",
+      "name": "New agenda key?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        4160,
+        -200
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "53879ad9-6656-5d47-9ce4-505c92cc5210",
+      "name": "Already on that agenda: stop",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        4420,
+        -320
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').first().json.agenda_url }}/items",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ meeting_id: $('Steps 2 to 8: Rules').item.json.meeting_id, series_id: $('Steps 2 to 8: Rules').item.json.series_id, task_id: $('Steps 2 to 8: Rules').item.json.task_id, action: $('Steps 2 to 8: Rules').item.json.title, owner: $('Steps 2 to 8: Rules').item.json.owner, verified_date: $('Steps 2 to 8: Rules').item.json.verified_date, due_date: $('Steps 2 to 8: Rules').item.json.due_date, days_overdue: $('Steps 2 to 8: Rules').item.json.days_overdue, reason: $('Steps 2 to 8: Rules').item.json.why, status: 'listed' }) }}"
+      },
+      "id": "33065967-4ad3-547d-b5de-5c27acc59ba1",
+      "name": "Step 6: Add the agenda item",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        4420,
+        -200
+      ],
+      "notes": "For the chair to decide at the meeting.",
+      "notesInFlow": true,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH reserved AS (INSERT INTO key_log (recipe, key, status) VALUES ($1, $2, 'in progress') ON CONFLICT (recipe, key) DO NOTHING RETURNING key), skipped AS (UPDATE key_log SET copies_skipped = copies_skipped + 1 WHERE recipe = $1 AND key = $2 AND NOT EXISTS (SELECT 1 FROM reserved)) SELECT (SELECT count(*) FROM reserved) = 1 AS is_new, $2::text AS key",
+        "options": {
+          "queryReplacement": "={{ [\"R14.3\", $('Steps 2 to 8: Rules').item.json.key] }}"
+        }
+      },
+      "id": "426742da-7220-504e-80c5-1a82bcda279d",
+      "name": "Step 7: Reserve no-meeting key",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        3900,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "Key log: refuses a second copy in the same step (book Chapter 2).",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.is_new }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "id": "5dc61438-30e6-5622-9017-61fac9b90f7b"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "e6b48e12-3744-54bc-8f21-b5dbb1ff3128",
+      "name": "New no-meeting key?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        4160,
+        0
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "c488b888-0037-5f7b-a489-9ce6666c69c4",
+      "name": "Register owner told already: stop",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        4420,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').first().json.messaging_url }}/messages",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ to: [$('Config').first().json.register_owner], subject: 'No meeting within ' + $('Config').first().json.meeting_window_days + ' days: ' + $('Steps 2 to 8: Rules').item.json.series, text: $('Steps 2 to 8: Rules').item.json.title + ' (' + $('Steps 2 to 8: Rules').item.json.owner + '), verified for ' + $('Steps 2 to 8: Rules').item.json.verified_date + ', is ' + $('Steps 2 to 8: Rules').item.json.days_overdue + ' day(s) overdue (' + $('Steps 2 to 8: Rules').item.json.why + '), and ' + $('Steps 2 to 8: Rules').item.json.series + ' has no meeting within ' + $('Config').first().json.meeting_window_days + ' days.' }) }}"
+      },
+      "id": "3bbdea10-3689-560c-9023-3101be658854",
+      "name": "Step 7: Tell the register owner",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        4420,
+        0
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE key_log SET status = $3, result = $4 WHERE recipe = $1 AND key = $2 RETURNING key",
+        "options": {
+          "queryReplacement": "={{ [\"R14.3\", $('Steps 2 to 8: Rules').item.json.key, \"done\", $('Steps 2 to 8: Rules').item.json.kind === 'remind' ? 'reminded' : $('Steps 2 to 8: Rules').item.json.kind === 'agenda' ? 'on agenda ' + $('Steps 2 to 8: Rules').item.json.meeting_id : 'register owner told: no meeting'] }}"
+        }
+      },
+      "id": "81fe14e7-1449-50ba-a989-2a3d7f4d5cc9",
+      "name": "Mark key done",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        5200,
+        -200
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO decision_log (recipe, item, decision, rules) VALUES ($1, $2, $3, $4::jsonb) RETURNING id",
+        "options": {
+          "queryReplacement": "={{ [\"R14.3\", $('Steps 2 to 8: Rules').item.json.task_id, $('Steps 2 to 8: Rules').item.json.kind === 'remind' ? 'reminded' : $('Steps 2 to 8: Rules').item.json.kind === 'agenda' ? 'on agenda ' + $('Steps 2 to 8: Rules').item.json.meeting_id : 'register owner told: no meeting', JSON.stringify({ key: $('Steps 2 to 8: Rules').item.json.key, series: $('Steps 2 to 8: Rules').item.json.series_id, reason: $('Steps 2 to 8: Rules').item.json.why || 'overdue', days_overdue: $('Steps 2 to 8: Rules').item.json.days_overdue })] }}"
+        }
+      },
+      "id": "a5aa775e-a4f6-59f5-9dfa-864684ca3ea4",
+      "name": "Decision log",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        5460,
+        -200
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "Decision log: the item's ID, the decision and the rules; never the content (book Chapter 3).",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE key_log SET status = $3, result = $4 WHERE recipe = $1 AND key = $2 RETURNING key",
+        "options": {
+          "queryReplacement": "={{ [\"R14.3\", $('Steps 2 to 8: Rules').item.json.key, \"failed\", 'write failed: ' + (($json.error && $json.error.message) || 'unknown')] }}"
+        }
+      },
+      "id": "daa6f869-4a51-5201-96d7-58c27d230a1d",
+      "name": "Mark key failed",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        5200,
+        200
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO exception_queue (recipe, item, reason, detail, owner) VALUES ($1, $2, $3, $4, $5) RETURNING id",
+        "options": {
+          "queryReplacement": "={{ [\"R14.3\", $('Steps 2 to 8: Rules').item.json.key, \"write failed\", 'A send or write failed; never retried. Check, then release or close the key.', $('Config').first().json.exception_owner] }}"
+        }
+      },
+      "id": "7e9e3e84-ddad-5635-83b8-e0ef2d992062",
+      "name": "Exception queue: write failed",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        5460,
+        200
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "Exception queue: a named person works through it (book Chapters 2 and 16).",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $('Config').first().json.agenda_url }}/items/{{ encodeURIComponent($('Steps 2 to 8: Rules').item.json.agenda_item_id) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ status: 'closed since listed' }) }}"
+      },
+      "id": "bf8416a2-b784-5816-a653-3bd853cab9a3",
+      "name": "Step 10: Mark closed since listed",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3900,
+        200
+      ],
+      "notes": "Marked, never removed.",
+      "notesInFlow": true,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "={{ $('Config').first().json.tracking_url }}/rows/{{ encodeURIComponent($('Steps 2 to 8: Rules').item.json.task_id) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($('Steps 2 to 8: Rules').item.json.row) }}"
+      },
+      "id": "0a084299-00dc-598f-a489-75be9543eb55",
+      "name": "Step 8: Update the tracking list",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3900,
+        400
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').first().json.messaging_url }}/messages",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ to: [$('Config').first().json.register_owner], subject: 'Open overdue actions by series: ' + $('Steps 2 to 8: Rules').item.json.total, text: Object.entries($('Steps 2 to 8: Rules').item.json.counts).map(([s, n]) => s + ': ' + n).join('\\n') || 'None overdue.' }) }}"
+      },
+      "id": "f416b2d7-fbcd-5ae0-a53b-9cfc284034a9",
+      "name": "Step 8: Send the weekly count",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3900,
+        600
+      ],
+      "notes": "By series, never by person: a per-person ranking is a performance record nobody approved.",
+      "notesInFlow": true,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO decision_log (recipe, item, decision, rules) VALUES ($1, $2, $3, $4::jsonb) RETURNING id",
+        "options": {
+          "queryReplacement": "={{ [\"R14.3\", 'weekly count ' + $('Steps 2 to 8: Rules').item.json.date, 'weekly count sent', JSON.stringify({ by_series: $('Steps 2 to 8: Rules').item.json.counts, total: $('Steps 2 to 8: Rules').item.json.total })] }}"
+        }
+      },
+      "id": "4088095b-5f5a-5316-93f9-9750c3d9b44b",
+      "name": "Step 8: Decision log: weekly count",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        4160,
+        600
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "Decision log: the item's ID, the decision and the rules; never the content (book Chapter 3).",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO decision_log (recipe, item, decision, rules) VALUES ($1, $2, $3, $4::jsonb) RETURNING id",
+        "options": {
+          "queryReplacement": "={{ [\"R14.3\", $('Steps 2 to 8: Rules').item.json.task_id, $('Steps 2 to 8: Rules').item.json.row.changes ? 'due date change tracked' : 'first seen', JSON.stringify({ changes: $('Steps 2 to 8: Rules').item.json.row.changes, series: $('Steps 2 to 8: Rules').item.json.row.series_id })] }}"
+        }
+      },
+      "id": "1bf6b054-4c3e-5733-b1d3-a20ba07537b6",
+      "name": "Step 8: Decision log: date change",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        4160,
+        400
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "Decision log: the item's ID, the decision and the rules; never the content (book Chapter 3).",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO exception_queue (recipe, item, reason, detail, owner) VALUES ($1, $2, $3, $4, $5) RETURNING id",
+        "options": {
+          "queryReplacement": "={{ [\"R14.3\", $('Steps 2 to 8: Rules').item.json.task_id || ('weekly count ' + $('Steps 2 to 8: Rules').item.json.date), \"write failed\", 'A tracking-list, agenda or count write failed; never retried.', $('Config').first().json.exception_owner] }}"
+        }
+      },
+      "id": "5da390aa-4798-55f0-9938-e318743b7737",
+      "name": "Exception queue: tracking, agenda or count write failed",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        4420,
+        500
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "Exception queue: a named person works through it (book Chapters 2 and 16).",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Config').first().json.agenda_url }}/items",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "_wrap",
+              "value": "1"
+            },
+            {
+              "name": "meeting_id",
+              "value": "={{ $('Step 9: Meeting decisions recorded').first().json.body.meeting_id }}"
+            }
+          ]
+        }
+      },
+      "id": "2d03c033-2a82-5430-9938-93730416ca58",
+      "name": "Step 9: Read the chair's decisions",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1300,
+        900
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "\n// Step 9: a new date the chair decided becomes the verified date and resets the change count.\nconst isDate = d => /^\\d{4}-\\d{2}-\\d{2}$/.test(d || '') && !isNaN(Date.parse(d + 'T00:00:00Z'));\nconst rows = ($('Step 9: Read the chair\\'s decisions').first().json.items || []).filter(a => a.decision === 'new date' && isDate(a.new_date));\nreturn rows.map(a => ({ json: { task_id: a.task_id, new_date: a.new_date, agenda_item_id: a.id, meeting_id: a.meeting_id } }));\n"
+      },
+      "id": "55296905-c330-5d57-9430-00986d7b1c09",
+      "name": "Step 9: Rule: new dates",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1560,
+        900
+      ]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $('Config').first().json.tracking_url }}/rows/{{ encodeURIComponent($json.task_id) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ verified_date: $json.new_date, last_due_seen: $json.new_date, changes: 0 }) }}"
+      },
+      "id": "d074266d-84fa-5285-9c6b-962714a6b2cf",
+      "name": "Step 9: Verify the new date",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1820,
+        900
+      ],
+      "notes": "A new date becomes verified and resets the change count; the chair moves the task, not this workflow.",
+      "notesInFlow": true,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO decision_log (recipe, item, decision, rules) VALUES ($1, $2, $3, $4::jsonb) RETURNING id",
+        "options": {
+          "queryReplacement": "={{ [\"R14.3\", $('Step 9: Rule: new dates').item.json.task_id, 'new date verified', JSON.stringify({ meeting: $('Step 9: Rule: new dates').item.json.meeting_id, verified_date: $('Step 9: Rule: new dates').item.json.new_date })] }}"
+        }
+      },
+      "id": "c5698113-c42f-536e-9c06-893a3f73fa28",
+      "name": "Step 9: Decision log",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2080,
+        900
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "Decision log: the item's ID, the decision and the rules; never the content (book Chapter 3).",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO exception_queue (recipe, item, reason, detail, owner) VALUES ($1, $2, $3, $4, $5) RETURNING id",
+        "options": {
+          "queryReplacement": "={{ [\"R14.3\", $('Step 9: Rule: new dates').item.json.task_id, \"write failed\", 'Verified-date write failed; never retried', $('Config').first().json.exception_owner] }}"
+        }
+      },
+      "id": "dec48685-63b8-55e7-b05c-b6951e5d3bf3",
+      "name": "Step 9: Exception queue: write failed",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2080,
+        1100
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "Exception queue: a named person works through it (book Chapters 2 and 16).",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Config').item.json.stop_flag_url }}",
+        "options": {}
+      },
+      "id": "de31c920-7a30-5f15-b3bc-fe13da6edddc",
+      "name": "Stop flag: read",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        520,
+        300
+      ],
+      "notes": "Kill switch: set stopped to true in your stop list and the next run ends quietly (book Chapter 3).",
+      "notesInFlow": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.stopped === true }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "id": "25172052-3e71-5d69-af67-744d3b94aa2d"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "29099acc-6daa-54cd-bf7e-20120c67c6bf",
+      "name": "Stop flag set?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        780,
+        300
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "2e224ee2-4a0e-5642-9965-af0b34414236",
+      "name": "Stopped by the stop flag",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        1040,
+        100
+      ],
+      "notes": "Ends quietly; nothing is read, written or sent.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO exception_queue (recipe, item, reason, detail, owner) VALUES ($1, $2, $3, $4, $5) RETURNING id",
+        "options": {
+          "queryReplacement": "={{ [\"R14.3\", 'run ' + $execution.id, \"stop list unreadable\", 'The stop list could not be read, so the run stopped; fix the stop list', '<your workflow owner>'] }}"
+        }
+      },
+      "id": "95aa7aec-6e11-5187-bcd9-f7708b440b68",
+      "name": "Exception queue: stop list unreadable",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        780,
+        520
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "Exception queue: a named person works through it (book Chapters 2 and 16).",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    }
+  ],
+  "connections": {
+    "Step 1: Early each working day": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 8: Each Friday": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 9: Meeting decisions recorded": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "After a meeting?": {
+      "main": [
+        [
+          {
+            "node": "Step 9: Read the chair's decisions",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Read holidays",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read holidays": {
+      "main": [
+        [
+          {
+            "node": "Step 1: Rule: working day?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 1: Rule: working day?": {
+      "main": [
+        [
+          {
+            "node": "Run today?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run today?": {
+      "main": [
+        [
+          {
+            "node": "Read the register",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Not a working day: stop",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read the register": {
+      "main": [
+        [
+          {
+            "node": "Read tasks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read tasks": {
+      "main": [
+        [
+          {
+            "node": "Read the tracking list",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read the tracking list": {
+      "main": [
+        [
+          {
+            "node": "Read series meetings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read series meetings": {
+      "main": [
+        [
+          {
+            "node": "Read listed agenda items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read listed agenda items": {
+      "main": [
+        [
+          {
+            "node": "Steps 2 to 8: Rules",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Steps 2 to 8: Rules": {
+      "main": [
+        [
+          {
+            "node": "Action",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Action": {
+      "main": [
+        [
+          {
+            "node": "Step 3: Reserve reminder key",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Step 4: Pending key: Owen checks",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Step 6: Reserve agenda key",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Step 7: Reserve no-meeting key",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Step 10: Mark closed since listed",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Step 8: Update the tracking list",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Step 8: Send the weekly count",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 3: Reserve reminder key": {
+      "main": [
+        [
+          {
+            "node": "New reminder key?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "New reminder key?": {
+      "main": [
+        [
+          {
+            "node": "Step 4: Write the key pending",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Reminder key logged: stop",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 4: Write the key pending": {
+      "main": [
+        [
+          {
+            "node": "Step 4: Remind the owner",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark key failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 4: Remind the owner": {
+      "main": [
+        [
+          {
+            "node": "Step 4: Mark it sent",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark key failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 6: Reserve agenda key": {
+      "main": [
+        [
+          {
+            "node": "New agenda key?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "New agenda key?": {
+      "main": [
+        [
+          {
+            "node": "Step 6: Add the agenda item",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Already on that agenda: stop",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 7: Reserve no-meeting key": {
+      "main": [
+        [
+          {
+            "node": "New no-meeting key?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "New no-meeting key?": {
+      "main": [
+        [
+          {
+            "node": "Step 7: Tell the register owner",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Register owner told already: stop",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 4: Mark it sent": {
+      "main": [
+        [
+          {
+            "node": "Mark key done",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark key failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 6: Add the agenda item": {
+      "main": [
+        [
+          {
+            "node": "Mark key done",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark key failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 7: Tell the register owner": {
+      "main": [
+        [
+          {
+            "node": "Mark key done",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark key failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark key done": {
+      "main": [
+        [
+          {
+            "node": "Decision log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark key failed": {
+      "main": [
+        [
+          {
+            "node": "Exception queue: write failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 8: Send the weekly count": {
+      "main": [
+        [
+          {
+            "node": "Step 8: Decision log: weekly count",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Exception queue: tracking, agenda or count write failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 8: Update the tracking list": {
+      "main": [
+        [
+          {
+            "node": "Step 8: Decision log: date change",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Exception queue: tracking, agenda or count write failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 10: Mark closed since listed": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Exception queue: tracking, agenda or count write failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 9: Read the chair's decisions": {
+      "main": [
+        [
+          {
+            "node": "Step 9: Rule: new dates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 9: Rule: new dates": {
+      "main": [
+        [
+          {
+            "node": "Step 9: Verify the new date",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 9: Verify the new date": {
+      "main": [
+        [
+          {
+            "node": "Step 9: Decision log",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Step 9: Exception queue: write failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config": {
+      "main": [
+        [
+          {
+            "node": "Stop flag: read",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Stop flag: read": {
+      "main": [
+        [
+          {
+            "node": "Stop flag set?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Exception queue: stop list unreadable",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Stop flag set?": {
+      "main": [
+        [
+          {
+            "node": "Stopped by the stop flag",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "After a meeting?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataSuccessExecution": "all",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "pinData": {}
+}

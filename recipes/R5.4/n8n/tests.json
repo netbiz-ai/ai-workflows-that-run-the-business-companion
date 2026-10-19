@@ -1,0 +1,139 @@
+{
+  "config": {
+    "crm_url": "{mocks}/crm",
+    "messaging_url": "{mocks}/messaging",
+    "salesperson_limit": 2500,
+    "sales_lead_limit": 15000,
+    "standard_discount_pct": 10,
+    "approvers": {
+      "salesperson": {"deputy": "ben@example.test", "deadline_hours": 100},
+      "sales_lead": {"person": "ben@example.test", "deputy": "helen@example.test", "deadline_hours": 100},
+      "ceo": {"person": "helen@example.test", "deputy": "ceo-deputy@example.test", "deadline_hours": 100}
+    },
+    "checklist": "https://example.test/checklist-13-1",
+    "systems_owner": "owen@example.test"
+  },
+  "seed": {
+    "crm": {
+      "price_lists": {"current": {"id": "current", "version": "PL-2026-10", "valid_until": "{today+60}",
+        "items": [{"code": "BED-Q", "name": "Queen bed frame", "unit_price": 412.5},
+                  {"code": "PROT-1", "name": "Protection plan, per apartment per year", "unit_price": 196}]}},
+      "quotes": {"Q-1": {"id": "Q-1", "revision": 1, "status": "awaiting approval", "salesperson": "maya@example.test",
+        "price_list_version": "PL-2026-10", "non_standard_terms": false,
+        "lines": [{"code": "BED-Q", "quantity": 4, "unit_price": 412.5, "discount_pct": 5}]}}
+    }
+  },
+  "cases": [
+    {"case": "Normal", "row": 1, "input": "Small standard quote",
+     "trigger": [{"webhook": "r5-4-awaiting-approval", "body": {"quote_id": "Q-1", "revision": 1}}],
+     "expect": [
+       {"mock": "crm/quotes/Q-1", "field": "approver", "equals": "maya@example.test"},
+       {"mock": "crm/quotes/Q-1", "field": "locked", "equals": true},
+       {"mock": "messaging/messages", "count": 1},
+       {"mock": "messaging/messages/1", "field": "to", "equals": "maya@example.test"},
+       {"mock": "messaging/messages/1", "field": "checklist", "equals": "https://example.test/checklist-13-1"},
+       {"sql": "select rules->>'value' from decision_log where recipe='R5.4'", "equals": "1567.5"}]},
+    {"case": "Edge", "row": 2, "input": "Three-year protection plan",
+     "seed": {"crm": {"quotes": {"Q-1": {"lines": [{"code": "PROT-1", "quantity": 4, "unit_price": 196, "discount_pct": 0, "years": 3}]}}}},
+     "trigger": [{"webhook": "r5-4-awaiting-approval", "body": {"quote_id": "Q-1", "revision": 1}}],
+     "expect": [
+       {"mock": "crm/quotes/Q-1", "field": "approver", "in": ["ben@example.test", "helen@example.test"]},
+       {"mock": "messaging/messages/1", "field": "to", "in": ["ben@example.test", "helen@example.test"]}]},
+    {"case": "Duplicate", "row": 3, "input": "Status set twice",
+     "trigger": [{"webhook": "r5-4-awaiting-approval", "body": {"quote_id": "Q-1", "revision": 1}, "pause": 3},
+                 {"webhook": "r5-4-awaiting-approval", "body": {"quote_id": "Q-1", "revision": 1}}],
+     "expect": [
+       {"calls": "POST /messaging/messages", "count": 1},
+       {"sql": "select copies_skipped from key_log where recipe='R5.4'", "equals": "1"}]},
+    {"case": "Escalate", "row": 4, "input": "Ben's own quote",
+     "seed": {"crm": {"quotes": {"Q-1": {"salesperson": "ben@example.test"}}}},
+     "trigger": [{"webhook": "r5-4-awaiting-approval", "body": {"quote_id": "Q-1", "revision": 1}}],
+     "expect": [
+       {"mock": "crm/quotes/Q-1", "field": "approver", "equals": "helen@example.test"},
+       {"mock": "messaging/messages/1", "field": "to", "equals": "helen@example.test"}]},
+    {"case": "Refuse", "row": 5, "input": "Price list replaced while waiting",
+     "seed": {"crm": {"quotes": {"Q-1": {"price_list_version": "PL-2026-07"}}}},
+     "trigger": [{"webhook": "r5-4-awaiting-approval", "body": {"quote_id": "Q-1", "revision": 1}}],
+     "expect": [
+       {"mock": "crm/quotes/Q-1", "field": "status", "equals": "back to R5.3"},
+       {"mock": "crm/quotes/Q-1", "field": "approver", "equals": null},
+       {"mock": "messaging/messages", "count": 1},
+       {"mock": "messaging/messages/1", "field": "to", "equals": "maya@example.test"}]},
+    {"case": "Request not sent", "row": 6, "input": "Sending the approval request fails (companion extension)",
+     "fail": [{"method": "POST", "path": "/messaging/messages", "status": 500, "times": 1}],
+     "trigger": [{"webhook": "r5-4-awaiting-approval", "body": {"quote_id": "Q-1", "revision": 1}}],
+     "expect": [
+       {"mock": "crm/quotes/Q-1", "field": "status", "equals": "returned"},
+       {"mock": "crm/quotes/Q-1", "field": "locked", "equals": true},
+       {"calls": "POST /messaging/messages", "count": 2},
+       {"mock": "messaging/messages", "count": 1},
+       {"mock": "messaging/messages/1", "field": "to", "equals": "owen@example.test"}]},
+    {"case": "Deadline passed", "row": 7, "input": "No decision by the deadline (companion extension)",
+     "seed": {"crm": {"quotes": {"Q-1": {"approver": "maya@example.test", "deputy": "ben@example.test", "requested_at": "{today-5}", "deadline_hours": 100, "escalation": 0, "locked": true}}}},
+     "trigger": [{"schedule": "Step 7: Each hour"}],
+     "expect": [
+       {"mock": "messaging/messages/1", "field": "to", "equals": "maya@example.test"},
+       {"mock": "crm/quotes/Q-1", "field": "escalation", "equals": 1},
+       {"mock": "crm/quotes/Q-1", "field": "status", "equals": "awaiting approval"}]},
+    {"case": "Deputy asked", "row": 8, "input": "No decision by twice the deadline (companion extension)",
+     "seed": {"crm": {"quotes": {"Q-1": {"approver": "maya@example.test", "deputy": "ben@example.test", "requested_at": "{today-9}", "deadline_hours": 100, "escalation": 1, "locked": true}}}},
+     "trigger": [{"schedule": "Step 7: Each hour"}],
+     "expect": [
+       {"mock": "messaging/messages", "count": 1},
+       {"mock": "messaging/messages/1", "field": "to", "equals": "ben@example.test"},
+       {"mock": "crm/quotes/Q-1", "field": "escalation", "equals": 2}]},
+    {"case": "Returned at three times", "row": 9, "input": "No decision by three times the deadline (companion extension)",
+     "seed": {"crm": {"quotes": {"Q-1": {"salesperson": "maya@example.test", "approver": "maya@example.test", "deputy": "lee@example.test", "requested_at": "{today-13}", "deadline_hours": 100, "escalation": 2, "locked": true}}}},
+     "trigger": [{"schedule": "Step 7: Each hour"}],
+     "expect": [
+       {"mock": "crm/quotes/Q-1", "field": "status", "equals": "returned"},
+       {"mock": "crm/quotes/Q-1", "field": "locked", "equals": true},
+       {"mock": "messaging/messages", "count": 1},
+       {"mock": "messaging/messages/1", "field": "to", "equals": "ben@example.test"}]},
+    {"case": "Approved", "row": 10, "input": "The routed approver approves (companion extension)",
+     "seed": {"crm": {"quotes": {"Q-1": {"approver": "maya@example.test", "deputy": "ben@example.test", "locked": true}}}},
+     "trigger": [{"webhook": "r5-4-decision", "body": {"quote_id": "Q-1", "revision": 1, "decision": "approved", "by": "maya@example.test"}}],
+     "expect": [
+       {"mock": "crm/quotes/Q-1", "field": "status", "equals": "approved"},
+       {"mock": "crm/quotes/Q-1", "field": "locked", "equals": false},
+       {"mock": "crm/quotes/Q-1", "field": "approved_revision", "equals": 1},
+       {"sql": "select approved_by from decision_log where recipe='R5.4'", "equals": "maya@example.test"},
+       {"sql": "select item from decision_log where recipe='R5.4'", "equals": "Q-1:1"}]},
+    {"case": "Rejected", "row": 11, "input": "The approver rejects with a comment (companion extension)",
+     "seed": {"crm": {"quotes": {"Q-1": {"approver": "maya@example.test", "deputy": "ben@example.test", "locked": true}}}},
+     "trigger": [{"webhook": "r5-4-decision", "body": {"quote_id": "Q-1", "revision": 1, "decision": "rejected", "by": "maya@example.test", "comment": "Discount needs Ben's view"}}],
+     "expect": [
+       {"mock": "crm/quotes/Q-1", "field": "status", "equals": "returned"},
+       {"mock": "crm/quotes/Q-1", "field": "comment", "equals": "Discount needs Ben's view"},
+       {"mock": "crm/quotes/Q-1", "field": "locked", "equals": true}]},
+    {"case": "Not the approver", "row": 12, "input": "Someone not routed records an approval (companion extension)",
+     "seed": {"crm": {"quotes": {"Q-1": {"approver": "maya@example.test", "deputy": "ben@example.test", "locked": true}}}},
+     "trigger": [{"webhook": "r5-4-decision", "body": {"quote_id": "Q-1", "revision": 1, "decision": "approved", "by": "tom@example.test"}}],
+     "expect": [
+       {"mock": "crm/quotes/Q-1", "field": "status", "equals": "awaiting approval"},
+       {"mock": "crm/quotes/Q-1", "field": "locked", "equals": true},
+       {"calls": "PATCH /crm/quotes/Q-1", "count": 0},
+       {"sql": "select reason from exception_queue where recipe='R5.4'", "equals": "decision not accepted"}]},
+    {"case": "Price list replaced before approval", "row": 13, "input": "Approved after the price list changed (companion extension)",
+     "seed": {"crm": {"quotes": {"Q-1": {"approver": "maya@example.test", "deputy": "ben@example.test", "locked": true, "price_list_version": "PL-2026-07"}}}},
+     "trigger": [{"webhook": "r5-4-decision", "body": {"quote_id": "Q-1", "revision": 1, "decision": "approved", "by": "maya@example.test"}}],
+     "expect": [
+       {"mock": "crm/quotes/Q-1", "field": "status", "equals": "back to R5.3"},
+       {"mock": "crm/quotes/Q-1", "field": "locked", "equals": true},
+       {"sql": "select count(*) from decision_log where recipe='R5.4' and approved_by is not null", "equals": "0"}]},
+    {"case": "Sent unapproved", "row": 14, "input": "A quote sent without approval (companion extension)",
+     "seed": {"crm": {"quotes": {"Q-1": {"status": "sent", "sent_at": "{today-2}", "approved_revision": null}}}},
+     "trigger": [{"schedule": "Backstop: Each week"}],
+     "expect": [
+       {"sql": "select reason from exception_queue where recipe='R5.4'", "equals": "quote sent unapproved"},
+       {"mock": "messaging/messages/1", "field": "to", "equals": "ben@example.test"}]},
+    {"case": "Write fails", "row": 15, "input": "The lock write fails (companion extension)",
+     "fail": [{"method": "PATCH", "path": "/crm/quotes/Q-1", "status": 500, "times": 1}],
+     "trigger": [{"webhook": "r5-4-awaiting-approval", "body": {"quote_id": "Q-1", "revision": 1}}],
+     "expect": [
+       {"calls": "PATCH /crm/quotes/Q-1", "count": 1},
+       {"calls": "POST /messaging/messages", "count": 0},
+       {"sql": "select status from key_log where recipe='R5.4'", "equals": "failed"},
+       {"sql": "select reason from exception_queue where recipe='R5.4'", "equals": "write failed"}]}
+  ]
+}

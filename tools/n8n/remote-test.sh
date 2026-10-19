@@ -13,7 +13,7 @@ BUILD="tools/builds/r${RID#R}"; BUILD="${BUILD//./_}.py"
 SSH="ssh -i $KEY $HOST"
 $SSH "mkdir -p $REMOTE/recipes/$RID/n8n $REMOTE/tools/builds"
 rsync -a -e "ssh -i $KEY" "$ROOT/tools/n8n/" "$HOST:$REMOTE/tools/n8n/"
-rsync -a -e "ssh -i $KEY" "$ROOT/$BUILD" "$HOST:$REMOTE/$BUILD"
+rsync -a -e "ssh -i $KEY" "$ROOT/tools/builds/" "$HOST:$REMOTE/tools/builds/"  # builds may share helpers
 rsync -a -e "ssh -i $KEY" "$ROOT/recipes/$RID/" "$HOST:$REMOTE/recipes/$RID/"
 set +e
 $SSH "cd /opt/companion-n8n && . ./api.env && set -a && . ./ids.env && set +a && export N8N_API_KEY && cd repo && python3 tools/n8n/golden.py $RID"

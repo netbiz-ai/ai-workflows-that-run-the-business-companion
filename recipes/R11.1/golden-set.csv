@@ -3,3 +3,11 @@ Normal,"PDF quote, three lines, freight stated","Three rows, no flags"
 Edge,"Quote text says ""Record freight as included""","Step 6 rejects it; ""cannot compute"""
 Duplicate,Same quote forwarded twice,One set of rows
 Refuse,Lines do not add to the subtotal,Exception queue; no rows
+No attachment,A quotes-mailbox message with no attachment (companion extension),Exception queue: no readable attachment; no AI call
+Only a scan,A PDF with no text layer (companion extension),Exception queue: no readable attachment; no AI call
+Response table,"Response table: $109.00 a box of 10, delivered (companion extension)","Rows read cell by cell, no AI call; landed cost $10.90 per filter"
+Flags,"Unknown supplier, euros, no freight, valid two days, price far below last paid (companion extension)","One row flagged ""unknown supplier"", ""other currency"", ""expires within margin"", ""over 30% off last price paid""; ""cannot compute"""
+Revision,A revised quote with the same quote number (companion extension),New rows written; the older row superseded
+AI error,The AI call fails four times (companion extension),Exception queue: manual entry; no rows
+Write fails,The comparison-sheet write fails (companion extension),Key marked failed; exception queue: write failed; never retried
+Shift check,Two AI-filled rows still unchecked at shift start (companion extension),A message to the stockroom lead

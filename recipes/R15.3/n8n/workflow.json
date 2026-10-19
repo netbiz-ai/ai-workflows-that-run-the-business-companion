@@ -1,0 +1,2262 @@
+{
+  "name": "R15.3 Keep consent and unsubscribes in sync across every list",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "r15-3-unsubscribe",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "fe976cb8-fd6c-5674-a6c2-88742cbeb0de",
+      "name": "Step 1: Unsubscribe",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "notes": "Body: {event_id, email, phone, occurred_at}.",
+      "notesInFlow": true,
+      "webhookId": "b047a43b-f4a2-51ab-bc8b-a5fcedce75a3"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "r15-3-opt-in",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "087d9ec5-87d6-518d-9987-44e2ce85a49c",
+      "name": "Step 1: Opt-in",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        160
+      ],
+      "notes": "Body: {event_id, email, phone, occurred_at, channel, wording_version}.",
+      "notesInFlow": true,
+      "webhookId": "36db01ac-befc-5c0c-97a5-e777fa02a2f3"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "r15-3-pos-signup",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "04e5dedf-e1d2-5a0c-938c-61cfafae3791",
+      "name": "Step 1: POS sign-up",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        320
+      ],
+      "notes": "Body: {event_id, email, phone, occurred_at, channel, wording_version}.",
+      "notesInFlow": true,
+      "webhookId": "81986658-61d9-55ee-824b-c5db0324727e"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "r15-3-helpdesk-tag",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "0770ef52-8241-52b6-b81c-75ddb5c9a981",
+      "name": "Step 1: Helpdesk opt-out tag",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        480
+      ],
+      "notes": "Body: {event_id, email, phone, occurred_at}.",
+      "notesInFlow": true,
+      "webhookId": "34e95042-7d49-561a-bc0b-d72426182437"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 2
+            }
+          ]
+        }
+      },
+      "id": "53d08f0f-034e-5f34-aa3f-36e0044e5d44",
+      "name": "Step 8: Each night",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        800
+      ],
+      "notes": "The nightly correction (step 8).",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a3c7fbe1-6dcc-5b5a-a883-51dde7e8ee59",
+              "name": "stop_flag_url",
+              "value": "https://<your stop list API>/stop_flags/R15.3",
+              "type": "string"
+            },
+            {
+              "id": "8bd0f770-76e5-5600-9e04-38b219ec96b8",
+              "name": "crm_url",
+              "value": "https://<your CRM API>",
+              "type": "string"
+            },
+            {
+              "id": "1c9dd868-5209-5cd8-a8e5-05f63b596964",
+              "name": "lists",
+              "value": "[{\"name\": \"<list name>\", \"url\": \"https://<its API>\", \"channel\": \"<the channel it sends>\"}]",
+              "type": "array"
+            },
+            {
+              "id": "7729b7c3-6525-589b-951f-eba9d07f4c33",
+              "name": "marketing_channels",
+              "value": "[\"email\", \"<your other marketing channels>\"]",
+              "type": "array"
+            },
+            {
+              "id": "aba05e2c-e7d2-5eb8-b462-bad94c2ef07b",
+              "name": "send_status_url",
+              "value": "https://<your send-status record API>",
+              "type": "string"
+            },
+            {
+              "id": "a911e3e1-6a95-501d-8b14-de586cda8af4",
+              "name": "messaging_url",
+              "value": "https://<your messaging API>",
+              "type": "string"
+            },
+            {
+              "id": "6607bd2b-d69a-5712-ba66-f35ca3714f3b",
+              "name": "consent_owner",
+              "value": "<your systems owner>",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "635ddc27-73b3-574a-b0f1-f1ac264ba26c",
+      "name": "Config",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        260,
+        240
+      ],
+      "notes": "Edit these values for your company; nothing else in the workflow hard-codes them.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $('Step 8: Each night').isExecuted }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "id": "6ef7714d-3f82-590b-bf4d-87e1ceb705f6"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "ba58a03e-0930-538a-8f9a-6f201f016ad7",
+      "name": "Nightly check?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1040,
+        240
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const KINDS = {\"Step 1: Unsubscribe\": \"opt_out\", \"Step 1: Opt-in\": \"opt_in\", \"Step 1: POS sign-up\": \"opt_in\", \"Step 1: Helpdesk opt-out tag\": \"opt_out\"};\n\n// Step 1: one consent event, whichever source sent it.\nfor (const [node, kind] of Object.entries(KINDS)) {\n  if (!$(node).isExecuted) continue;\n  const b = $(node).first().json.body || {};\n  return [{ json: { event_id: String(b.event_id || ''), kind, source: node.replace('Step 1: ', ''),\n    email: b.email || null, phone: b.phone || null, channel: b.channel || null,\n    occurred_at: b.occurred_at || null, wording_version: b.wording_version || null } }];\n}\nreturn [];\n"
+      },
+      "id": "267a2d6b-cf07-52ce-a0a7-e627fa266b26",
+      "name": "Consent event",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1300,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH reserved AS (INSERT INTO key_log (recipe, key, status) VALUES ($1, $2, 'in progress') ON CONFLICT (recipe, key) DO NOTHING RETURNING key), skipped AS (UPDATE key_log SET copies_skipped = copies_skipped + 1 WHERE recipe = $1 AND key = $2 AND NOT EXISTS (SELECT 1 FROM reserved)) SELECT (SELECT count(*) FROM reserved) = 1 AS is_new, $2::text AS key",
+        "options": {
+          "queryReplacement": "={{ [\"R15.3\", $('Consent event').first().json.event_id] }}"
+        }
+      },
+      "id": "3119499b-493e-5a73-8f96-b1f060120480",
+      "name": "Step 2: Reserve key",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1560,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "Key log: refuses a second copy in the same step (book Chapter 2).",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.is_new }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "id": "f424d549-712a-5b91-a810-b36bffa88f4b"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "61524c41-0982-5769-b928-454b47311b28",
+      "name": "New key?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1820,
+        0
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "ca75fafe-87dd-56c5-83d2-f207cee8fd4a",
+      "name": "Duplicate: stop",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        2080,
+        -160
+      ],
+      "notes": "This consent event was applied before.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Config').first().json.crm_url }}/contacts",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "_wrap",
+              "value": "1"
+            },
+            {
+              "name": "email",
+              "value": "={{ $('Consent event').first().json.email || '' }}"
+            }
+          ]
+        }
+      },
+      "id": "c86cf582-e473-5dd9-808f-1dfca3f5a82b",
+      "name": "Read the master by email",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2080,
+        0
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Config').first().json.crm_url }}/contacts",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "_wrap",
+              "value": "1"
+            },
+            {
+              "name": "phone",
+              "value": "={{ $('Consent event').first().json.phone || '' }}"
+            }
+          ]
+        }
+      },
+      "id": "baab1269-56d6-54e5-a71f-b082d64eab9d",
+      "name": "Read the master by phone",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2340,
+        0
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "\n// Matched on email or phone, never name.\nconst normEmail = e => String(e || '').trim().toLowerCase();\nconst normPhone = p => String(p || '').replace(/\\D/g, '');\nconst same = (r, ev) => (normEmail(ev.email) && normEmail(r.email) === normEmail(ev.email))\n  || (normPhone(ev.phone) && normPhone(r.phone) === normPhone(ev.phone));\n\n// Steps 3 and 4. An opt-out always applies, to every marketing channel; an opt-in needs its proof\n// and must be newer than any opt-out for its channel. Consent is never inferred from a purchase.\nconst cfg = $('Config').first().json;\nconst ev = $('Consent event').first().json;\nconst found = [...($('Read the master by email').first().json.items || []), ...($('Read the master by phone').first().json.items || [])]\n  .filter(r => same(r, ev));\nconst contact = found[0] || null;\nconst consent = Object.assign({}, (contact && contact.consent) || {});\nconst ignore = reason => [{ json: { apply: false, reason, contact_id: contact ? contact.id : null } }];\n\nif (!ev.email && !ev.phone) return ignore('no email or phone to match on');\nconst stamp = ev.occurred_at && !isNaN(Date.parse(ev.occurred_at)) ? new Date(ev.occurred_at).toISOString() : null;\nlet channels;\nif (ev.kind === 'opt_in') {\n  // Step 3: an opt-in counts only with its wording version and time stamp.\n  if (!ev.wording_version || !stamp) return ignore('opt-in without wording version or time stamp');\n  if (!cfg.marketing_channels.includes(ev.channel)) return ignore('opt-in channel not in scope');\n  // Step 4: order by the event's own time stamp; an opt-in older than an opt-out is ignored.\n  const prior = consent[ev.channel];\n  if (prior && prior.status === 'opted out' && Date.parse(prior.at) > Date.parse(stamp)) return ignore('opt-in older than an opt-out');\n  channels = [ev.channel];\n} else {\n  channels = cfg.marketing_channels;\n}\nconst status = ev.kind === 'opt_out' ? 'opted out' : 'opted in';\nconst at = stamp || new Date().toISOString();\nfor (const ch of channels) {\n  consent[ch] = { status, at, event_id: ev.event_id, source: ev.source };\n  if (ev.kind === 'opt_in') consent[ch].wording_version = ev.wording_version;\n}\n// The person is the event's email or phone, joined with the master record's, so a list holding only one still matches.\nreturn [{ json: { apply: true, status, channels, opt_out: ev.kind === 'opt_out', consent,\n  email: ev.email || (contact && contact.email) || null, phone: ev.phone || (contact && contact.phone) || null,\n  contact_id: contact ? contact.id : null, reason: `${status}: ${channels.join(', ')}` } }];\n"
+      },
+      "id": "6c8d667a-dc91-5185-9bfa-d1ef4f637371",
+      "name": "Steps 3 and 4: Rules",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2600,
+        0
+      ],
+      "notes": "Rules decide; R15.3 has no AI step.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.apply }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "id": "48aa9076-5a65-528d-89d4-e087c9edad42"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "322294b1-5794-5078-9521-85cfc6d88348",
+      "name": "Apply it?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2860,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $('Steps 3 and 4: Rules').first().json.contact_id !== null }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "id": "01711beb-9a50-5fa2-8613-c73b0e5fe189"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "2fa38c87-0303-5348-ba89-c7cc2dca76b2",
+      "name": "In the master already?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        3120,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $('Config').first().json.crm_url }}/contacts/{{ $('Steps 3 and 4: Rules').first().json.contact_id }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ consent: $('Steps 3 and 4: Rules').first().json.consent }) }}"
+      },
+      "id": "078f3c6e-f821-522b-ba8d-fe59dc589d68",
+      "name": "Step 5: Write the change to the CRM",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3380,
+        -160
+      ],
+      "notes": "The master consent record, every channel in scope. A write: never retried.",
+      "notesInFlow": true,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').first().json.crm_url }}/contacts",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ email: $('Consent event').first().json.email, phone: $('Consent event').first().json.phone, consent: $('Steps 3 and 4: Rules').first().json.consent }) }}"
+      },
+      "id": "217a5923-a213-5a66-a4b1-19d5f11d2cae",
+      "name": "Step 5: Add the person to the CRM",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3380,
+        0
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE key_log SET status = $3, result = $4 WHERE recipe = $1 AND key = $2 RETURNING key",
+        "options": {
+          "queryReplacement": "={{ [\"R15.3\", $('Consent event').first().json.event_id, \"done\", $('Steps 3 and 4: Rules').first().json.reason] }}"
+        }
+      },
+      "id": "afd45bea-c122-5162-843a-520d84b7c63c",
+      "name": "Mark key done",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        3640,
+        -80
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO decision_log (recipe, item, decision, rules) VALUES ($1, $2, $3, $4::jsonb) RETURNING id",
+        "options": {
+          "queryReplacement": "={{ [\"R15.3\", $('Consent event').first().json.event_id, 'master: ' + $('Steps 3 and 4: Rules').first().json.reason, JSON.stringify({ source: $('Consent event').first().json.source, channels: $('Steps 3 and 4: Rules').first().json.channels })] }}"
+        }
+      },
+      "id": "9459d66f-ffe2-571d-b910-822777c91155",
+      "name": "Step 5: Decision log",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        3900,
+        -80
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "Decision log: the item's ID, the decision and the rules; never the content (book Chapter 3).",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE key_log SET status = $3, result = $4 WHERE recipe = $1 AND key = $2 RETURNING key",
+        "options": {
+          "queryReplacement": "={{ [\"R15.3\", $('Consent event').first().json.event_id, \"done\", 'ignored: ' + $('Steps 3 and 4: Rules').first().json.reason] }}"
+        }
+      },
+      "id": "0b153f90-2b11-5e7b-89f2-8eb43253a84a",
+      "name": "Mark ignored event done",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        3120,
+        160
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO decision_log (recipe, item, decision, rules) VALUES ($1, $2, $3, $4::jsonb) RETURNING id",
+        "options": {
+          "queryReplacement": "={{ [\"R15.3\", $('Consent event').first().json.event_id, 'ignored: ' + $('Steps 3 and 4: Rules').first().json.reason, JSON.stringify({ source: $('Consent event').first().json.source, kind: $('Consent event').first().json.kind })] }}"
+        }
+      },
+      "id": "f06180f5-4d9c-51cf-9d8a-54849932fac3",
+      "name": "Steps 3 and 4: Decision log",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        3380,
+        160
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "Decision log: the item's ID, the decision and the rules; never the content (book Chapter 3).",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE key_log SET status = $3, result = $4 WHERE recipe = $1 AND key = $2 RETURNING key",
+        "options": {
+          "queryReplacement": "={{ [\"R15.3\", $('Consent event').first().json.event_id, \"failed\", 'master write failed'] }}"
+        }
+      },
+      "id": "00553685-b434-53c4-bbf4-2b1fe0febcd3",
+      "name": "Mark key failed",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        3640,
+        320
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO exception_queue (recipe, item, reason, detail, owner) VALUES ($1, $2, $3, $4, $5) RETURNING id",
+        "options": {
+          "queryReplacement": "={{ [\"R15.3\", $('Consent event').first().json.event_id, \"write failed\", 'Master consent write failed; no list was changed; apply it by hand, never retried', $('Config').first().json.consent_owner] }}"
+        }
+      },
+      "id": "f198f790-c717-5a07-9aa6-f3b26ef858c6",
+      "name": "Exception queue: master write failed",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        3900,
+        320
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "Exception queue: a named person works through it (book Chapters 2 and 16).",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').first().json.messaging_url }}/messages",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ to: $('Config').first().json.consent_owner, subject: 'Consent event ' + $('Consent event').first().json.event_id + ' not applied', text: 'The master consent write failed; no list was changed.' }) }}"
+      },
+      "id": "b11dc6a6-c742-5f30-abca-17ce52d1d8cf",
+      "name": "Tell Owen: master write failed",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        4160,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "\n// Step 6: every other list in scope; an opt-out reaches every list, an opt-in only its channel's lists.\nconst cfg = $('Config').first().json;\nconst r = $('Steps 3 and 4: Rules').first().json;\nreturn cfg.lists.filter(l => r.opt_out || r.channels.includes(l.channel))\n  .map(l => ({ json: { list: l.name, url: l.url, channel: l.channel, opt_out: r.opt_out }, pairedItem: 0 }));\n"
+      },
+      "id": "a2e25bdd-f469-587e-b0c8-3b59a7285377",
+      "name": "Step 6: Lists to update",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4160,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $json.url }}/contacts",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "_wrap",
+              "value": "1"
+            },
+            {
+              "name": "email",
+              "value": "={{ $('Steps 3 and 4: Rules').first().json.email || '' }}"
+            }
+          ]
+        }
+      },
+      "id": "fef7b7ce-af5c-5d29-b8dc-492aaf34dc9e",
+      "name": "Step 6: Find on the list by email",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        4420,
+        -80
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Step 6: Lists to update').item.json.url }}/contacts",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "_wrap",
+              "value": "1"
+            },
+            {
+              "name": "phone",
+              "value": "={{ $('Steps 3 and 4: Rules').first().json.phone || '' }}"
+            }
+          ]
+        }
+      },
+      "id": "6ce0822b-6149-5dba-aca5-aaaf946e8212",
+      "name": "Step 6: Find on the list by phone",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        4680,
+        -80
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "\n// Matched on email or phone, never name.\nconst normEmail = e => String(e || '').trim().toLowerCase();\nconst normPhone = p => String(p || '').replace(/\\D/g, '');\nconst same = (r, ev) => (normEmail(ev.email) && normEmail(r.email) === normEmail(ev.email))\n  || (normPhone(ev.phone) && normPhone(r.phone) === normPhone(ev.phone));\n\n// Step 6: the person's records on each list, matched on email or phone, never name.\nconst ev = $('Steps 3 and 4: Rules').first().json;\nconst out = [];\n$input.all().forEach((it, i) => {\n  const l = $('Step 6: Lists to update').itemMatching(i).json;\n  const rows = [...($('Step 6: Find on the list by email').itemMatching(i).json.items || []), ...(it.json.items || [])];\n  const seen = new Set();\n  for (const rec of rows) {\n    if (seen.has(rec.id) || !same(rec, ev)) continue;\n    seen.add(rec.id);\n    out.push({ json: Object.assign({}, l, { record_id: rec.id }), pairedItem: i });\n  }\n  if (!seen.size) out.push({ json: Object.assign({}, l, { record_id: null, outcome: 'not on the list' }), pairedItem: i });\n});\nreturn out;\n"
+      },
+      "id": "e3ddc8f2-7a8b-527a-ac6f-a9006a6f0150",
+      "name": "Step 6: Records to change",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4940,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.record_id !== null }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "id": "921b4631-70a0-52f0-b07f-254a0d59b03f"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "d097b350-243f-550f-b31d-67499697f5c2",
+      "name": "On the list?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        5200,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $json.url }}/contacts/{{ $json.record_id }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ marketing_opt_out: $json.opt_out }) }}"
+      },
+      "id": "1d840456-56bf-5f96-8d51-fcc92c567e5a",
+      "name": "Step 6: Apply it to the list",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        5460,
+        -160
+      ],
+      "notes": "Never retried (book Chapter 2); a failure goes to step 7.",
+      "notesInFlow": true,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Step 6: Records to change').item.json.url }}/contacts/{{ $('Step 6: Records to change').item.json.record_id }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        }
+      },
+      "id": "2f16afe9-7c8c-5e52-a5f8-86bc9329034b",
+      "name": "Step 6: Read it back",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        5720,
+        -160
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "\n// Step 6: the read-back confirms the change only if the list now holds it.\nconst rec = $('Step 6: Records to change').item.json;\nconst ok = $json.marketing_opt_out === rec.opt_out;\nreturn { json: Object.assign({}, rec, { outcome: ok ? 'confirmed' : 'not confirmed',\n  problem: ok ? null : `read back marketing_opt_out = ${JSON.stringify($json.marketing_opt_out)}` }) };\n"
+      },
+      "id": "88743da4-f510-50c4-991e-34575608d516",
+      "name": "Step 6: Rule: did the list confirm?",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        5980,
+        -160
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.outcome }}",
+              "rightValue": "confirmed",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              },
+              "id": "4636ab6d-68a6-59ed-adcc-2e34f891b539"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "f1b61fd6-3436-575d-a27c-454b4e2acbe1",
+      "name": "Confirmed?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        6240,
+        -160
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO decision_log (recipe, item, decision, rules) VALUES ($1, $2, $3, $4::jsonb) RETURNING id",
+        "options": {
+          "queryReplacement": "={{ [\"R15.3\", $('Consent event').first().json.event_id, $json.list + ': ' + $json.outcome, JSON.stringify({ list: $json.list, record: $json.record_id, opt_out: $json.opt_out })] }}"
+        }
+      },
+      "id": "06b28455-a1ff-545b-8fb1-b61dff4db9c7",
+      "name": "Step 6: Decision log",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        6500,
+        -240
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "Decision log: the item's ID, the decision and the rules; never the content (book Chapter 3).",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "\n// Step 7: the list could not be read, so it cannot confirm.\nconst l = $('Step 6: Lists to update').item.json;\nreturn { json: Object.assign({}, l, { record_id: null, problem: 'list unreachable: ' + (($json.error && $json.error.message) || 'no answer') }) };\n"
+      },
+      "id": "b0c0222b-b5ad-5e55-8abc-13de02a8dbaa",
+      "name": "Step 7: List unreachable",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4940,
+        240
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "\n// Step 7: the write failed, the read-back failed, or the read-back differs. Never retried.\nconst rec = $('Step 6: Records to change').item.json;\nconst problem = $json.problem || ('write or read-back failed: ' + (($json.error && $json.error.message) || 'no answer'));\nreturn { json: Object.assign({}, rec, { problem }) };\n"
+      },
+      "id": "07269200-ad57-5f1a-a2c6-3897906ca64f",
+      "name": "Step 7: List did not confirm",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        5980,
+        240
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.opt_out }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "id": "78e6b881-9766-52af-b2fa-030f89ab6289"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "4acf88cc-2ffb-5317-ac38-8641dcd0610f",
+      "name": "Step 7: An opt-out?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        6240,
+        240
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.url }}/suppressions",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ email: $('Steps 3 and 4: Rules').first().json.email, phone: $('Steps 3 and 4: Rules').first().json.phone, event_id: $('Consent event').first().json.event_id, reason: 'marketing opt-out' }) }}"
+      },
+      "id": "7de9a4ce-b53c-5d64-9d20-6546eba05c98",
+      "name": "Step 7: Suppress the person on the list",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        6500,
+        160
+      ],
+      "notes": "The list's own suppression, which overrides its subscription flag. Never retried.",
+      "notesInFlow": true,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "={{ $('Config').first().json.send_status_url }}/lists/{{ $('Step 7: An opt-out?').item.json.list }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ status: 'paused', since: new Date().toISOString(), reason: 'opt-out not confirmed: ' + $('Step 7: An opt-out?').item.json.problem, event_id: $('Consent event').first().json.event_id }) }}"
+      },
+      "id": "e057a78b-3846-50c1-b203-4d1fbc78c722",
+      "name": "Step 7: Mark the list paused",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        6760,
+        320
+      ],
+      "notes": "The send-status record Ben checks before every marketing send. Owen lifts it.",
+      "notesInFlow": true,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "return { json: Object.assign({}, $('Step 7: An opt-out?').item.json, { action: \"suppressed on the list\" }) };"
+      },
+      "id": "18b3c993-d7b0-5721-965a-4b8361dddc91",
+      "name": "Step 7: Suppressed",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        7020,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "return { json: Object.assign({}, $('Step 7: An opt-out?').item.json, { action: \"list paused\" }) };"
+      },
+      "id": "5cbf83d5-1cbd-5f3d-9d2a-c3b207f0b39b",
+      "name": "Step 7: Paused",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        7020,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "return { json: Object.assign({}, $('Step 7: An opt-out?').item.json, { action: \"suppression and pause both failed; pause the list by hand\" }) };"
+      },
+      "id": "f85c9ff1-6412-5027-ae36-490f13f1423d",
+      "name": "Step 7: Pause failed",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        7020,
+        360
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "return { json: Object.assign({}, $('Step 7: An opt-out?').item.json, { action: \"opt-in not on this list yet; the nightly check corrects it\" }) };"
+      },
+      "id": "0286c0f6-c3ef-5e16-8f8a-4c840c7d41f5",
+      "name": "Step 7: Opt-in not confirmed",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        7020,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "return { json: $json };"
+      },
+      "id": "763f1d1a-6b82-5e56-b6a0-c888d513fac7",
+      "name": "Step 7: Outcome",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        7280,
+        240
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO exception_queue (recipe, item, reason, detail, owner) VALUES ($1, $2, $3, $4, $5) RETURNING id",
+        "options": {
+          "queryReplacement": "={{ [\"R15.3\", $('Consent event').first().json.event_id, \"list did not confirm\", $('Step 7: Outcome').item.json.list + ': ' + $('Step 7: Outcome').item.json.problem + '; ' + $('Step 7: Outcome').item.json.action, $('Config').first().json.consent_owner] }}"
+        }
+      },
+      "id": "8783a235-90df-59ba-91f4-423ba1ff63e3",
+      "name": "Exception queue: list did not confirm",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        7540,
+        240
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "Exception queue: a named person works through it (book Chapters 2 and 16).",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').first().json.messaging_url }}/messages",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ to: $('Config').first().json.consent_owner, subject: 'Consent change not confirmed on ' + $('Step 7: Outcome').item.json.list, text: $('Step 7: Outcome').item.json.problem + '; ' + $('Step 7: Outcome').item.json.action }) }}"
+      },
+      "id": "27a193c4-2c58-5dce-a545-e29d39391420",
+      "name": "Step 7: Tell Owen",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        7800,
+        240
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO decision_log (recipe, item, decision, rules) VALUES ($1, $2, $3, $4::jsonb) RETURNING id",
+        "options": {
+          "queryReplacement": "={{ [\"R15.3\", $('Consent event').first().json.event_id, $('Step 7: Outcome').item.json.list + ': not confirmed; ' + $('Step 7: Outcome').item.json.action, JSON.stringify({ list: $('Step 7: Outcome').item.json.list, record: $('Step 7: Outcome').item.json.record_id, problem: $('Step 7: Outcome').item.json.problem })] }}"
+        }
+      },
+      "id": "ad46e9e9-85d6-51e3-a4d7-c89d4adf1c5e",
+      "name": "Step 7: Decision log",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        8060,
+        240
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "Decision log: the item's ID, the decision and the rules; never the content (book Chapter 3).",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Config').first().json.crm_url }}/contacts",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "_wrap",
+              "value": "1"
+            }
+          ]
+        }
+      },
+      "id": "75d90793-9ca7-5a84-b2f1-844d5d2eea05",
+      "name": "Step 8: Read the master",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1300,
+        800
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "\n// Step 8: every list, checked against the master each night.\nconst cfg = $('Config').first().json;\nreturn cfg.lists.map(l => ({ json: { list: l.name, url: l.url, channel: l.channel }, pairedItem: 0 }));\n"
+      },
+      "id": "b5062815-b0e7-514b-b0b5-59863d460e2d",
+      "name": "Step 8: Lists to check",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1560,
+        800
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $json.url }}/contacts",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "_wrap",
+              "value": "1"
+            }
+          ]
+        }
+      },
+      "id": "3b2b249f-72e8-5be5-93a6-e5c2965d72e1",
+      "name": "Step 8: Read the list",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1820,
+        800
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "\n// Matched on email or phone, never name.\nconst normEmail = e => String(e || '').trim().toLowerCase();\nconst normPhone = p => String(p || '').replace(/\\D/g, '');\nconst same = (r, ev) => (normEmail(ev.email) && normEmail(r.email) === normEmail(ev.email))\n  || (normPhone(ev.phone) && normPhone(r.phone) === normPhone(ev.phone));\n\n// Step 8: a list record that differs from the master's recorded consent for the list's channel.\nconst master = $('Step 8: Read the master').first().json.items || [];\nconst out = [];\n$input.all().forEach((it, i) => {\n  const l = $('Step 8: Lists to check').itemMatching(i).json;\n  for (const rec of it.json.items || []) {\n    const m = master.find(c => same(rec, c));\n    const c = m && m.consent && m.consent[l.channel];\n    if (!c || !['opted out', 'opted in'].includes(c.status)) continue;  // no recorded consent: left as is\n    const want = c.status === 'opted out';\n    if (rec.marketing_opt_out !== want) {\n      out.push({ json: Object.assign({}, l, { record_id: rec.id, contact_id: m.id, opt_out: want }), pairedItem: i });\n    }\n  }\n});\nreturn out;\n"
+      },
+      "id": "1486bbce-5bd8-55d9-b842-9aada5f5f831",
+      "name": "Step 8: Rule: records that differ",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2080,
+        800
+      ]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $json.url }}/contacts/{{ $json.record_id }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ marketing_opt_out: $json.opt_out }) }}"
+      },
+      "id": "d365a949-086c-5bec-8a83-e7aa6f26a56f",
+      "name": "Step 8: Correct the list",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2340,
+        800
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO decision_log (recipe, item, decision, rules) VALUES ($1, $2, $3, $4::jsonb) RETURNING id",
+        "options": {
+          "queryReplacement": "={{ [\"R15.3\", $('Step 8: Rule: records that differ').item.json.list + ':' + $('Step 8: Rule: records that differ').item.json.record_id, 'nightly: ' + $('Step 8: Rule: records that differ').item.json.list + ' corrected to the master', JSON.stringify({ list: $('Step 8: Rule: records that differ').item.json.list, contact: $('Step 8: Rule: records that differ').item.json.contact_id, opt_out: $('Step 8: Rule: records that differ').item.json.opt_out })] }}"
+        }
+      },
+      "id": "0aeb9348-1a25-52f0-bb6c-02436c22468e",
+      "name": "Step 8: Decision log",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2600,
+        720
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "Decision log: the item's ID, the decision and the rules; never the content (book Chapter 3).",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const l = $('Step 8: Lists to check').item.json;\nreturn { json: { list: l.list, problem: 'nightly read failed: ' + (($json.error && $json.error.message) || 'no answer') } };"
+      },
+      "id": "986f7ea7-3236-5b61-856e-bdec012d829e",
+      "name": "Step 8: List still failing",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2080,
+        1000
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "return { json: { list: $('Step 8: Rule: records that differ').item.json.list, problem: 'nightly correction of ' + $('Step 8: Rule: records that differ').item.json.record_id + ' failed' } };"
+      },
+      "id": "27cd35ee-4555-5b50-8a4d-bc31653d569d",
+      "name": "Step 8: Correction failed",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2600,
+        1000
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "return { json: $json };"
+      },
+      "id": "cf4fccc3-4e6c-5f5c-802c-c707604eb7cc",
+      "name": "Step 8: Failure",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2860,
+        1000
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO exception_queue (recipe, item, reason, detail, owner) VALUES ($1, $2, $3, $4, $5) RETURNING id",
+        "options": {
+          "queryReplacement": "={{ [\"R15.3\", $('Step 8: Failure').item.json.list, \"nightly check failed\", $('Step 8: Failure').item.json.problem + '; the list stays held until it is fixed', $('Config').first().json.consent_owner] }}"
+        }
+      },
+      "id": "a2f429de-632c-5d87-a281-180b37b6076b",
+      "name": "Exception queue: list held",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        3120,
+        1000
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "Exception queue: a named person works through it (book Chapters 2 and 16).",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').first().json.messaging_url }}/messages",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ to: $('Config').first().json.consent_owner, subject: 'Nightly consent check: ' + $('Step 8: Failure').item.json.list, text: $('Step 8: Failure').item.json.problem }) }}"
+      },
+      "id": "81958fdc-99bd-5c7e-ac73-36cbe5838a38",
+      "name": "Step 8: Tell Owen",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3380,
+        1000
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Config').item.json.stop_flag_url }}",
+        "options": {}
+      },
+      "id": "9f967537-d155-5dca-b24c-75ff81c16d2d",
+      "name": "Stop flag: read",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        520,
+        240
+      ],
+      "notes": "Kill switch: set stopped to true in your stop list and the next run ends quietly (book Chapter 3).",
+      "notesInFlow": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.stopped === true }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "id": "ce7033c0-ec9a-572d-9b0c-8e7e0d6e957e"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "a2e38712-7890-5a7c-b280-d1f9b972400f",
+      "name": "Stop flag set?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        780,
+        240
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "88841466-5dd1-59b4-ba3b-411ba4cac58d",
+      "name": "Stopped by the stop flag",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        1040,
+        40
+      ],
+      "notes": "Ends quietly; nothing is read, written or sent.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO exception_queue (recipe, item, reason, detail, owner) VALUES ($1, $2, $3, $4, $5) RETURNING id",
+        "options": {
+          "queryReplacement": "={{ [\"R15.3\", 'run ' + $execution.id, \"stop list unreadable\", 'The stop list could not be read, so the run stopped; fix the stop list', '<your workflow owner>'] }}"
+        }
+      },
+      "id": "861a50f0-0c13-5428-b73f-fc671f32fe61",
+      "name": "Exception queue: stop list unreadable",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        780,
+        460
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "Exception queue: a named person works through it (book Chapters 2 and 16).",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    }
+  ],
+  "connections": {
+    "Step 1: Unsubscribe": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 1: Opt-in": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 1: POS sign-up": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 1: Helpdesk opt-out tag": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 8: Each night": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Nightly check?": {
+      "main": [
+        [
+          {
+            "node": "Step 8: Read the master",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Consent event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Consent event": {
+      "main": [
+        [
+          {
+            "node": "Step 2: Reserve key",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 2: Reserve key": {
+      "main": [
+        [
+          {
+            "node": "New key?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "New key?": {
+      "main": [
+        [
+          {
+            "node": "Read the master by email",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Duplicate: stop",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read the master by email": {
+      "main": [
+        [
+          {
+            "node": "Read the master by phone",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read the master by phone": {
+      "main": [
+        [
+          {
+            "node": "Steps 3 and 4: Rules",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Steps 3 and 4: Rules": {
+      "main": [
+        [
+          {
+            "node": "Apply it?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Apply it?": {
+      "main": [
+        [
+          {
+            "node": "In the master already?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark ignored event done",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "In the master already?": {
+      "main": [
+        [
+          {
+            "node": "Step 5: Write the change to the CRM",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Step 5: Add the person to the CRM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 5: Write the change to the CRM": {
+      "main": [
+        [
+          {
+            "node": "Mark key done",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark key failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 5: Add the person to the CRM": {
+      "main": [
+        [
+          {
+            "node": "Mark key done",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark key failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark key done": {
+      "main": [
+        [
+          {
+            "node": "Step 5: Decision log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark ignored event done": {
+      "main": [
+        [
+          {
+            "node": "Steps 3 and 4: Decision log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark key failed": {
+      "main": [
+        [
+          {
+            "node": "Exception queue: master write failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Exception queue: master write failed": {
+      "main": [
+        [
+          {
+            "node": "Tell Owen: master write failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 5: Decision log": {
+      "main": [
+        [
+          {
+            "node": "Step 6: Lists to update",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 6: Lists to update": {
+      "main": [
+        [
+          {
+            "node": "Step 6: Find on the list by email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 6: Find on the list by email": {
+      "main": [
+        [
+          {
+            "node": "Step 6: Find on the list by phone",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Step 7: List unreachable",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 6: Find on the list by phone": {
+      "main": [
+        [
+          {
+            "node": "Step 6: Records to change",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Step 7: List unreachable",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 6: Records to change": {
+      "main": [
+        [
+          {
+            "node": "On the list?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "On the list?": {
+      "main": [
+        [
+          {
+            "node": "Step 6: Apply it to the list",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Step 6: Decision log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 6: Apply it to the list": {
+      "main": [
+        [
+          {
+            "node": "Step 6: Read it back",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Step 7: List did not confirm",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 6: Read it back": {
+      "main": [
+        [
+          {
+            "node": "Step 6: Rule: did the list confirm?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Step 7: List did not confirm",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 6: Rule: did the list confirm?": {
+      "main": [
+        [
+          {
+            "node": "Confirmed?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Confirmed?": {
+      "main": [
+        [
+          {
+            "node": "Step 6: Decision log",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Step 7: List did not confirm",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 7: List unreachable": {
+      "main": [
+        [
+          {
+            "node": "Step 7: An opt-out?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 7: List did not confirm": {
+      "main": [
+        [
+          {
+            "node": "Step 7: An opt-out?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 7: An opt-out?": {
+      "main": [
+        [
+          {
+            "node": "Step 7: Suppress the person on the list",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Step 7: Opt-in not confirmed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 7: Suppress the person on the list": {
+      "main": [
+        [
+          {
+            "node": "Step 7: Suppressed",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Step 7: Mark the list paused",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 7: Suppressed": {
+      "main": [
+        [
+          {
+            "node": "Step 7: Outcome",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 7: Mark the list paused": {
+      "main": [
+        [
+          {
+            "node": "Step 7: Paused",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Step 7: Pause failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 7: Paused": {
+      "main": [
+        [
+          {
+            "node": "Step 7: Outcome",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 7: Pause failed": {
+      "main": [
+        [
+          {
+            "node": "Step 7: Outcome",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 7: Opt-in not confirmed": {
+      "main": [
+        [
+          {
+            "node": "Step 7: Outcome",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 7: Outcome": {
+      "main": [
+        [
+          {
+            "node": "Exception queue: list did not confirm",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Exception queue: list did not confirm": {
+      "main": [
+        [
+          {
+            "node": "Step 7: Tell Owen",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 7: Tell Owen": {
+      "main": [
+        [
+          {
+            "node": "Step 7: Decision log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 8: Read the master": {
+      "main": [
+        [
+          {
+            "node": "Step 8: Lists to check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 8: Lists to check": {
+      "main": [
+        [
+          {
+            "node": "Step 8: Read the list",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 8: Read the list": {
+      "main": [
+        [
+          {
+            "node": "Step 8: Rule: records that differ",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Step 8: List still failing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 8: Rule: records that differ": {
+      "main": [
+        [
+          {
+            "node": "Step 8: Correct the list",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 8: Correct the list": {
+      "main": [
+        [
+          {
+            "node": "Step 8: Decision log",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Step 8: Correction failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 8: List still failing": {
+      "main": [
+        [
+          {
+            "node": "Step 8: Failure",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 8: Correction failed": {
+      "main": [
+        [
+          {
+            "node": "Step 8: Failure",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 8: Failure": {
+      "main": [
+        [
+          {
+            "node": "Exception queue: list held",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Exception queue: list held": {
+      "main": [
+        [
+          {
+            "node": "Step 8: Tell Owen",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config": {
+      "main": [
+        [
+          {
+            "node": "Stop flag: read",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Stop flag: read": {
+      "main": [
+        [
+          {
+            "node": "Stop flag set?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Exception queue: stop list unreadable",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Stop flag set?": {
+      "main": [
+        [
+          {
+            "node": "Stopped by the stop flag",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Nightly check?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataSuccessExecution": "all",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "pinData": {}
+}

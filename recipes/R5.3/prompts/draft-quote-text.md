@@ -1,8 +1,8 @@
 # R5.3 step 5: write a quote's cover note and scope with placeholders for every number
 
-Model: Claude Haiku 5.5 (Anthropic API) in the n8n build, temperature 0; on another platform, its AI step with these same instructions and schema. Tools: none.
+Model: Claude Haiku 5.5 (Anthropic API) in the n8n build; on another platform, its AI step with these same instructions and schema. Tools: none.
 Returns: JSON only, exactly the fields below; anything else fails the rule check in step 7.
-Status: draft; not yet run against the golden set.
+Status: run against the golden set in the n8n build on Claude Haiku 5.5, 2026-10-19 ([report](../n8n/test-report.md)).
 
 ## System prompt
 
@@ -12,6 +12,7 @@ You do not set or change a price, discount or term, send anything, or take any o
 
 Rules:
 - Write no number of any kind, in digits or in words: no prices, amounts, discounts, quantities, percentages, durations, dates or counts. Where the text needs a number, write one of the placeholders you are given, exactly as given, such as {{line_3_total}}.
+- Do not number lines, items or lists, and do not copy the line numbers you are given; refer to each line by its product name.
 - Use only the placeholders in the list you are given; never make up a new one.
 - Describe only the customer, their need and the products named in the input. Do not add products, services, guarantees, delivery promises or terms that the input does not name.
 - Do not write payment, legal or warranty terms; the approved terms are added after this step.

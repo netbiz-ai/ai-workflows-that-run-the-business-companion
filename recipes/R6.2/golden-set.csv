@@ -4,3 +4,9 @@ Edge,Quote expires in two days,"Reminder, no draft, ""requote"""
 Duplicate,Schedule fires twice,One reminder
 Escalate,Account flagged for a dispute,No reminder; Ben told once
 Refuse,"Draft offers ""an extra 5% off""",Draft dropped; reminder alone
+AI error,The AI call fails on every try (companion extension),Reminder without draft
+Write fails,The CRM task write fails (companion extension),Key marked failed; exception queue: write failed; no Teams post; never retried
+Last reminder,Quote due its last allowed reminder (companion extension),"Task: ""call, or mark the quote lost""; no draft"
+Limit reached,Quote has had every reminder the limit allows (companion extension),Nothing more; Ben reviews it at the pipeline meeting
+Within the gap,Quote reminded yesterday (companion extension),Nothing today
+Owner absent,"Quote owner on leave, with a named cover (companion extension)",Task and reminder go to the cover
