@@ -4,3 +4,5 @@ Edge,Quote valid until tomorrow,"Blocked: ""expires within margin"""
 Duplicate,"Status write, version unchanged",No new check
 Refuse,Supplier on R7.3 hold,"Blocked: ""supplier on hold"""
 Escalate,"Two $450 requests, same supplier, three days apart",Checked as one $900 order
+Failure,Status write fails (companion extension),Key marked failed; exception queue: write failed; never retried
+Backstop,"A $1,200 PO with no approved request (companion extension)",Exception queue and a message to the finance reviewer

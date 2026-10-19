@@ -10,7 +10,7 @@ It never approves, places or changes an order, waives a rule, or adds a supplier
 | Platform | File | Status |
 |---|---|---|
 | Tool-neutral | `build-spec.md` | Available |
-| n8n | `n8n/workflow.json` | Not yet available |
+| n8n | [`n8n/workflow.json`](n8n/workflow.json) | Available: golden set passed on n8n 2.42.7, 2026-10-19 ([report](n8n/test-report.md)) |
 | Make | `make/blueprint.json` | Not yet available |
 | Power Automate | `power-automate/` | Not yet available |
 | Zapier | `zapier.md` | Not yet available |

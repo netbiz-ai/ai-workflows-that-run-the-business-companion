@@ -3,3 +3,6 @@ Normal,"""When is my sofa arriving? Order 4417""",Delivery queue
 Edge,Return complaining about the driver,Complaint or manual triage
 Duplicate,Same message ID twice,One routing
 Escalate,Uncovered language,"Manual triage, whatever the confidence"
+Automatic sender,An out-of-office reply (companion extension),Low-priority queue; no AI call
+AI error,The AI call fails twice (companion extension),Manual triage; exception queue
+Write fails,The routing write fails (companion extension),Key marked failed; exception queue: write failed; never retried

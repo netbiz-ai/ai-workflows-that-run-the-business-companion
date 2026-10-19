@@ -1,0 +1,1266 @@
+{
+  "name": "R11.2 Block a purchase before the order is placed",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "r11-2-request",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "4d6b95f2-a794-5282-b329-87b38386933c",
+      "name": "Step 1: Request ready or edited",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "notes": "Your request list calls this when a request is saved as \"ready\" or its version changes. Body: {request_id, version}.",
+      "notesInFlow": true,
+      "webhookId": "2347f23f-5e54-5ff1-837f-ea2df3f19f98"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 7
+            }
+          ]
+        }
+      },
+      "id": "5b52433d-3c4e-5a69-9329-7d31dc2d4887",
+      "name": "Step 11: Each morning",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        520
+      ],
+      "notes": "The morning backstop (step 11).",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "c7ba3903-7a0e-537d-a4d9-23ab3af5c76b",
+              "name": "requests_url",
+              "value": "https://<your request list API>",
+              "type": "string"
+            },
+            {
+              "id": "81ea8551-b60b-510f-8883-1e053db35664",
+              "name": "vendors_url",
+              "value": "https://<your vendor-record export API>",
+              "type": "string"
+            },
+            {
+              "id": "37f85feb-1273-5483-b477-76edd5788a2c",
+              "name": "policy_url",
+              "value": "https://<your policy list API>",
+              "type": "string"
+            },
+            {
+              "id": "f071186b-1cd5-5622-b5a0-b1f531ed034c",
+              "name": "ledger_url",
+              "value": "https://<your accounting platform export API>",
+              "type": "string"
+            },
+            {
+              "id": "721a2d1a-3930-5473-b2c9-5bb592b8fc63",
+              "name": "messaging_url",
+              "value": "https://<your messaging API>",
+              "type": "string"
+            },
+            {
+              "id": "1f01593e-a102-5cef-8fd5-43ff081f0d4b",
+              "name": "split_window_days",
+              "value": 14,
+              "type": "number"
+            },
+            {
+              "id": "a79ee180-e00e-5a6c-8401-070660954e37",
+              "name": "split_limits",
+              "value": "[500, 10000]",
+              "type": "array"
+            },
+            {
+              "id": "75906907-cec4-5e60-a20d-10dc7345e31e",
+              "name": "no_po_limit",
+              "value": 500,
+              "type": "number"
+            },
+            {
+              "id": "a2bc2c7a-0890-500a-9410-a58bc2556161",
+              "name": "margin_working_days",
+              "value": 5,
+              "type": "number"
+            },
+            {
+              "id": "146b5888-00f6-5004-b5f6-a13460c9d985",
+              "name": "price_drop_pct",
+              "value": 30,
+              "type": "number"
+            },
+            {
+              "id": "0f3aee56-d4a5-5e41-8566-0e8f5bd5ed10",
+              "name": "price_approver",
+              "value": "<your purchasing approver>",
+              "type": "string"
+            },
+            {
+              "id": "7505b96a-e6e7-5c4f-b2d6-bd70b16dbdf7",
+              "name": "backstop_reviewer",
+              "value": "<your finance reviewer>",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "91baec8d-5b1e-5fc1-b334-a0720af8f580",
+      "name": "Config",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        260,
+        260
+      ],
+      "notes": "Edit these values for your company; nothing else in the workflow hard-codes them.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $('Step 11: Each morning').isExecuted }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "id": "5e792ae1-22e0-520e-8a58-8d3e93a996a6"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "eb413f4b-b9e6-5f00-bd8d-d5b96e8c0832",
+      "name": "Morning backstop?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        520,
+        260
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Config').item.json.requests_url }}/requests/{{ $('Step 1: Request ready or edited').item.json.body.request_id }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        }
+      },
+      "id": "1555bbf7-cc88-586a-b582-15ae688f4312",
+      "name": "Read request",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        780,
+        0
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH reserved AS (INSERT INTO key_log (recipe, key, status) VALUES ($1, $2, 'in progress') ON CONFLICT (recipe, key) DO NOTHING RETURNING key), skipped AS (UPDATE key_log SET copies_skipped = copies_skipped + 1 WHERE recipe = $1 AND key = $2 AND NOT EXISTS (SELECT 1 FROM reserved)) SELECT (SELECT count(*) FROM reserved) = 1 AS is_new, $2::text AS key",
+        "options": {
+          "queryReplacement": "={{ [\"R11.2\", $('Step 1: Request ready or edited').item.json.body.request_id + ':' + $('Step 1: Request ready or edited').item.json.body.version] }}"
+        }
+      },
+      "id": "ce028046-320d-5015-beeb-f32a02397385",
+      "name": "Step 2: Reserve key",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1040,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "Key log: refuses a second copy in the same step (book Chapter 2).",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.is_new }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "id": "a34f97a4-b4f7-5c73-9db3-ffe94de79520"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "d3a7c80f-f1b2-57cb-a84d-48dd3acca913",
+      "name": "New key?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1300,
+        0
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "e44726a0-be6b-561f-be2e-446bacc730f7",
+      "name": "Duplicate: stop",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        1560,
+        -160
+      ],
+      "notes": "Key already logged: this request version was checked before.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Config').item.json.vendors_url }}/records/{{ $('Read request').item.json.supplier_id }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        }
+      },
+      "id": "99a22759-4d9a-5402-850c-c8bc9067a8e0",
+      "name": "Read supplier record",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1560,
+        0
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Config').item.json.policy_url }}/budget_lines/{{ $('Read request').item.json.budget_line }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        }
+      },
+      "id": "810e8b24-60f1-568a-bebd-f0814d52858b",
+      "name": "Read policy list",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1820,
+        0
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Config').item.json.ledger_url }}/last_prices",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "_wrap",
+              "value": "1"
+            }
+          ]
+        }
+      },
+      "id": "b6959ace-bcce-57e4-b3fc-702bca83d03a",
+      "name": "Read last prices paid",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2080,
+        0
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Config').item.json.requests_url }}/requests",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "_wrap",
+              "value": "1"
+            },
+            {
+              "name": "supplier_id",
+              "value": "={{ $('Read request').item.json.supplier_id }}"
+            },
+            {
+              "name": "budget_line",
+              "value": "={{ $('Read request').item.json.budget_line }}"
+            }
+          ]
+        }
+      },
+      "id": "0b118ff8-060d-535f-a123-e46c62227261",
+      "name": "Read recent requests",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2340,
+        0
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "\n// Steps 3 to 8 of the book's R11.2, in order. Returns one outcome and its reason codes.\nconst cfg = $('Config').first().json;\nconst req = $('Read request').first().json;\nconst supplier = $('Read supplier record').first().json;\nconst policy = $('Read policy list').first().json;\nconst lastPaid = Object.fromEntries(($('Read last prices paid').first().json.items || []).map(p => [p.item, p.unit_price]));\nconst recent = ($('Read recent requests').first().json.items || []).filter(r => r.id !== req.id && r.status !== 'cancelled');\n\nconst reasons = [];\nconst rules = {};\nconst day = d => new Date(d + 'T00:00:00Z');\nconst today = new Date(new Date().toISOString().slice(0, 10) + 'T00:00:00Z');\n\n// Step 3: requests to one supplier and budget line within the window, crossing a limit, are a possible split.\nconst windowStart = new Date(today.getTime() - cfg.split_window_days * 86400000);\nconst sameWindow = recent.filter(r => day(r.created) >= windowStart);\nconst combined = sameWindow.reduce((s, r) => s + Number(r.amount), Number(req.amount));\nconst crossed = cfg.split_limits.some(l => Number(req.amount) <= l && combined > l);\nconst total = crossed ? combined : Number(req.amount);\nrules.possible_split = crossed ? `combined ${combined} with ${sameWindow.map(r => r.id).join(', ')}` : 'no';\n\n// Step 4: supplier active with no hold; then a total at or under the limit needs no PO and stops.\nif (!supplier.active) reasons.push('supplier inactive');\nif (supplier.hold) reasons.push('supplier on hold');\nrules.supplier = reasons.length ? 'failed' : 'passed';\nif (!reasons.length && total <= cfg.no_po_limit) {\n  return [{ json: { outcome: 'no_po', status: 'no PO needed', total, reasons: [], rules } }];\n}\n\n// Step 5: a checked comparison row, or a waiver from the policy list (which skips step 6).\nconst waiver = req.waiver && (policy.waiver_grantors || []).includes(req.waiver.by) ? req.waiver : null;\nif (!waiver && !(req.comparison && req.comparison.checked)) reasons.push('no checked comparison or valid waiver');\nrules.comparison = waiver ? `waiver by ${waiver.by}, logged for review` : (req.comparison && req.comparison.checked ? 'passed' : 'failed');\n\n// Step 6: the quote matches, is valid for the margin in working days, and freight is stated or included.\nif (!waiver) {\n  const q = req.quote || {};\n  let d = new Date(today), n = 0;\n  while (n < cfg.margin_working_days) { d = new Date(d.getTime() + 86400000); if (d.getUTCDay() % 6 !== 0) n++; }\n  if (!q.matches) reasons.push('quote not matched');\n  if (!q.valid_until || day(q.valid_until) < d) reasons.push('expires within margin');\n  if (!['stated', 'included'].includes(q.freight)) reasons.push('freight not stated');\n  rules.quote = q.matches && q.valid_until && day(q.valid_until) >= d && ['stated', 'included'].includes(q.freight) ? 'passed' : 'failed';\n}\n\n// Step 7: the category is allowed for the budget line.\nif (!(policy.allowed_categories || []).includes(req.category)) reasons.push('category not allowed');\nrules.category = (policy.allowed_categories || []).includes(req.category) ? 'passed' : 'failed';\n\nif (reasons.length) {\n  return [{ json: { outcome: 'blocked', status: 'blocked', total, reasons, rules } }];\n}\n\n// Step 8: a price more than the set share below the last price paid waits for the price approver.\nconst cheap = (req.lines || []).filter(l => lastPaid[l.item] && Number(l.unit_price) < lastPaid[l.item] * (1 - cfg.price_drop_pct / 100));\nrules.price = cheap.length ? `over ${cfg.price_drop_pct}% below last paid: ${cheap.map(l => l.item).join(', ')}` : 'passed';\nif (cheap.length) {\n  return [{ json: { outcome: 'price_check', status: 'waiting for price check', total, reasons: ['price far below last paid'], rules } }];\n}\n\n// Step 9: pass.\nreturn [{ json: { outcome: 'pass', status: 'checked; to approval', total, reasons: [], rules } }];\n"
+      },
+      "id": "873074f7-6520-53f9-a745-c819a52aab9b",
+      "name": "Rules: steps 3 to 8",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2600,
+        0
+      ],
+      "notes": "Rules decide; there is no AI step in R11.2.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "7ced4c45-209e-52af-b89d-9795f6ce0f54",
+                    "leftValue": "={{ $json.outcome }}",
+                    "rightValue": "pass",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "pass"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "6744ed7c-ac8b-5737-97f1-1899de607ddb",
+                    "leftValue": "={{ $json.outcome }}",
+                    "rightValue": "no_po",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "no_po"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "dc53ed30-c8c1-5370-8ddd-3f64dd438d9c",
+                    "leftValue": "={{ $json.outcome }}",
+                    "rightValue": "blocked",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "blocked"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "430c9c76-b0b8-51c2-997c-f35443f6f9b1",
+                    "leftValue": "={{ $json.outcome }}",
+                    "rightValue": "price_check",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "price_check"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "70f78212-9015-55e6-8ed1-2c194956dd7e",
+      "name": "Outcome",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        2860,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $('Config').item.json.requests_url }}/requests/{{ $('Step 1: Request ready or edited').item.json.body.request_id }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ status: $json.status, total: $json.total, reasons: $json.reasons }) }}"
+      },
+      "id": "253e1297-26a6-59e9-967b-d9df6a43e1e9",
+      "name": "Step 9: Set checked; to approval",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3120,
+        -240
+      ],
+      "notes": "Starts R11.3. A write: never retried.",
+      "notesInFlow": true,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $('Config').item.json.requests_url }}/requests/{{ $('Step 1: Request ready or edited').item.json.body.request_id }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ status: $json.status, total: $json.total, reasons: $json.reasons }) }}"
+      },
+      "id": "ad97c26a-e420-5a70-be5c-a3b4152dda45",
+      "name": "Step 4: Set no PO needed",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3120,
+        -80
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $('Config').item.json.requests_url }}/requests/{{ $('Step 1: Request ready or edited').item.json.body.request_id }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ status: $json.status, total: $json.total, reasons: $json.reasons }) }}"
+      },
+      "id": "101cc525-6364-58d2-9019-ae5e453d73c9",
+      "name": "Step 10: Set blocked",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3120,
+        80
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $('Config').item.json.requests_url }}/requests/{{ $('Step 1: Request ready or edited').item.json.body.request_id }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ status: $json.status, total: $json.total, reasons: $json.reasons }) }}"
+      },
+      "id": "36565b2a-2504-539d-90ee-294a0b7b05fa",
+      "name": "Step 8: Set waiting for price check",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3120,
+        240
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').item.json.messaging_url }}/messages",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ to: $('Read request').item.json.requester, subject: 'Purchase request ' + $('Step 1: Request ready or edited').item.json.body.request_id + ' blocked', text: 'Fix and save again: ' + $('Rules: steps 3 to 8').item.json.reasons.join('; ') }) }}"
+      },
+      "id": "df37baf2-3bcf-59e7-a861-bbc8cfe2795c",
+      "name": "Step 10: Tell the requester",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3380,
+        80
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').item.json.messaging_url }}/messages",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ to: $('Config').item.json.price_approver, subject: 'Price check: request ' + $('Step 1: Request ready or edited').item.json.body.request_id, text: $('Rules: steps 3 to 8').item.json.rules.price }) }}"
+      },
+      "id": "b28f60b0-ec65-5d19-89e0-b08ad57eec77",
+      "name": "Step 8: Tell the price approver",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3380,
+        240
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE key_log SET status = $3, result = $4 WHERE recipe = $1 AND key = $2 RETURNING key",
+        "options": {
+          "queryReplacement": "={{ [\"R11.2\", $('Step 1: Request ready or edited').item.json.body.request_id + ':' + $('Step 1: Request ready or edited').item.json.body.version, \"done\", $('Rules: steps 3 to 8').item.json.status] }}"
+        }
+      },
+      "id": "be2a7a04-4137-5971-90d0-fb57d0038d30",
+      "name": "Mark key done",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        3640,
+        -80
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO decision_log (recipe, item, decision, rules) VALUES ($1, $2, $3, $4::jsonb) RETURNING id",
+        "options": {
+          "queryReplacement": "={{ [\"R11.2\", $('Step 1: Request ready or edited').item.json.body.request_id, $('Rules: steps 3 to 8').item.json.status, JSON.stringify(Object.assign({}, $('Rules: steps 3 to 8').item.json.rules, { reasons: $('Rules: steps 3 to 8').item.json.reasons, total: $('Rules: steps 3 to 8').item.json.total }))] }}"
+        }
+      },
+      "id": "328087bc-91de-5e87-a19b-7582181b4a0b",
+      "name": "Decision log",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        3900,
+        -80
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "Decision log: the item's ID, the decision and the rules; never the content (book Chapter 3).",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE key_log SET status = $3, result = $4 WHERE recipe = $1 AND key = $2 RETURNING key",
+        "options": {
+          "queryReplacement": "={{ [\"R11.2\", $('Step 1: Request ready or edited').item.json.body.request_id + ':' + $('Step 1: Request ready or edited').item.json.body.version, \"failed\", 'write failed: ' + ($json.error && $json.error.message || 'unknown')] }}"
+        }
+      },
+      "id": "027cb46b-7dff-5411-90f3-f7c12ebdd5fd",
+      "name": "Mark key failed",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        3640,
+        400
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO exception_queue (recipe, item, reason, detail, owner) VALUES ($1, $2, $3, $4, $5) RETURNING id",
+        "options": {
+          "queryReplacement": "={{ [\"R11.2\", $('Step 1: Request ready or edited').item.json.body.request_id, \"write failed\", 'Status write failed; check the request before releasing the key', $('Config').item.json.price_approver] }}"
+        }
+      },
+      "id": "6f2f6a23-5ff4-5c8a-b272-2a7c4c4b05ce",
+      "name": "Exception queue: write failed",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        3900,
+        400
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "Exception queue: a named person works through it (book Chapters 2 and 16).",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Config').item.json.ledger_url }}/pos",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "_wrap",
+              "value": "1"
+            }
+          ]
+        }
+      },
+      "id": "1b662f7d-411c-519a-9bcd-7bccf066512b",
+      "name": "Read yesterday's POs",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        780,
+        520
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Config').item.json.requests_url }}/requests",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "_wrap",
+              "value": "1"
+            },
+            {
+              "name": "status",
+              "value": "approved"
+            }
+          ]
+        }
+      },
+      "id": "96782430-cac6-5357-af28-abb4cdd67977",
+      "name": "Read approved requests",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1040,
+        520
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "\n// Step 11: any PO over the limit with no approved request goes to the finance reviewer.\nconst cfg = $('Config').first().json;\nconst pos = $('Read yesterday\\'s POs').first().json.items || [];\nconst approved = new Set(($('Read approved requests').first().json.items || []).map(r => r.id));\nconst orphans = pos.filter(p => Number(p.amount) > cfg.no_po_limit && !approved.has(p.request_id));\nreturn orphans.map(p => ({ json: { po: p.id, amount: p.amount, request_id: p.request_id || null } }));\n"
+      },
+      "id": "1ea18745-5488-525e-8a07-50aecdd8c958",
+      "name": "Rule: POs with no approved request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1300,
+        520
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO exception_queue (recipe, item, reason, detail, owner) VALUES ($1, $2, $3, $4, $5) RETURNING id",
+        "options": {
+          "queryReplacement": "={{ [\"R11.2\", $json.po, \"PO without approved request\", 'PO ' + $json.po + ' for ' + $json.amount + ' has no approved request', $('Config').item.json.backstop_reviewer] }}"
+        }
+      },
+      "id": "71e6249d-f4b9-56c4-bf05-7c84d9a966ae",
+      "name": "Exception queue: PO without approval",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1560,
+        520
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Your Postgres (key log, decision log)"
+        }
+      },
+      "notes": "Exception queue: a named person works through it (book Chapters 2 and 16).",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').item.json.messaging_url }}/messages",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ to: $('Config').item.json.backstop_reviewer, subject: 'PO without an approved request', text: 'PO ' + $('Rule: POs with no approved request').item.json.po + ' for ' + $('Rule: POs with no approved request').item.json.amount }) }}"
+      },
+      "id": "35f2bfb8-d412-5d71-8b82-9bffcc36477e",
+      "name": "Step 11: Tell the finance reviewer",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1820,
+        520
+      ]
+    }
+  ],
+  "connections": {
+    "Step 1: Request ready or edited": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 11: Each morning": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config": {
+      "main": [
+        [
+          {
+            "node": "Morning backstop?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Morning backstop?": {
+      "main": [
+        [
+          {
+            "node": "Read yesterday's POs",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Read request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read request": {
+      "main": [
+        [
+          {
+            "node": "Step 2: Reserve key",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 2: Reserve key": {
+      "main": [
+        [
+          {
+            "node": "New key?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "New key?": {
+      "main": [
+        [
+          {
+            "node": "Read supplier record",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Duplicate: stop",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read supplier record": {
+      "main": [
+        [
+          {
+            "node": "Read policy list",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read policy list": {
+      "main": [
+        [
+          {
+            "node": "Read last prices paid",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read last prices paid": {
+      "main": [
+        [
+          {
+            "node": "Read recent requests",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read recent requests": {
+      "main": [
+        [
+          {
+            "node": "Rules: steps 3 to 8",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rules: steps 3 to 8": {
+      "main": [
+        [
+          {
+            "node": "Outcome",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Outcome": {
+      "main": [
+        [
+          {
+            "node": "Step 9: Set checked; to approval",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Step 4: Set no PO needed",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Step 10: Set blocked",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Step 8: Set waiting for price check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 10: Set blocked": {
+      "main": [
+        [
+          {
+            "node": "Step 10: Tell the requester",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark key failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 8: Set waiting for price check": {
+      "main": [
+        [
+          {
+            "node": "Step 8: Tell the price approver",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark key failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 9: Set checked; to approval": {
+      "main": [
+        [
+          {
+            "node": "Mark key done",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark key failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 4: Set no PO needed": {
+      "main": [
+        [
+          {
+            "node": "Mark key done",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark key failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 10: Tell the requester": {
+      "main": [
+        [
+          {
+            "node": "Mark key done",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark key failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 8: Tell the price approver": {
+      "main": [
+        [
+          {
+            "node": "Mark key done",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark key failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark key done": {
+      "main": [
+        [
+          {
+            "node": "Decision log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark key failed": {
+      "main": [
+        [
+          {
+            "node": "Exception queue: write failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read yesterday's POs": {
+      "main": [
+        [
+          {
+            "node": "Read approved requests",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read approved requests": {
+      "main": [
+        [
+          {
+            "node": "Rule: POs with no approved request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rule: POs with no approved request": {
+      "main": [
+        [
+          {
+            "node": "Exception queue: PO without approval",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Exception queue: PO without approval": {
+      "main": [
+        [
+          {
+            "node": "Step 11: Tell the finance reviewer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataSuccessExecution": "all",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "pinData": {}
+}
