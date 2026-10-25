@@ -3,7 +3,7 @@
 
 Sources:
 - changes/YYYY-MM-DD-<topic>.md: one dated entry each, Markdown body, newest first.
-- each recipe's golden-set.csv rows marked "(companion extension)" and its n8n/test-report.md,
+- each recipe's golden-set.csv rows marked "(companion extension)" and its n8n and make test reports,
   listed under "Recipe status" so the changelog always matches what was actually run.
 """
 
@@ -25,7 +25,7 @@ def main() -> None:
     for f in sorted((ROOT / "changes").glob("*.md"), reverse=True):
         date = f.name[:10]
         out += [f"## {date}: {f.stem[11:].replace('-', ' ')}", "", f.read_text().strip(), ""]
-    out += ["## Recipe status", "", "| Recipe | n8n golden-set run | Companion extensions to the golden set |", "|---|---|---|"]
+    out += ["## Recipe status", "", "| Recipe | n8n golden-set run | Make golden-set run | Companion extensions to the golden set |", "|---|---|---|---|"]
     for d in sorted((ROOT / "recipes").iterdir(), key=recipe_key):
         rows = list(csv.reader(open(d / "golden-set.csv")))[1:]
         ext = [r[0] for r in rows if "(companion extension)" in r[1]]
@@ -36,7 +36,14 @@ def main() -> None:
             m = re.search(r"Run (\d{4}-\d{2}-\d{2}) on n8n ([\d.]+)", t)
             r = re.search(r"Result: ([^\n]+)", t)
             run = f"{m.group(1)}, n8n {m.group(2)}: {r.group(1).rstrip('.')}" if m and r else "See report"
-        out.append(f"| [{d.name}](recipes/{d.name}/) | {run} | {', '.join(ext) or 'None'} |")
+        make = "Not yet run"
+        rep = d / "make" / "test-report.md"
+        if rep.exists():
+            t = rep.read_text()
+            m = re.search(r"Run (\d{4}-\d{2}-\d{2}) on Make \(cloud service, (\w+) plan", t)
+            r = re.search(r"Result: ([^\n]+)", t)
+            make = f"{m.group(1)}, Make {m.group(2)} plan: {r.group(1).rstrip('.')}" if m and r else "See report"
+        out.append(f"| [{d.name}](recipes/{d.name}/) | {run} | {make} | {', '.join(ext) or 'None'} |")
     (ROOT / "CHANGELOG.md").write_text("\n".join(out) + "\n")
     print("wrote CHANGELOG.md")
 

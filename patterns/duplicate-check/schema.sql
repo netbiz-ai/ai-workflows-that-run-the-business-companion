@@ -53,3 +53,18 @@ CREATE TABLE IF NOT EXISTS exception_queue (
 --     WHERE recipe = $1 AND key = $2 AND NOT EXISTS (SELECT 1 FROM reserved)
 --   )
 --   SELECT (SELECT count(*) FROM reserved) = 1 AS is_new;
+
+-- The same statement as a function, for a platform that reaches these tables over a
+-- table API instead of a database connection (the Make builds call it through
+-- PostgREST as POST /rpc/reserve_key {"p_recipe": ..., "p_key": ...}; true = new key).
+CREATE OR REPLACE FUNCTION reserve_key(p_recipe text, p_key text) RETURNS boolean
+LANGUAGE sql AS $f$
+  WITH reserved AS (
+    INSERT INTO key_log (recipe, key, status) VALUES (p_recipe, p_key, 'in progress')
+    ON CONFLICT (recipe, key) DO NOTHING RETURNING key
+  ), skipped AS (
+    UPDATE key_log SET copies_skipped = copies_skipped + 1
+    WHERE recipe = p_recipe AND key = p_key AND NOT EXISTS (SELECT 1 FROM reserved)
+  )
+  SELECT (SELECT count(*) FROM reserved) = 1
+$f$;

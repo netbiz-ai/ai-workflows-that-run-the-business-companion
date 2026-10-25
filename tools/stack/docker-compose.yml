@@ -1,7 +1,10 @@
 # The companion's test stack: n8n at the version the book documents, Postgres for the
-# key log, decision log and exception queue, and the mock business systems.
+# key log, decision log and exception queue, the mock business systems, and PostgREST,
+# the table API the Make builds reach those tables through.
 # Localhost only. Create tools/stack/.env with N8N_ENCRYPTION_KEY and POSTGRES_PASSWORD first.
 #   docker compose -f tools/stack/docker-compose.yml --env-file tools/stack/.env up -d
+# Make runs in Make's cloud: to test the Make builds, publish the mocks (5680) and
+# PostgREST (5681) over HTTPS behind one secret path (tools/README.md, "Make").
 services:
   n8n:
     image: docker.n8n.io/n8nio/n8n:2.42.7
@@ -28,6 +31,16 @@ services:
     volumes:
       - pg-data:/var/lib/postgresql/data
       - ../../patterns/duplicate-check/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./table-api.sql:/docker-entrypoint-initdb.d/02-table-api.sql:ro
+  postgrest:
+    image: postgrest/postgrest:v12.2.3
+    restart: unless-stopped
+    ports: ["127.0.0.1:5681:3000"]
+    environment:
+      - PGRST_DB_URI=postgres://companion:${POSTGRES_PASSWORD}@postgres:5432/companion
+      - PGRST_DB_SCHEMAS=public
+      - PGRST_DB_ANON_ROLE=web_anon
+    depends_on: [postgres]
   mocks:
     image: python:3.12-alpine
     restart: unless-stopped

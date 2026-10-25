@@ -13,7 +13,8 @@ Every recipe here follows the book's anatomy and rule: AI drafts, rules check, p
 | Build specifications, governance cards, golden sets, prompts (all 40 recipes) | Available |
 | Platform cards, patterns, governance templates, golden-set method, monitoring, recipe library | Available |
 | n8n builds (all 40 recipes), each run against its golden set | Available |
-| Make, Power Automate and Zapier builds | Not yet available |
+| Make builds | R11.2 available, run against its golden set; the other 39 recipes not yet available |
+| Power Automate and Zapier builds | Not yet available |
 
 Each recipe's `build-spec.md`, each prompt file and the index below say when its golden set last passed.
 `CHANGELOG.md` records every change, dated.
@@ -28,6 +29,19 @@ Each recipe's `build-spec.md`, each prompt file and the index below say when its
 6. Run the recipe's golden set with your own data before go-live, and publish only when the governance card is filled.
 
 The builds were tested against stand-in systems (`tools/mock-systems/`), not against any vendor's live service; `tools/README.md` shows how to rerun a golden set yourself.
+
+## Using a Make build
+
+1. Create the three tables (`patterns/duplicate-check/schema.sql`, which includes the `reserve_key` function) and put a table API in front of them that Make can reach over HTTPS, such as PostgREST. Make runs in Make's cloud, so it cannot open a connection to a database inside your network.
+2. In Make, create a scenario for each blueprint in `recipes/<ID>/make/` and import it (**...** menu, **Import Blueprint**). `blueprint.json` starts on the recipe's event; a second file such as `backstop.blueprint.json` is the recipe's scheduled step, and the build note at the top of its Config step says when it runs.
+3. On the webhook step, create a webhook and point your system at its address; for a scheduled scenario, set the schedule.
+4. Open the **Config** step and replace every `<your ...>` value, including `table_api_url` and `stop_flag_url`. Nothing else in the scenario hard-codes them.
+5. Each system call is an HTTP step named for the system and action. The blueprint carries no authentication: add your API's (a keychain or an Authorization header on each step), or replace the step with your system's own Make app, keeping its name and its error route.
+6. Turn on **Allow storing of incomplete executions** if Make has not kept it from the blueprint: the reads' Retry handlers need it.
+7. Create the stop list `stop_flag_url` points at, returning `{"stopped": false}`; set it to `true` to stop the scenario (book Chapter 3).
+8. Run the recipe's golden set with your own data before go-live, and publish only when the governance card is filled.
+
+Make switches a webhook scenario off after one error (book Chapter 16), so watch the scenario's history in the first weeks.
 
 ## Before you import anything
 
@@ -48,7 +62,7 @@ The builds were tested against stand-in systems (`tools/mock-systems/`), not aga
 | `monitoring/` | Run monitoring and budget alerts (Chapter 17) |
 | `library/recipe-library.csv` | The blank recipe library (Chapter 18, Appendix A) |
 | `CHANGELOG.md` | Every dated change that affects a recipe (generated) |
-| `tools/` | The build and golden-set tools behind the n8n builds |
+| `tools/` | The build and golden-set tools behind the n8n and Make builds |
 
 ## Recipes
 

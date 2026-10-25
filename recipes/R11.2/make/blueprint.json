@@ -1,0 +1,1281 @@
+{
+  "name": "R11.2 Block a purchase before the order is placed",
+  "flow": [
+    {
+      "id": 1,
+      "module": "gateway:CustomWebHook",
+      "version": 1,
+      "parameters": {
+        "hook": null,
+        "maxResults": 1
+      },
+      "mapper": {},
+      "metadata": {
+        "designer": {
+          "x": 0,
+          "y": 0,
+          "name": "Step 1: Request ready or edited"
+        }
+      }
+    },
+    {
+      "id": 2,
+      "module": "code:ExecuteCode",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "language": "javascript",
+        "inputFormat": "editor",
+        "dependencies": [],
+        "codeEditorJavascript": "// Config: edit these values for your company; nothing else in the scenario hard-codes them.\nreturn {\n  \"stop_flag_url\": \"https://<your stop list API>/stop_flags/R11.2\",\n  \"table_api_url\": \"https://<your table API for the key log, decision log and exception queue>\",\n  \"workflow_owner\": \"<your workflow owner>\",\n  \"requests_url\": \"https://<your request list API>\",\n  \"vendors_url\": \"https://<your vendor-record export API>\",\n  \"policy_url\": \"https://<your policy list API>\",\n  \"ledger_url\": \"https://<your accounting platform export API>\",\n  \"messaging_url\": \"https://<your messaging API>\",\n  \"split_window_days\": 14,\n  \"split_limits\": [\n    500,\n    10000\n  ],\n  \"no_po_limit\": 500,\n  \"margin_working_days\": 5,\n  \"price_drop_pct\": 30,\n  \"price_approver\": \"<your purchasing approver>\",\n  \"backstop_reviewer\": \"<your finance reviewer>\"\n};",
+        "input": []
+      },
+      "metadata": {
+        "designer": {
+          "x": 300,
+          "y": 0,
+          "name": "Config"
+        }
+      }
+    },
+    {
+      "id": 5,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{2.result.stop_flag_url}}",
+        "method": "get",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true
+      },
+      "metadata": {
+        "designer": {
+          "x": 600,
+          "y": 0,
+          "name": "Stop flag: read"
+        }
+      },
+      "onerror": [
+        {
+          "id": 3,
+          "module": "http:MakeRequest",
+          "version": 4,
+          "parameters": {},
+          "mapper": {
+            "url": "{{2.result.table_api_url}}/exception_queue",
+            "method": "post",
+            "timeout": "40",
+            "parseResponse": false,
+            "stopOnHttpError": true,
+            "allowRedirects": true,
+            "shareCookies": false,
+            "requestCompressedContent": true,
+            "contentType": "json",
+            "inputMethod": "jsonString",
+            "jsonStringBodyContent": "{\"recipe\": \"R11.2\", \"item\": \"run {{var.scenario.executionId}}\", \"reason\": \"stop list unreadable\", \"detail\": \"The stop list could not be read, so the run stopped\", \"owner\": \"{{2.result.workflow_owner}}\"}"
+          },
+          "metadata": {
+            "designer": {
+              "x": 600,
+              "y": 300,
+              "name": "Stop flag: list unreadable"
+            }
+          }
+        },
+        {
+          "id": 4,
+          "module": "builtin:Ignore",
+          "version": 1,
+          "metadata": {
+            "designer": {
+              "x": 900,
+              "y": 300
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{2.result.requests_url}}/requests/{{encodeURL(1.request_id)}}",
+        "method": "get",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true
+      },
+      "metadata": {
+        "designer": {
+          "x": 900,
+          "y": 0,
+          "name": "Read request"
+        }
+      },
+      "onerror": [
+        {
+          "id": 6,
+          "module": "builtin:Break",
+          "version": 1,
+          "parameters": {},
+          "mapper": {
+            "count": "3",
+            "retry": true,
+            "interval": "1"
+          },
+          "metadata": {
+            "designer": {
+              "x": 900,
+              "y": 300
+            }
+          }
+        }
+      ],
+      "filter": {
+        "name": "stop flag not set",
+        "conditions": [
+          [
+            {
+              "a": "{{5.data.stopped}}",
+              "b": "true",
+              "o": "text:notequal"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "id": 8,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{2.result.table_api_url}}/rpc/reserve_key",
+        "method": "post",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true,
+        "contentType": "json",
+        "inputMethod": "jsonString",
+        "jsonStringBodyContent": "{\"p_recipe\": \"R11.2\", \"p_key\": \"{{1.request_id}}:{{1.version}}\"}"
+      },
+      "metadata": {
+        "designer": {
+          "x": 1200,
+          "y": 0,
+          "name": "Step 2: Reserve key"
+        }
+      }
+    },
+    {
+      "id": 10,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{2.result.vendors_url}}/records/{{encodeURL(7.data.supplier_id)}}",
+        "method": "get",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true
+      },
+      "metadata": {
+        "designer": {
+          "x": 1500,
+          "y": 0,
+          "name": "Read supplier record"
+        }
+      },
+      "onerror": [
+        {
+          "id": 9,
+          "module": "builtin:Break",
+          "version": 1,
+          "parameters": {},
+          "mapper": {
+            "count": "3",
+            "retry": true,
+            "interval": "1"
+          },
+          "metadata": {
+            "designer": {
+              "x": 1500,
+              "y": 300
+            }
+          }
+        }
+      ],
+      "filter": {
+        "name": "new key (not a copy)",
+        "conditions": [
+          [
+            {
+              "a": "{{8.data}}",
+              "b": "true",
+              "o": "text:equal"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "id": 12,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{2.result.policy_url}}/budget_lines/{{encodeURL(7.data.budget_line)}}",
+        "method": "get",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true
+      },
+      "metadata": {
+        "designer": {
+          "x": 1800,
+          "y": 0,
+          "name": "Read policy list"
+        }
+      },
+      "onerror": [
+        {
+          "id": 11,
+          "module": "builtin:Break",
+          "version": 1,
+          "parameters": {},
+          "mapper": {
+            "count": "3",
+            "retry": true,
+            "interval": "1"
+          },
+          "metadata": {
+            "designer": {
+              "x": 1800,
+              "y": 300
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 14,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{2.result.ledger_url}}/last_prices",
+        "method": "get",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true,
+        "queryParameters": [
+          {
+            "name": "_wrap",
+            "value": "1"
+          }
+        ]
+      },
+      "metadata": {
+        "designer": {
+          "x": 2100,
+          "y": 0,
+          "name": "Read last prices paid"
+        }
+      },
+      "onerror": [
+        {
+          "id": 13,
+          "module": "builtin:Break",
+          "version": 1,
+          "parameters": {},
+          "mapper": {
+            "count": "3",
+            "retry": true,
+            "interval": "1"
+          },
+          "metadata": {
+            "designer": {
+              "x": 2100,
+              "y": 300
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 16,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{2.result.requests_url}}/requests",
+        "method": "get",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true,
+        "queryParameters": [
+          {
+            "name": "_wrap",
+            "value": "1"
+          },
+          {
+            "name": "supplier_id",
+            "value": "{{7.data.supplier_id}}"
+          },
+          {
+            "name": "budget_line",
+            "value": "{{7.data.budget_line}}"
+          }
+        ]
+      },
+      "metadata": {
+        "designer": {
+          "x": 2400,
+          "y": 0,
+          "name": "Read recent requests"
+        }
+      },
+      "onerror": [
+        {
+          "id": 15,
+          "module": "builtin:Break",
+          "version": 1,
+          "parameters": {},
+          "mapper": {
+            "count": "3",
+            "retry": true,
+            "interval": "1"
+          },
+          "metadata": {
+            "designer": {
+              "x": 2400,
+              "y": 300
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 17,
+      "module": "code:ExecuteCode",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "language": "javascript",
+        "inputFormat": "editor",
+        "dependencies": [],
+        "codeEditorJavascript": "// Adapter: the rule below is the same JavaScript as the recipe's n8n build.\n// $('Step name') answers from this step's inputs, which Make passes as JSON text.\nconst SOURCES = {\"Config\": \"in0_Config\", \"Read request\": \"in1_Readrequest\", \"Read supplier record\": \"in2_Readsupplierrecord\", \"Read policy list\": \"in3_Readpolicylist\", \"Read last prices paid\": \"in4_Readlastpricespaid\", \"Read recent requests\": \"in5_Readrecentrequests\"};\nconst DATA = {};\nfor (const [node, key] of Object.entries(SOURCES)) {\n  const raw = input[key];\n  try { DATA[node] = typeof raw === 'string' ? JSON.parse(raw) : raw; } catch (e) { DATA[node] = raw; }\n}\nconst $ = (node) => ({ first: () => ({ json: DATA[node] }), all: () => [{ json: DATA[node] }], item: { json: DATA[node] } });\nconst __rule = () => {\n// Steps 3 to 8 of the book's R11.2, in order. Returns one outcome and its reason codes.\nconst cfg = $('Config').first().json;\nconst req = $('Read request').first().json;\nconst supplier = $('Read supplier record').first().json;\nconst policy = $('Read policy list').first().json;\nconst lastPaid = Object.fromEntries(($('Read last prices paid').first().json.items || []).map(p => [p.item, p.unit_price]));\nconst recent = ($('Read recent requests').first().json.items || []).filter(r => r.id !== req.id && r.status !== 'cancelled');\n\nconst reasons = [];\nconst rules = {};\nconst day = d => new Date(d + 'T00:00:00Z');\nconst today = new Date(new Date().toISOString().slice(0, 10) + 'T00:00:00Z');\n\n// Step 3: requests to one supplier and budget line within the window, crossing a limit, are a possible split.\nconst windowStart = new Date(today.getTime() - cfg.split_window_days * 86400000);\nconst sameWindow = recent.filter(r => day(r.created) >= windowStart);\nconst combined = sameWindow.reduce((s, r) => s + Number(r.amount), Number(req.amount));\nconst crossed = cfg.split_limits.some(l => Number(req.amount) <= l && combined > l);\nconst total = crossed ? combined : Number(req.amount);\nrules.possible_split = crossed ? `combined ${combined} with ${sameWindow.map(r => r.id).join(', ')}` : 'no';\n\n// Step 4: supplier active with no hold; then a total at or under the limit needs no PO and stops.\nif (!supplier.active) reasons.push('supplier inactive');\nif (supplier.hold) reasons.push('supplier on hold');\nrules.supplier = reasons.length ? 'failed' : 'passed';\nif (!reasons.length && total <= cfg.no_po_limit) {\n  return [{ json: { outcome: 'no_po', status: 'no PO needed', total, reasons: [], rules } }];\n}\n\n// Step 5: a checked comparison row, or a waiver from the policy list (which skips step 6).\nconst waiver = req.waiver && (policy.waiver_grantors || []).includes(req.waiver.by) ? req.waiver : null;\nif (!waiver && !(req.comparison && req.comparison.checked)) reasons.push('no checked comparison or valid waiver');\nrules.comparison = waiver ? `waiver by ${waiver.by}, logged for review` : (req.comparison && req.comparison.checked ? 'passed' : 'failed');\n\n// Step 6: the quote matches, is valid for the margin in working days, and freight is stated or included.\nif (!waiver) {\n  const q = req.quote || {};\n  let d = new Date(today), n = 0;\n  while (n < cfg.margin_working_days) { d = new Date(d.getTime() + 86400000); if (d.getUTCDay() % 6 !== 0) n++; }\n  if (!q.matches) reasons.push('quote not matched');\n  if (!q.valid_until || day(q.valid_until) < d) reasons.push('expires within margin');\n  if (!['stated', 'included'].includes(q.freight)) reasons.push('freight not stated');\n  rules.quote = q.matches && q.valid_until && day(q.valid_until) >= d && ['stated', 'included'].includes(q.freight) ? 'passed' : 'failed';\n}\n\n// Step 7: the category is allowed for the budget line.\nif (!(policy.allowed_categories || []).includes(req.category)) reasons.push('category not allowed');\nrules.category = (policy.allowed_categories || []).includes(req.category) ? 'passed' : 'failed';\n\nif (reasons.length) {\n  return [{ json: { outcome: 'blocked', status: 'blocked', total, reasons, rules } }];\n}\n\n// Step 8: a price more than the set share below the last price paid waits for the price approver.\nconst cheap = (req.lines || []).filter(l => lastPaid[l.item] && Number(l.unit_price) < lastPaid[l.item] * (1 - cfg.price_drop_pct / 100));\nrules.price = cheap.length ? `over ${cfg.price_drop_pct}% below last paid: ${cheap.map(l => l.item).join(', ')}` : 'passed';\nif (cheap.length) {\n  return [{ json: { outcome: 'price_check', status: 'waiting for price check', total, reasons: ['price far below last paid'], rules } }];\n}\n\n// Step 9: pass.\nreturn [{ json: { outcome: 'pass', status: 'checked; to approval', total, reasons: [], rules } }];\n};\nconst BODIES = (out) => ({\"status_body\": JSON.stringify({ status: out.status, total: out.total, reasons: out.reasons }), \"done_body\": JSON.stringify({ status: 'done', result: out.status }), \"log_body\": JSON.stringify({ recipe: 'R11.2', item: $('Read request').first().json.id, decision: out.status, rules: Object.assign({}, out.rules, { reasons: out.reasons, total: out.total }) }), \"failed_body\": JSON.stringify({ recipe: 'R11.2', item: $('Read request').first().json.id, reason: 'write failed', detail: 'Status write failed; check the request before releasing the key', owner: $('Config').first().json.price_approver }), \"requester_message\": JSON.stringify({ to: $('Read request').first().json.requester, subject: 'Purchase request ' + $('Read request').first().json.id + ' blocked', text: 'Fix and save again: ' + out.reasons.join('; ') }), \"approver_message\": JSON.stringify({ to: $('Config').first().json.price_approver, subject: 'Price check: request ' + $('Read request').first().json.id, text: out.rules.price || '' })});\nconst out = (__rule()[0] || { json: {} }).json;\nreturn Object.assign({}, out, BODIES(out));\n",
+        "input": [
+          {
+            "name": "in0_Config",
+            "value": "{{2.result}}"
+          },
+          {
+            "name": "in1_Readrequest",
+            "value": "{{7.data}}"
+          },
+          {
+            "name": "in2_Readsupplierrecord",
+            "value": "{{10.data}}"
+          },
+          {
+            "name": "in3_Readpolicylist",
+            "value": "{{12.data}}"
+          },
+          {
+            "name": "in4_Readlastpricespaid",
+            "value": "{{14.data}}"
+          },
+          {
+            "name": "in5_Readrecentrequests",
+            "value": "{{16.data}}"
+          }
+        ]
+      },
+      "metadata": {
+        "designer": {
+          "x": 2700,
+          "y": 0,
+          "name": "Rules: steps 3 to 8"
+        }
+      }
+    },
+    {
+      "id": 50,
+      "module": "builtin:BasicRouter",
+      "version": 1,
+      "mapper": null,
+      "routes": [
+        {
+          "flow": [
+            {
+              "id": 21,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.requests_url}}/requests/{{encodeURL(1.request_id)}}",
+                "method": "patch",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{17.result.status_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 3300,
+                  "y": 0,
+                  "name": "Step 9: Set checked; to approval"
+                }
+              },
+              "onerror": [
+                {
+                  "id": 18,
+                  "module": "http:MakeRequest",
+                  "version": 4,
+                  "parameters": {},
+                  "mapper": {
+                    "url": "{{2.result.table_api_url}}/key_log?recipe=eq.R11.2&key=eq.{{encodeURL(1.request_id)}}%3A{{encodeURL(1.version)}}",
+                    "method": "patch",
+                    "timeout": "40",
+                    "parseResponse": false,
+                    "stopOnHttpError": true,
+                    "allowRedirects": true,
+                    "shareCookies": false,
+                    "requestCompressedContent": true,
+                    "contentType": "json",
+                    "inputMethod": "jsonString",
+                    "jsonStringBodyContent": "{\"status\": \"failed\", \"result\": \"write failed\"}"
+                  },
+                  "metadata": {
+                    "designer": {
+                      "x": 3300,
+                      "y": 300,
+                      "name": "Step 9: Set checked; to approval: mark key failed"
+                    }
+                  }
+                },
+                {
+                  "id": 19,
+                  "module": "http:MakeRequest",
+                  "version": 4,
+                  "parameters": {},
+                  "mapper": {
+                    "url": "{{2.result.table_api_url}}/exception_queue",
+                    "method": "post",
+                    "timeout": "40",
+                    "parseResponse": false,
+                    "stopOnHttpError": true,
+                    "allowRedirects": true,
+                    "shareCookies": false,
+                    "requestCompressedContent": true,
+                    "contentType": "json",
+                    "inputMethod": "jsonString",
+                    "jsonStringBodyContent": "{{17.result.failed_body}}"
+                  },
+                  "metadata": {
+                    "designer": {
+                      "x": 3600,
+                      "y": 300,
+                      "name": "Step 9: Set checked; to approval: exception queue"
+                    }
+                  }
+                },
+                {
+                  "id": 20,
+                  "module": "builtin:Ignore",
+                  "version": 1,
+                  "metadata": {
+                    "designer": {
+                      "x": 3900,
+                      "y": 300
+                    }
+                  }
+                }
+              ],
+              "filter": {
+                "name": "outcome is pass",
+                "conditions": [
+                  [
+                    {
+                      "a": "{{17.result.outcome}}",
+                      "b": "pass",
+                      "o": "text:equal"
+                    }
+                  ]
+                ]
+              }
+            },
+            {
+              "id": 22,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.table_api_url}}/key_log?recipe=eq.R11.2&key=eq.{{encodeURL(1.request_id)}}%3A{{encodeURL(1.version)}}",
+                "method": "patch",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{17.result.done_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 3600,
+                  "y": 0,
+                  "name": "Mark key done (pass)"
+                }
+              }
+            },
+            {
+              "id": 23,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.table_api_url}}/decision_log",
+                "method": "post",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{17.result.log_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 3900,
+                  "y": 0,
+                  "name": "Decision log (pass)"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "flow": [
+            {
+              "id": 27,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.requests_url}}/requests/{{encodeURL(1.request_id)}}",
+                "method": "patch",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{17.result.status_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 3300,
+                  "y": 600,
+                  "name": "Step 4: Set no PO needed"
+                }
+              },
+              "onerror": [
+                {
+                  "id": 24,
+                  "module": "http:MakeRequest",
+                  "version": 4,
+                  "parameters": {},
+                  "mapper": {
+                    "url": "{{2.result.table_api_url}}/key_log?recipe=eq.R11.2&key=eq.{{encodeURL(1.request_id)}}%3A{{encodeURL(1.version)}}",
+                    "method": "patch",
+                    "timeout": "40",
+                    "parseResponse": false,
+                    "stopOnHttpError": true,
+                    "allowRedirects": true,
+                    "shareCookies": false,
+                    "requestCompressedContent": true,
+                    "contentType": "json",
+                    "inputMethod": "jsonString",
+                    "jsonStringBodyContent": "{\"status\": \"failed\", \"result\": \"write failed\"}"
+                  },
+                  "metadata": {
+                    "designer": {
+                      "x": 3300,
+                      "y": 900,
+                      "name": "Step 4: Set no PO needed: mark key failed"
+                    }
+                  }
+                },
+                {
+                  "id": 25,
+                  "module": "http:MakeRequest",
+                  "version": 4,
+                  "parameters": {},
+                  "mapper": {
+                    "url": "{{2.result.table_api_url}}/exception_queue",
+                    "method": "post",
+                    "timeout": "40",
+                    "parseResponse": false,
+                    "stopOnHttpError": true,
+                    "allowRedirects": true,
+                    "shareCookies": false,
+                    "requestCompressedContent": true,
+                    "contentType": "json",
+                    "inputMethod": "jsonString",
+                    "jsonStringBodyContent": "{{17.result.failed_body}}"
+                  },
+                  "metadata": {
+                    "designer": {
+                      "x": 3600,
+                      "y": 900,
+                      "name": "Step 4: Set no PO needed: exception queue"
+                    }
+                  }
+                },
+                {
+                  "id": 26,
+                  "module": "builtin:Ignore",
+                  "version": 1,
+                  "metadata": {
+                    "designer": {
+                      "x": 3900,
+                      "y": 900
+                    }
+                  }
+                }
+              ],
+              "filter": {
+                "name": "outcome is no_po",
+                "conditions": [
+                  [
+                    {
+                      "a": "{{17.result.outcome}}",
+                      "b": "no_po",
+                      "o": "text:equal"
+                    }
+                  ]
+                ]
+              }
+            },
+            {
+              "id": 28,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.table_api_url}}/key_log?recipe=eq.R11.2&key=eq.{{encodeURL(1.request_id)}}%3A{{encodeURL(1.version)}}",
+                "method": "patch",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{17.result.done_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 3600,
+                  "y": 600,
+                  "name": "Mark key done (no PO)"
+                }
+              }
+            },
+            {
+              "id": 29,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.table_api_url}}/decision_log",
+                "method": "post",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{17.result.log_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 3900,
+                  "y": 600,
+                  "name": "Decision log (no PO)"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "flow": [
+            {
+              "id": 33,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.requests_url}}/requests/{{encodeURL(1.request_id)}}",
+                "method": "patch",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{17.result.status_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 3300,
+                  "y": 1200,
+                  "name": "Step 10: Set blocked"
+                }
+              },
+              "onerror": [
+                {
+                  "id": 30,
+                  "module": "http:MakeRequest",
+                  "version": 4,
+                  "parameters": {},
+                  "mapper": {
+                    "url": "{{2.result.table_api_url}}/key_log?recipe=eq.R11.2&key=eq.{{encodeURL(1.request_id)}}%3A{{encodeURL(1.version)}}",
+                    "method": "patch",
+                    "timeout": "40",
+                    "parseResponse": false,
+                    "stopOnHttpError": true,
+                    "allowRedirects": true,
+                    "shareCookies": false,
+                    "requestCompressedContent": true,
+                    "contentType": "json",
+                    "inputMethod": "jsonString",
+                    "jsonStringBodyContent": "{\"status\": \"failed\", \"result\": \"write failed\"}"
+                  },
+                  "metadata": {
+                    "designer": {
+                      "x": 3300,
+                      "y": 1500,
+                      "name": "Step 10: Set blocked: mark key failed"
+                    }
+                  }
+                },
+                {
+                  "id": 31,
+                  "module": "http:MakeRequest",
+                  "version": 4,
+                  "parameters": {},
+                  "mapper": {
+                    "url": "{{2.result.table_api_url}}/exception_queue",
+                    "method": "post",
+                    "timeout": "40",
+                    "parseResponse": false,
+                    "stopOnHttpError": true,
+                    "allowRedirects": true,
+                    "shareCookies": false,
+                    "requestCompressedContent": true,
+                    "contentType": "json",
+                    "inputMethod": "jsonString",
+                    "jsonStringBodyContent": "{{17.result.failed_body}}"
+                  },
+                  "metadata": {
+                    "designer": {
+                      "x": 3600,
+                      "y": 1500,
+                      "name": "Step 10: Set blocked: exception queue"
+                    }
+                  }
+                },
+                {
+                  "id": 32,
+                  "module": "builtin:Ignore",
+                  "version": 1,
+                  "metadata": {
+                    "designer": {
+                      "x": 3900,
+                      "y": 1500
+                    }
+                  }
+                }
+              ],
+              "filter": {
+                "name": "outcome is blocked",
+                "conditions": [
+                  [
+                    {
+                      "a": "{{17.result.outcome}}",
+                      "b": "blocked",
+                      "o": "text:equal"
+                    }
+                  ]
+                ]
+              }
+            },
+            {
+              "id": 37,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.messaging_url}}/messages",
+                "method": "post",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{17.result.requester_message}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 3600,
+                  "y": 1200,
+                  "name": "Step 10: Tell the requester"
+                }
+              },
+              "onerror": [
+                {
+                  "id": 34,
+                  "module": "http:MakeRequest",
+                  "version": 4,
+                  "parameters": {},
+                  "mapper": {
+                    "url": "{{2.result.table_api_url}}/key_log?recipe=eq.R11.2&key=eq.{{encodeURL(1.request_id)}}%3A{{encodeURL(1.version)}}",
+                    "method": "patch",
+                    "timeout": "40",
+                    "parseResponse": false,
+                    "stopOnHttpError": true,
+                    "allowRedirects": true,
+                    "shareCookies": false,
+                    "requestCompressedContent": true,
+                    "contentType": "json",
+                    "inputMethod": "jsonString",
+                    "jsonStringBodyContent": "{\"status\": \"failed\", \"result\": \"write failed\"}"
+                  },
+                  "metadata": {
+                    "designer": {
+                      "x": 3600,
+                      "y": 1500,
+                      "name": "Step 10: Tell the requester: mark key failed"
+                    }
+                  }
+                },
+                {
+                  "id": 35,
+                  "module": "http:MakeRequest",
+                  "version": 4,
+                  "parameters": {},
+                  "mapper": {
+                    "url": "{{2.result.table_api_url}}/exception_queue",
+                    "method": "post",
+                    "timeout": "40",
+                    "parseResponse": false,
+                    "stopOnHttpError": true,
+                    "allowRedirects": true,
+                    "shareCookies": false,
+                    "requestCompressedContent": true,
+                    "contentType": "json",
+                    "inputMethod": "jsonString",
+                    "jsonStringBodyContent": "{{17.result.failed_body}}"
+                  },
+                  "metadata": {
+                    "designer": {
+                      "x": 3900,
+                      "y": 1500,
+                      "name": "Step 10: Tell the requester: exception queue"
+                    }
+                  }
+                },
+                {
+                  "id": 36,
+                  "module": "builtin:Ignore",
+                  "version": 1,
+                  "metadata": {
+                    "designer": {
+                      "x": 4200,
+                      "y": 1500
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "id": 38,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.table_api_url}}/key_log?recipe=eq.R11.2&key=eq.{{encodeURL(1.request_id)}}%3A{{encodeURL(1.version)}}",
+                "method": "patch",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{17.result.done_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 3900,
+                  "y": 1200,
+                  "name": "Mark key done (blocked)"
+                }
+              }
+            },
+            {
+              "id": 39,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.table_api_url}}/decision_log",
+                "method": "post",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{17.result.log_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 4200,
+                  "y": 1200,
+                  "name": "Decision log (blocked)"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "flow": [
+            {
+              "id": 43,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.requests_url}}/requests/{{encodeURL(1.request_id)}}",
+                "method": "patch",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{17.result.status_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 3300,
+                  "y": 1800,
+                  "name": "Step 8: Set waiting for price check"
+                }
+              },
+              "onerror": [
+                {
+                  "id": 40,
+                  "module": "http:MakeRequest",
+                  "version": 4,
+                  "parameters": {},
+                  "mapper": {
+                    "url": "{{2.result.table_api_url}}/key_log?recipe=eq.R11.2&key=eq.{{encodeURL(1.request_id)}}%3A{{encodeURL(1.version)}}",
+                    "method": "patch",
+                    "timeout": "40",
+                    "parseResponse": false,
+                    "stopOnHttpError": true,
+                    "allowRedirects": true,
+                    "shareCookies": false,
+                    "requestCompressedContent": true,
+                    "contentType": "json",
+                    "inputMethod": "jsonString",
+                    "jsonStringBodyContent": "{\"status\": \"failed\", \"result\": \"write failed\"}"
+                  },
+                  "metadata": {
+                    "designer": {
+                      "x": 3300,
+                      "y": 2100,
+                      "name": "Step 8: Set waiting for price check: mark key failed"
+                    }
+                  }
+                },
+                {
+                  "id": 41,
+                  "module": "http:MakeRequest",
+                  "version": 4,
+                  "parameters": {},
+                  "mapper": {
+                    "url": "{{2.result.table_api_url}}/exception_queue",
+                    "method": "post",
+                    "timeout": "40",
+                    "parseResponse": false,
+                    "stopOnHttpError": true,
+                    "allowRedirects": true,
+                    "shareCookies": false,
+                    "requestCompressedContent": true,
+                    "contentType": "json",
+                    "inputMethod": "jsonString",
+                    "jsonStringBodyContent": "{{17.result.failed_body}}"
+                  },
+                  "metadata": {
+                    "designer": {
+                      "x": 3600,
+                      "y": 2100,
+                      "name": "Step 8: Set waiting for price check: exception queue"
+                    }
+                  }
+                },
+                {
+                  "id": 42,
+                  "module": "builtin:Ignore",
+                  "version": 1,
+                  "metadata": {
+                    "designer": {
+                      "x": 3900,
+                      "y": 2100
+                    }
+                  }
+                }
+              ],
+              "filter": {
+                "name": "outcome is price_check",
+                "conditions": [
+                  [
+                    {
+                      "a": "{{17.result.outcome}}",
+                      "b": "price_check",
+                      "o": "text:equal"
+                    }
+                  ]
+                ]
+              }
+            },
+            {
+              "id": 47,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.messaging_url}}/messages",
+                "method": "post",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{17.result.approver_message}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 3600,
+                  "y": 1800,
+                  "name": "Step 8: Tell the price approver"
+                }
+              },
+              "onerror": [
+                {
+                  "id": 44,
+                  "module": "http:MakeRequest",
+                  "version": 4,
+                  "parameters": {},
+                  "mapper": {
+                    "url": "{{2.result.table_api_url}}/key_log?recipe=eq.R11.2&key=eq.{{encodeURL(1.request_id)}}%3A{{encodeURL(1.version)}}",
+                    "method": "patch",
+                    "timeout": "40",
+                    "parseResponse": false,
+                    "stopOnHttpError": true,
+                    "allowRedirects": true,
+                    "shareCookies": false,
+                    "requestCompressedContent": true,
+                    "contentType": "json",
+                    "inputMethod": "jsonString",
+                    "jsonStringBodyContent": "{\"status\": \"failed\", \"result\": \"write failed\"}"
+                  },
+                  "metadata": {
+                    "designer": {
+                      "x": 3600,
+                      "y": 2100,
+                      "name": "Step 8: Tell the price approver: mark key failed"
+                    }
+                  }
+                },
+                {
+                  "id": 45,
+                  "module": "http:MakeRequest",
+                  "version": 4,
+                  "parameters": {},
+                  "mapper": {
+                    "url": "{{2.result.table_api_url}}/exception_queue",
+                    "method": "post",
+                    "timeout": "40",
+                    "parseResponse": false,
+                    "stopOnHttpError": true,
+                    "allowRedirects": true,
+                    "shareCookies": false,
+                    "requestCompressedContent": true,
+                    "contentType": "json",
+                    "inputMethod": "jsonString",
+                    "jsonStringBodyContent": "{{17.result.failed_body}}"
+                  },
+                  "metadata": {
+                    "designer": {
+                      "x": 3900,
+                      "y": 2100,
+                      "name": "Step 8: Tell the price approver: exception queue"
+                    }
+                  }
+                },
+                {
+                  "id": 46,
+                  "module": "builtin:Ignore",
+                  "version": 1,
+                  "metadata": {
+                    "designer": {
+                      "x": 4200,
+                      "y": 2100
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "id": 48,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.table_api_url}}/key_log?recipe=eq.R11.2&key=eq.{{encodeURL(1.request_id)}}%3A{{encodeURL(1.version)}}",
+                "method": "patch",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{17.result.done_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 3900,
+                  "y": 1800,
+                  "name": "Mark key done (price check)"
+                }
+              }
+            },
+            {
+              "id": 49,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.table_api_url}}/decision_log",
+                "method": "post",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{17.result.log_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 4200,
+                  "y": 1800,
+                  "name": "Decision log (price check)"
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "designer": {
+          "x": 3000,
+          "y": 0,
+          "name": "Outcome"
+        }
+      }
+    }
+  ],
+  "metadata": {
+    "instant": true,
+    "version": 1,
+    "designer": {
+      "orphans": []
+    },
+    "scenario": {
+      "dlq": true,
+      "slots": null,
+      "dataloss": false,
+      "maxErrors": 3,
+      "autoCommit": true,
+      "roundtrips": 1,
+      "sequential": false,
+      "confidential": false,
+      "freshVariables": false,
+      "autoCommitTriggerLast": true
+    }
+  }
+}
