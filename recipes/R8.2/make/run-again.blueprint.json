@@ -1,0 +1,663 @@
+{
+  "name": "R8.2 Prepare and send monthly statements: run again",
+  "flow": [
+    {
+      "id": 1,
+      "module": "gateway:CustomWebHook",
+      "version": 1,
+      "parameters": {
+        "hook": null,
+        "maxResults": 1
+      },
+      "mapper": {},
+      "metadata": {
+        "designer": {
+          "x": 0,
+          "y": 0,
+          "name": "Step 9: Run again after a release or restart"
+        }
+      }
+    },
+    {
+      "id": 2,
+      "module": "code:ExecuteCode",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "language": "javascript",
+        "inputFormat": "editor",
+        "dependencies": [],
+        "codeEditorJavascript": "// Config: edit these values for your company; nothing else in the scenario hard-codes them.\nreturn {\n  \"stop_flag_url\": \"https://<your stop list API>/stop_flags/R8.2\",\n  \"table_api_url\": \"https://<your table API for the key log, decision log and exception queue>\",\n  \"workflow_owner\": \"<your workflow owner>\",\n  \"sharepoint_url\": \"https://<your SharePoint lists API>\",\n  \"crm_url\": \"https://<your CRM API>\",\n  \"mail_url\": \"https://<your AR mailbox API>\",\n  \"approvals_url\": \"https://<your approvals API>\",\n  \"messaging_url\": \"https://<your messaging API>\",\n  \"ar_mailbox\": \"<your shared AR mailbox>\",\n  \"ar_lead\": \"<your AR lead, who approves the batch>\",\n  \"cutoff\": \"\",\n  \"statement_subject\": \"<your statement subject; merge fields {{month}} and {{account_name}}>\",\n  \"how_to_pay\": \"<how your customers pay>\",\n  \"where_to_ask\": \"<where a customer asks about a statement>\"\n};",
+        "input": []
+      },
+      "metadata": {
+        "designer": {
+          "x": 300,
+          "y": 0,
+          "name": "Config"
+        }
+      }
+    },
+    {
+      "id": 5,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{2.result.stop_flag_url}}",
+        "method": "get",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true
+      },
+      "metadata": {
+        "designer": {
+          "x": 600,
+          "y": 0,
+          "name": "Stop flag: read"
+        }
+      },
+      "onerror": [
+        {
+          "id": 3,
+          "module": "http:MakeRequest",
+          "version": 4,
+          "parameters": {},
+          "mapper": {
+            "url": "{{2.result.table_api_url}}/exception_queue",
+            "method": "post",
+            "timeout": "40",
+            "parseResponse": false,
+            "stopOnHttpError": true,
+            "allowRedirects": true,
+            "shareCookies": false,
+            "requestCompressedContent": true,
+            "contentType": "json",
+            "inputMethod": "jsonString",
+            "jsonStringBodyContent": "{\"recipe\": \"R8.2\", \"item\": \"run {{var.scenario.executionId}}\", \"reason\": \"stop list unreadable\", \"detail\": \"The stop list could not be read, so the run stopped\", \"owner\": \"{{2.result.workflow_owner}}\"}"
+          },
+          "metadata": {
+            "designer": {
+              "x": 600,
+              "y": 300,
+              "name": "Stop flag: list unreadable"
+            }
+          }
+        },
+        {
+          "id": 4,
+          "module": "builtin:Ignore",
+          "version": 1,
+          "metadata": {
+            "designer": {
+              "x": 900,
+              "y": 300
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{2.result.sharepoint_url}}/exports/balances",
+        "method": "get",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true
+      },
+      "metadata": {
+        "designer": {
+          "x": 900,
+          "y": 0,
+          "name": "Step 2: Read the balances export"
+        }
+      },
+      "onerror": [
+        {
+          "id": 6,
+          "module": "builtin:Resume",
+          "version": 1,
+          "parameters": {},
+          "mapper": {
+            "data": ""
+          },
+          "metadata": {
+            "designer": {
+              "x": 900,
+              "y": 300
+            }
+          }
+        }
+      ],
+      "filter": {
+        "name": "stop flag not set",
+        "conditions": [
+          [
+            {
+              "a": "{{5.data.stopped}}",
+              "b": "true",
+              "o": "text:notequal"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "id": 9,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{2.result.sharepoint_url}}/exports/open-items",
+        "method": "get",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true
+      },
+      "metadata": {
+        "designer": {
+          "x": 1200,
+          "y": 0,
+          "name": "Step 2: Read the open-items export"
+        }
+      },
+      "onerror": [
+        {
+          "id": 8,
+          "module": "builtin:Resume",
+          "version": 1,
+          "parameters": {},
+          "mapper": {
+            "data": ""
+          },
+          "metadata": {
+            "designer": {
+              "x": 1200,
+              "y": 300
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "module": "code:ExecuteCode",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "language": "javascript",
+        "inputFormat": "editor",
+        "dependencies": [],
+        "codeEditorJavascript": "// Adapter: the rule below is the same JavaScript as the recipe's n8n build.\n// $('Step name') answers from this step's inputs: each is that step's output in this scenario.\nconst SOURCES = {\"Config\": \"in0_Config\", \"Step 2: Read the balances export\": \"in1_Step2Readthebalancesexpo\", \"Step 2: Read the open-items export\": \"in2_Step2Readtheopenitemsexp\"};\nconst LISTS = [];\nconst EXECUTED = [];\nconst DATA = {};\nfor (const [node, key] of Object.entries(SOURCES)) {\n  const raw = input[key];\n  let v = raw;\n  if (typeof raw === 'string') { try { v = JSON.parse(raw); } catch (e) { v = raw; } }\n  DATA[node] = LISTS.includes(node) ? (v || []).map(i => (i && i.json !== undefined ? i : { json: i })) : [{ json: v }];\n}\nconst $ = (node) => {\n  const ran = node in DATA || EXECUTED.includes(node);\n  const list = () => { if (!(node in DATA)) throw new Error(`step ${node} has no data in this scenario`); return DATA[node]; };\n  return { isExecuted: ran, first: () => list()[0], last: () => list()[list().length - 1], all: () => list(),\n           get item() { return list()[0]; } };\n};\nconst INPUT = \"Step 2: Read the open-items export\";\nconst $input = { all: () => $(INPUT).all(), first: () => $(INPUT).first(), last: () => $(INPUT).last(), get item() { return $(INPUT).first(); } };\nconst $execution = { id: input.run_id };\nconst BODIES = (out) => ({\"no_run_log\": JSON.stringify({ recipe: 'R8.2', item: 'statements ' + out.month, decision: 'no run', rules: { problems: out.problems } }), \"alert_message\": JSON.stringify({ to: [$('Config').first().json.ar_lead], subject: 'Statements for ' + out.month + ': nothing built', text: out.problems.join('; ') })});\nconst one = (r) => (Array.isArray(r) ? r : [r]).filter(Boolean).map(i => (i.json !== undefined ? i.json : i));\nconst $json = INPUT && INPUT in DATA ? $input.first().json : {};\nconst __rule = () => {\n// The statement month's cut-off: the last month-end, unless Config names one.\nconst cutoffFor = (cfg) => {\n  if (cfg.cutoff) return String(cfg.cutoff).slice(0, 10);\n  const n = new Date();\n  return new Date(Date.UTC(n.getUTCFullYear(), n.getUTCMonth(), 0)).toISOString().slice(0, 10);\n};\n\n// Step 2: both exports saved, at the one expected month-end cut-off.\nconst cfg = $('Config').first().json;\nconst ok = n => { const a = $(n).all(0); return a.length ? a[0].json : null; };\nconst cutoff = cutoffFor(cfg);\nconst problems = [];\nfor (const [name, node] of [['balances', 'Step 2: Read the balances export'], ['open items', 'Step 2: Read the open-items export']]) {\n  const e = ok(node);\n  if (!e || !Array.isArray(e.rows)) problems.push(name + ' export missing');\n  else if (String(e.cutoff || '').slice(0, 10) !== cutoff) problems.push(name + ' export cut-off ' + e.cutoff + ', expected ' + cutoff);\n}\nreturn [{ json: { run: problems.length === 0, problems, cutoff, month: cutoff.slice(0, 7) } }];\n};\nconst out = one(__rule())[0] || {};\nreturn Object.assign({}, out, BODIES(out));\n",
+        "input": [
+          {
+            "name": "in0_Config",
+            "value": "{{2.result}}"
+          },
+          {
+            "name": "in1_Step2Readthebalancesexpo",
+            "value": "{{7.data}}"
+          },
+          {
+            "name": "in2_Step2Readtheopenitemsexp",
+            "value": "{{9.data}}"
+          },
+          {
+            "name": "run_id",
+            "value": "{{var.scenario.executionId}}"
+          }
+        ]
+      },
+      "metadata": {
+        "designer": {
+          "x": 1500,
+          "y": 0,
+          "name": "Step 2: Rule: exports present, one cut-off?"
+        }
+      }
+    },
+    {
+      "id": 24,
+      "module": "builtin:BasicRouter",
+      "version": 1,
+      "mapper": null,
+      "routes": [
+        {
+          "flow": [
+            {
+              "id": 12,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.sharepoint_url}}/disputes",
+                "method": "get",
+                "timeout": "40",
+                "parseResponse": true,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "queryParameters": [
+                  {
+                    "name": "_wrap",
+                    "value": "1"
+                  },
+                  {
+                    "name": "status",
+                    "value": "open"
+                  }
+                ]
+              },
+              "metadata": {
+                "designer": {
+                  "x": 2100,
+                  "y": 0,
+                  "name": "Step 4: Read the dispute list"
+                }
+              },
+              "onerror": [
+                {
+                  "id": 11,
+                  "module": "builtin:Break",
+                  "version": 1,
+                  "parameters": {},
+                  "mapper": {
+                    "count": "3",
+                    "retry": true,
+                    "interval": "1"
+                  },
+                  "metadata": {
+                    "designer": {
+                      "x": 2100,
+                      "y": 300
+                    }
+                  }
+                }
+              ],
+              "filter": {
+                "name": "exports current",
+                "conditions": [
+                  [
+                    {
+                      "a": "{{10.result.run}}",
+                      "b": "true",
+                      "o": "text:equal"
+                    }
+                  ]
+                ]
+              }
+            },
+            {
+              "id": 14,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.crm_url}}/accounts",
+                "method": "get",
+                "timeout": "40",
+                "parseResponse": true,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "queryParameters": [
+                  {
+                    "name": "_wrap",
+                    "value": "1"
+                  }
+                ]
+              },
+              "metadata": {
+                "designer": {
+                  "x": 2400,
+                  "y": 0,
+                  "name": "Read CRM contacts (for step 6)"
+                }
+              },
+              "onerror": [
+                {
+                  "id": 13,
+                  "module": "builtin:Break",
+                  "version": 1,
+                  "parameters": {},
+                  "mapper": {
+                    "count": "3",
+                    "retry": true,
+                    "interval": "1"
+                  },
+                  "metadata": {
+                    "designer": {
+                      "x": 2400,
+                      "y": 300
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "id": 16,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.table_api_url}}/key_log",
+                "method": "get",
+                "timeout": "40",
+                "parseResponse": true,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "queryParameters": [
+                  {
+                    "name": "recipe",
+                    "value": "eq.R8.2"
+                  },
+                  {
+                    "name": "key",
+                    "value": "like.*:{{10.result.month}}"
+                  },
+                  {
+                    "name": "select",
+                    "value": "key"
+                  }
+                ]
+              },
+              "metadata": {
+                "designer": {
+                  "x": 2700,
+                  "y": 0,
+                  "name": "Step 5: Read statements already sent"
+                }
+              },
+              "onerror": [
+                {
+                  "id": 15,
+                  "module": "builtin:Break",
+                  "version": 1,
+                  "parameters": {},
+                  "mapper": {
+                    "count": "3",
+                    "retry": true,
+                    "interval": "1"
+                  },
+                  "metadata": {
+                    "designer": {
+                      "x": 2700,
+                      "y": 300
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "id": 17,
+              "module": "code:ExecuteCode",
+              "version": 1,
+              "parameters": {},
+              "mapper": {
+                "language": "javascript",
+                "inputFormat": "editor",
+                "dependencies": [],
+                "codeEditorJavascript": "// Adapter: the rule below is the same JavaScript as the recipe's n8n build.\n// $('Step name') answers from this step's inputs: each is that step's output in this scenario.\nconst SOURCES = {\"Config\": \"in0_Config\", \"Step 2: Rule: exports present, one cut-off?\": \"in1_Step2Ruleexportspresento\", \"Step 2: Read the balances export\": \"in2_Step2Readthebalancesexpo\", \"Step 2: Read the open-items export\": \"in3_Step2Readtheopenitemsexp\", \"Step 4: Read the dispute list\": \"in4_Step4Readthedisputelist\", \"Read CRM contacts (for step 6)\": \"in5_ReadCRMcontactsforstep6\", \"Step 5: Read statements already sent\": \"in6_Step5Readstatementsalrea\"};\nconst LISTS = [\"Step 5: Read statements already sent\"];\nconst EXECUTED = [];\nconst DATA = {};\nfor (const [node, key] of Object.entries(SOURCES)) {\n  const raw = input[key];\n  let v = raw;\n  if (typeof raw === 'string') { try { v = JSON.parse(raw); } catch (e) { v = raw; } }\n  DATA[node] = LISTS.includes(node) ? (v || []).map(i => (i && i.json !== undefined ? i : { json: i })) : [{ json: v }];\n}\nconst $ = (node) => {\n  const ran = node in DATA || EXECUTED.includes(node);\n  const list = () => { if (!(node in DATA)) throw new Error(`step ${node} has no data in this scenario`); return DATA[node]; };\n  return { isExecuted: ran, first: () => list()[0], last: () => list()[list().length - 1], all: () => list(),\n           get item() { return list()[0]; } };\n};\nconst INPUT = \"Config\";\nconst $input = { all: () => $(INPUT).all(), first: () => $(INPUT).first(), last: () => $(INPUT).last(), get item() { return $(INPUT).first(); } };\nconst $execution = { id: input.run_id };\nconst BODIES = (out) => ({\"anything\": out.count > 0 || out.held.length > 0, \"approval_body\": JSON.stringify(out), \"batch_log\": JSON.stringify({ recipe: 'R8.2', item: 'statements ' + out.month, decision: 'batch sent for approval', rules: { count: out.count, total_due: out.total_due, held: out.held, skipped: out.skipped } }), \"failed_body\": JSON.stringify({ recipe: 'R8.2', item: out.id, reason: 'write failed', detail: 'The batch approval was not written; run again', owner: $('Config').first().json.ar_lead })});\nconst one = (r) => (Array.isArray(r) ? r : [r]).filter(Boolean).map(i => (i.json !== undefined ? i.json : i));\nconst $json = INPUT && INPUT in DATA ? $input.first().json : {};\nconst __rule = () => {\n// Steps 3 to 6 of the book's R8.2, in order. Returns one batch for Aisha's approval.\nconst cfg = $('Config').first().json;\nconst g = $('Step 2: Rule: exports present, one cut-off?').first().json;\nconst balances = $('Step 2: Read the balances export').first().json.rows || [];\nconst items = $('Step 2: Read the open-items export').first().json.rows || [];\nconst disputed = new Set(($('Step 4: Read the dispute list').first().json.items || []).filter(d => d.invoice).map(d => String(d.invoice)));\nconst crm = Object.fromEntries(($('Read CRM contacts (for step 6)').first().json.items || []).map(a => [String(a.id), a]));\nconst sent = new Set($('Step 5: Read statements already sent').all().map(i => i.json.key).filter(Boolean));\nconst cents = x => Math.round(Number(x) * 100);\nconst money = c => (c / 100).toFixed(2);\nconst fill = (s, f) => String(s || '').replace(/\\{\\{(\\w+)\\}\\}/g, (_, k) => (k in f ? String(f[k]) : ''));\n\nconst accounts = [...new Set([...balances.map(b => String(b.account)), ...items.map(i => String(i.account))])];\nconst statements = [], held = [], skipped = [];\nfor (const acc of accounts) {\n  // Step 5: skip an account plus statement month already sent.\n  if (sent.has(acc + ':' + g.month)) { skipped.push(acc); continue; }\n  const b = balances.find(x => String(x.account) === acc);\n  const its = items.filter(i => String(i.account) === acc);\n  const balance = b ? cents(b.balance) : 0;\n  const openTotal = its.reduce((s, i) => s + cents(i.amount), 0);\n  // Step 3: any difference, even a cent, holds the account.\n  if (balance !== openTotal) {\n    held.push({ account: acc, balance: balance / 100, open_items_total: openTotal / 100, difference: (balance - openTotal) / 100 });\n    continue;\n  }\n  // Step 4: a disputed item is \"in dispute, not due\", outside the total; an account in credit shows nothing due.\n  const lines = its.map(i => ({ item: String(i.item), type: i.type || 'invoice', date: i.date || null, due_date: i.due_date || null,\n    amount: cents(i.amount) / 100, status: disputed.has(String(i.item)) ? 'in dispute, not due' : 'due' }));\n  const dueCents = lines.filter(l => l.status === 'due').reduce((s, l) => s + cents(l.amount), 0);\n  const totalCents = balance <= 0 || dueCents <= 0 ? 0 : dueCents;\n  // Step 6: items, total due, how to pay, where to ask.\n  const a = crm[acc] || {};\n  const text = [\n    'Statement for ' + (a.name || acc) + ', at ' + g.cutoff,\n    '',\n    ...lines.map(l => [l.date, l.type, l.item, money(cents(l.amount))].filter(Boolean).join('  ') + (l.status === 'due' ? '' : '  (in dispute, not due)')),\n    '',\n    totalCents > 0 ? 'Total due: ' + money(totalCents) : (balance < 0 ? 'Your account is in credit: nothing is due.' : 'Nothing is due.'),\n    'How to pay: ' + cfg.how_to_pay,\n    'Questions about this statement: ' + cfg.where_to_ask,\n  ].join('\\n');\n  statements.push({ account: acc, account_name: a.name || '', to: a.contact_email || '', balance: balance / 100, lines,\n    total_due: totalCents / 100, subject: fill(cfg.statement_subject, { month: g.month, account_name: a.name || acc }), text });\n}\nconst pick = statements.slice().sort(() => Math.random() - 0.5).slice(0, 5);\nreturn [{ json: { id: 'statements-' + g.month, month: g.month, cutoff: g.cutoff, status: 'pending', approver: cfg.ar_lead,\n  count: statements.length, total_due: statements.reduce((s, x) => s + cents(x.total_due), 0) / 100,\n  held, samples: pick.map(s => ({ account: s.account, total_due: s.total_due, text: s.text })),\n  skipped: skipped.length, statements }, pairedItem: 0 }];\n};\nconst out = one(__rule())[0] || {};\nreturn Object.assign({}, out, BODIES(out));\n",
+                "input": [
+                  {
+                    "name": "in0_Config",
+                    "value": "{{2.result}}"
+                  },
+                  {
+                    "name": "in1_Step2Ruleexportspresento",
+                    "value": "{{10.result}}"
+                  },
+                  {
+                    "name": "in2_Step2Readthebalancesexpo",
+                    "value": "{{7.data}}"
+                  },
+                  {
+                    "name": "in3_Step2Readtheopenitemsexp",
+                    "value": "{{9.data}}"
+                  },
+                  {
+                    "name": "in4_Step4Readthedisputelist",
+                    "value": "{{12.data}}"
+                  },
+                  {
+                    "name": "in5_ReadCRMcontactsforstep6",
+                    "value": "{{14.data}}"
+                  },
+                  {
+                    "name": "in6_Step5Readstatementsalrea",
+                    "value": "{{16.data}}"
+                  },
+                  {
+                    "name": "run_id",
+                    "value": "{{var.scenario.executionId}}"
+                  }
+                ]
+              },
+              "metadata": {
+                "designer": {
+                  "x": 3000,
+                  "y": 0,
+                  "name": "Rules: steps 3 to 6"
+                }
+              }
+            },
+            {
+              "id": 20,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.approvals_url}}/requests/{{encodeURL(17.result.id)}}",
+                "method": "put",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{17.result.approval_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 3300,
+                  "y": 0,
+                  "name": "Step 7: Send Aisha one approval"
+                }
+              },
+              "onerror": [
+                {
+                  "id": 18,
+                  "module": "http:MakeRequest",
+                  "version": 4,
+                  "parameters": {},
+                  "mapper": {
+                    "url": "{{2.result.table_api_url}}/exception_queue",
+                    "method": "post",
+                    "timeout": "40",
+                    "parseResponse": false,
+                    "stopOnHttpError": true,
+                    "allowRedirects": true,
+                    "shareCookies": false,
+                    "requestCompressedContent": true,
+                    "contentType": "json",
+                    "inputMethod": "jsonString",
+                    "jsonStringBodyContent": "{{17.result.failed_body}}"
+                  },
+                  "metadata": {
+                    "designer": {
+                      "x": 3300,
+                      "y": 300,
+                      "name": "Exception queue: approval write failed"
+                    }
+                  }
+                },
+                {
+                  "id": 19,
+                  "module": "builtin:Ignore",
+                  "version": 1,
+                  "metadata": {
+                    "designer": {
+                      "x": 3600,
+                      "y": 300
+                    }
+                  }
+                }
+              ],
+              "filter": {
+                "name": "anything to approve",
+                "conditions": [
+                  [
+                    {
+                      "a": "{{17.result.anything}}",
+                      "b": "true",
+                      "o": "text:equal"
+                    }
+                  ]
+                ]
+              }
+            },
+            {
+              "id": 21,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.table_api_url}}/decision_log",
+                "method": "post",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{17.result.batch_log}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 3600,
+                  "y": 0,
+                  "name": "Step 7: Decision log: batch"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "flow": [
+            {
+              "id": 22,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.table_api_url}}/decision_log",
+                "method": "post",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{10.result.no_run_log}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 2100,
+                  "y": 600,
+                  "name": "Step 2: Decision log: no run"
+                }
+              },
+              "filter": {
+                "name": "exports missing or cut-offs differ",
+                "conditions": [
+                  [
+                    {
+                      "a": "{{10.result.run}}",
+                      "b": "true",
+                      "o": "text:notequal"
+                    }
+                  ]
+                ]
+              }
+            },
+            {
+              "id": 23,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.messaging_url}}/messages",
+                "method": "post",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{10.result.alert_message}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 2400,
+                  "y": 600,
+                  "name": "Step 2: Alert Aisha"
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "designer": {
+          "x": 1800,
+          "y": 0,
+          "name": "Exports current?"
+        }
+      }
+    }
+  ],
+  "metadata": {
+    "instant": true,
+    "version": 1,
+    "designer": {
+      "orphans": []
+    },
+    "scenario": {
+      "dlq": true,
+      "slots": null,
+      "dataloss": false,
+      "maxErrors": 3,
+      "autoCommit": true,
+      "roundtrips": 1,
+      "sequential": false,
+      "confidential": false,
+      "freshVariables": false,
+      "autoCommitTriggerLast": true
+    }
+  }
+}

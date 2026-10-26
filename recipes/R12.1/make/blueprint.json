@@ -1,0 +1,1097 @@
+{
+  "name": "R12.1 Pull the weekly figures into one dated table",
+  "flow": [
+    {
+      "id": 1,
+      "module": "code:ExecuteCode",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "language": "javascript",
+        "inputFormat": "editor",
+        "dependencies": [],
+        "codeEditorJavascript": "// Config: edit these values for your company; nothing else in the scenario hard-codes them.\n// Schedule: set this scenario to run every Thursday at 19:30; Make keeps the schedule outside the blueprint.\nreturn {\n  \"stop_flag_url\": \"https://<your stop list API>/stop_flags/R12.1\",\n  \"table_api_url\": \"https://<your table API for the key log, decision log and exception queue>\",\n  \"workflow_owner\": \"<your workflow owner>\",\n  \"library_url\": \"https://<your file store API>\",\n  \"table_url\": \"https://<your weekly table API>\",\n  \"snapshots_url\": \"https://<your snapshot list API>\",\n  \"approved_rules_url\": \"https://<your approved rule versions list API>\",\n  \"messaging_url\": \"https://<your messaging API>\",\n  \"cutoff_weekday\": 4,\n  \"cutoff_time\": \"17:00\",\n  \"fewer_than\": 3,\n  \"sources\": [\n    {\n      \"id\": \"<source>\",\n      \"name\": \"<source name>\",\n      \"export_path\": \"<path to its export>\",\n      \"control_path\": \"<path to its control total>\",\n      \"columns\": [\n        \"<saved column list>\"\n      ],\n      \"control_column\": \"<column the control total sums, or empty for the row count>\",\n      \"manual\": false,\n      \"data_owner\": \"<its data owner>\"\n    }\n  ],\n  \"measures\": [\n    {\n      \"id\": \"<measure-id>\",\n      \"name\": \"<measure>\",\n      \"source\": \"<source>\",\n      \"kind\": \"<period or status>\",\n      \"people\": false,\n      \"formula\": {\n        \"op\": \"<count or sum>\",\n        \"column\": \"<column summed>\",\n        \"where\": {\n          \"<column>\": \"<value>\"\n        }\n      },\n      \"rule_version\": \"<approved rule version>\"\n    }\n  ],\n  \"report_builder\": \"<your report builder>\",\n  \"rule_approver\": \"<your rule approver>\"\n};",
+        "input": []
+      },
+      "metadata": {
+        "designer": {
+          "x": 0,
+          "y": 0,
+          "name": "Config"
+        }
+      }
+    },
+    {
+      "id": 4,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{1.result.stop_flag_url}}",
+        "method": "get",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true
+      },
+      "metadata": {
+        "designer": {
+          "x": 300,
+          "y": 0,
+          "name": "Stop flag: read"
+        }
+      },
+      "onerror": [
+        {
+          "id": 2,
+          "module": "http:MakeRequest",
+          "version": 4,
+          "parameters": {},
+          "mapper": {
+            "url": "{{1.result.table_api_url}}/exception_queue",
+            "method": "post",
+            "timeout": "40",
+            "parseResponse": false,
+            "stopOnHttpError": true,
+            "allowRedirects": true,
+            "shareCookies": false,
+            "requestCompressedContent": true,
+            "contentType": "json",
+            "inputMethod": "jsonString",
+            "jsonStringBodyContent": "{\"recipe\": \"R12.1\", \"item\": \"run {{var.scenario.executionId}}\", \"reason\": \"stop list unreadable\", \"detail\": \"The stop list could not be read, so the run stopped\", \"owner\": \"{{1.result.workflow_owner}}\"}"
+          },
+          "metadata": {
+            "designer": {
+              "x": 300,
+              "y": 300,
+              "name": "Stop flag: list unreadable"
+            }
+          }
+        },
+        {
+          "id": 3,
+          "module": "builtin:Ignore",
+          "version": 1,
+          "metadata": {
+            "designer": {
+              "x": 600,
+              "y": 300
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "module": "code:ExecuteCode",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "language": "javascript",
+        "inputFormat": "editor",
+        "dependencies": [],
+        "codeEditorJavascript": "// Adapter: the rule below is the same JavaScript as the recipe's n8n build.\n// $('Step name') answers from this step's inputs: each is that step's output in this scenario.\nconst SOURCES = {\"Config\": \"in0_Config\"};\nconst LISTS = [];\nconst EXECUTED = [];\nconst DATA = {};\nfor (const [node, key] of Object.entries(SOURCES)) {\n  const raw = input[key];\n  let v = raw;\n  if (typeof raw === 'string') { try { v = JSON.parse(raw); } catch (e) { v = raw; } }\n  DATA[node] = LISTS.includes(node) ? (v || []).map(i => (i && i.json !== undefined ? i : { json: i })) : [{ json: v }];\n}\nconst $ = (node) => {\n  const ran = node in DATA || EXECUTED.includes(node);\n  const list = () => { if (!(node in DATA)) throw new Error(`step ${node} has no data in this scenario`); return DATA[node]; };\n  return { isExecuted: ran, first: () => list()[0], last: () => list()[list().length - 1], all: () => list(),\n           get item() { return list()[0]; } };\n};\nconst INPUT = \"Config\";\nconst $input = { all: () => $(INPUT).all(), first: () => $(INPUT).first(), last: () => $(INPUT).last(), get item() { return $(INPUT).first(); } };\nconst $execution = { id: input.run_id };\n// $now: the Luxon DateTime methods the cut-off rule uses, in UTC (Make's Code app has no Luxon).\n// set({ weekday }) moves within the ISO week (Monday 1 to Sunday 7), as Luxon does.\nconst $now = (() => {\n  const DAY = 86400000;\n  const at = (ms) => ({\n    valueOf: () => ms,\n    set(o) {\n      const d = new Date(ms);\n      if (o.weekday !== undefined) d.setTime(d.getTime() + (o.weekday - (((d.getUTCDay() + 6) % 7) + 1)) * DAY);\n      if (o.hour !== undefined) d.setUTCHours(o.hour);\n      if (o.minute !== undefined) d.setUTCMinutes(o.minute);\n      if (o.second !== undefined) d.setUTCSeconds(o.second);\n      if (o.millisecond !== undefined) d.setUTCMilliseconds(o.millisecond);\n      return at(d.getTime());\n    },\n    minus: (o) => at(ms - ((o.weeks || 0) * 7 + (o.days || 0)) * DAY),\n    toISODate: () => new Date(ms).toISOString().slice(0, 10),\n    toUTC() { return this; },\n    toISO: () => new Date(ms).toISOString(),\n  });\n  return at(Date.now());\n})();\nconst BODIES = (out) => ({});\nconst one = (r) => (Array.isArray(r) ? r : [r]).filter(Boolean).map(i => (i.json !== undefined ? i.json : i));\nconst $json = INPUT && INPUT in DATA ? $input.first().json : {};\nconst __rule = () => {\n// The cut-off: the latest cut-off weekday and time at or before now, in the workflow's time zone.\nconst cfg = $('Config').first().json;\nconst [h, m] = String(cfg.cutoff_time).split(':').map(Number);\nlet c = $now.set({ weekday: cfg.cutoff_weekday, hour: h, minute: m || 0, second: 0, millisecond: 0 });\nif (c > $now) c = c.minus({ weeks: 1 });\nreturn cfg.sources.map(s => ({ json: {\n  source: s.id, week: c.toISODate(), cutoff: c.toUTC().toISO(),\n  export_url: cfg.library_url + '/' + s.export_path,\n  control_url: cfg.library_url + '/' + s.control_path,\n} }));\n};\nreturn { items: one(__rule()).map(o => Object.assign({}, o, BODIES(o))) };\n",
+        "input": [
+          {
+            "name": "in0_Config",
+            "value": "{{1.result}}"
+          },
+          {
+            "name": "run_id",
+            "value": "{{var.scenario.executionId}}"
+          }
+        ]
+      },
+      "metadata": {
+        "designer": {
+          "x": 600,
+          "y": 0,
+          "name": "Step 1: List the sources"
+        }
+      },
+      "filter": {
+        "name": "stop flag not set",
+        "conditions": [
+          [
+            {
+              "a": "{{4.data.stopped}}",
+              "b": "true",
+              "o": "text:notequal"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "id": 6,
+      "module": "builtin:BasicFeeder",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "array": "{{5.result.items}}"
+      },
+      "metadata": {
+        "designer": {
+          "x": 900,
+          "y": 0,
+          "name": "Each source"
+        }
+      }
+    },
+    {
+      "id": 8,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{6.export_url}}",
+        "method": "get",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": false,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true
+      },
+      "metadata": {
+        "designer": {
+          "x": 1200,
+          "y": 0,
+          "name": "Read source export"
+        }
+      },
+      "onerror": [
+        {
+          "id": 7,
+          "module": "builtin:Break",
+          "version": 1,
+          "parameters": {},
+          "mapper": {
+            "count": "3",
+            "retry": true,
+            "interval": "1"
+          },
+          "metadata": {
+            "designer": {
+              "x": 1200,
+              "y": 300
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{6.control_url}}",
+        "method": "get",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": false,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true
+      },
+      "metadata": {
+        "designer": {
+          "x": 1500,
+          "y": 0,
+          "name": "Read control total"
+        }
+      },
+      "onerror": [
+        {
+          "id": 9,
+          "module": "builtin:Break",
+          "version": 1,
+          "parameters": {},
+          "mapper": {
+            "count": "3",
+            "retry": true,
+            "interval": "1"
+          },
+          "metadata": {
+            "designer": {
+              "x": 1500,
+              "y": 300
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "module": "builtin:BasicAggregator",
+      "version": 1,
+      "parameters": {
+        "feeder": 6
+      },
+      "mapper": {
+        "export": "{{8.data}}",
+        "export_status": "{{8.statusCode}}",
+        "control": "{{10.data}}",
+        "control_status": "{{10.statusCode}}"
+      },
+      "metadata": {
+        "designer": {
+          "x": 1800,
+          "y": 0,
+          "name": "Sources read"
+        }
+      }
+    },
+    {
+      "id": 12,
+      "module": "code:ExecuteCode",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "language": "javascript",
+        "inputFormat": "editor",
+        "dependencies": [],
+        "codeEditorJavascript": "// Adapter: the rule below is the same JavaScript as the recipe's n8n build.\n// $('Step name') answers from this step's inputs: each is that step's output in this scenario.\nconst SOURCES = {\"Step 1: List the sources\": \"in0_Step1Listthesources\", \"Sources read\": \"in1_Sourcesread\"};\nconst LISTS = [\"Sources read\", \"Step 1: List the sources\"];\nconst EXECUTED = [];\nconst DATA = {};\nfor (const [node, key] of Object.entries(SOURCES)) {\n  const raw = input[key];\n  let v = raw;\n  if (typeof raw === 'string') { try { v = JSON.parse(raw); } catch (e) { v = raw; } }\n  DATA[node] = LISTS.includes(node) ? (v || []).map(i => (i && i.json !== undefined ? i : { json: i })) : [{ json: v }];\n}\nconst $ = (node) => {\n  const ran = node in DATA || EXECUTED.includes(node);\n  const list = () => { if (!(node in DATA)) throw new Error(`step ${node} has no data in this scenario`); return DATA[node]; };\n  return { isExecuted: ran, first: () => list()[0], last: () => list()[list().length - 1], all: () => list(),\n           get item() { return list()[0]; } };\n};\nconst INPUT = \"Step 1: List the sources\";\nconst $input = { all: () => $(INPUT).all(), first: () => $(INPUT).first(), last: () => $(INPUT).last(), get item() { return $(INPUT).first(); } };\nconst $execution = { id: input.run_id };\n// Each source's export and control total, as the n8n build's reads pass them on: a failed read is { error }.\nconst asRead = (data, status) => (Number(status) >= 300 || data === undefined || data === null || data === ''\n  ? { error: 'HTTP ' + status } : (typeof data === 'string' ? JSON.parse(data) : data));\nDATA['Read source export'] = DATA['Sources read'].map(i => ({ json: asRead(i.json.export, i.json.export_status) }));\nDATA['Read control total'] = DATA['Sources read'].map(i => ({ json: asRead(i.json.control, i.json.control_status) }));\nconst BODIES = (out) => ({\"key_q\": encodeURIComponent(out.key), \"reserve_body\": JSON.stringify({ p_recipe: 'R12.1', p_key: out.key })});\nconst one = (r) => (Array.isArray(r) ? r : [r]).filter(Boolean).map(i => (i.json !== undefined ? i.json : i));\nconst $json = INPUT && INPUT in DATA ? $input.first().json : {};\nconst __rule = () => {\n// Step 2: the duplicate key is the week and a fingerprint of every file and control total.\nconst srcs = $('Step 1: List the sources').all().map(i => i.json);\nconst files = $('Read source export').all().map(i => i.json);\nconst controls = $('Read control total').all().map(i => i.json);\nconst parts = srcs.map((s, i) => {\n  const f = files[i] || {}, c = controls[i] || {};\n  const file = f.error ? 'missing' : `${f.file}|${f.created}|${(f.rows || []).length}`;\n  const total = c.error || c.total === undefined ? 'none' : c.total;\n  return `${s.source}=${file}|${total}`;\n});\nlet h = 5381;\nfor (const ch of parts.join(';')) h = ((h * 33) ^ ch.charCodeAt(0)) >>> 0;\nreturn [{ json: { week: srcs[0].week, cutoff: srcs[0].cutoff, key: `${srcs[0].week}:${h.toString(16)}`, files: parts } }];\n};\nconst out = one(__rule())[0] || {};\nreturn Object.assign({}, out, BODIES(out));\n",
+        "input": [
+          {
+            "name": "in0_Step1Listthesources",
+            "value": "{{5.result.items}}"
+          },
+          {
+            "name": "in1_Sourcesread",
+            "value": "{{11.array}}"
+          },
+          {
+            "name": "run_id",
+            "value": "{{var.scenario.executionId}}"
+          }
+        ]
+      },
+      "metadata": {
+        "designer": {
+          "x": 2100,
+          "y": 0,
+          "name": "Step 2: Fingerprint the files"
+        }
+      }
+    },
+    {
+      "id": 13,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{1.result.table_api_url}}/rpc/reserve_key",
+        "method": "post",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true,
+        "contentType": "json",
+        "inputMethod": "jsonString",
+        "jsonStringBodyContent": "{{12.result.reserve_body}}"
+      },
+      "metadata": {
+        "designer": {
+          "x": 2400,
+          "y": 0,
+          "name": "Step 2: Reserve key"
+        }
+      }
+    },
+    {
+      "id": 15,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{1.result.table_url}}/versions",
+        "method": "get",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true,
+        "queryParameters": [
+          {
+            "name": "_wrap",
+            "value": "1"
+          }
+        ]
+      },
+      "metadata": {
+        "designer": {
+          "x": 2700,
+          "y": 0,
+          "name": "Read versions"
+        }
+      },
+      "onerror": [
+        {
+          "id": 14,
+          "module": "builtin:Break",
+          "version": 1,
+          "parameters": {},
+          "mapper": {
+            "count": "3",
+            "retry": true,
+            "interval": "1"
+          },
+          "metadata": {
+            "designer": {
+              "x": 2700,
+              "y": 300
+            }
+          }
+        }
+      ],
+      "filter": {
+        "name": "new key (not a copy)",
+        "conditions": [
+          [
+            {
+              "a": "{{13.data}}",
+              "b": "true",
+              "o": "text:equal"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "id": 17,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{1.result.table_url}}/weekly_table",
+        "method": "get",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true,
+        "queryParameters": [
+          {
+            "name": "_wrap",
+            "value": "1"
+          }
+        ]
+      },
+      "metadata": {
+        "designer": {
+          "x": 3000,
+          "y": 0,
+          "name": "Read the weekly table"
+        }
+      },
+      "onerror": [
+        {
+          "id": 16,
+          "module": "builtin:Break",
+          "version": 1,
+          "parameters": {},
+          "mapper": {
+            "count": "3",
+            "retry": true,
+            "interval": "1"
+          },
+          "metadata": {
+            "designer": {
+              "x": 3000,
+              "y": 300
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 19,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{1.result.approved_rules_url}}/approved_rules",
+        "method": "get",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true,
+        "queryParameters": [
+          {
+            "name": "_wrap",
+            "value": "1"
+          }
+        ]
+      },
+      "metadata": {
+        "designer": {
+          "x": 3300,
+          "y": 0,
+          "name": "Read approved rule versions"
+        }
+      },
+      "onerror": [
+        {
+          "id": 18,
+          "module": "builtin:Break",
+          "version": 1,
+          "parameters": {},
+          "mapper": {
+            "count": "3",
+            "retry": true,
+            "interval": "1"
+          },
+          "metadata": {
+            "designer": {
+              "x": 3300,
+              "y": 300
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 20,
+      "module": "code:ExecuteCode",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "language": "javascript",
+        "inputFormat": "editor",
+        "dependencies": [],
+        "codeEditorJavascript": "// Adapter: the rule below is the same JavaScript as the recipe's n8n build.\n// $('Step name') answers from this step's inputs: each is that step's output in this scenario.\nconst SOURCES = {\"Config\": \"in0_Config\", \"Step 2: Fingerprint the files\": \"in1_Step2Fingerprintthefiles\", \"Read the weekly table\": \"in2_Readtheweeklytable\", \"Read versions\": \"in3_Readversions\", \"Step 1: List the sources\": \"in4_Step1Listthesources\", \"Sources read\": \"in5_Sourcesread\", \"Read approved rule versions\": \"in6_Readapprovedruleversions\"};\nconst LISTS = [\"Sources read\", \"Step 1: List the sources\"];\nconst EXECUTED = [];\nconst DATA = {};\nfor (const [node, key] of Object.entries(SOURCES)) {\n  const raw = input[key];\n  let v = raw;\n  if (typeof raw === 'string') { try { v = JSON.parse(raw); } catch (e) { v = raw; } }\n  DATA[node] = LISTS.includes(node) ? (v || []).map(i => (i && i.json !== undefined ? i : { json: i })) : [{ json: v }];\n}\nconst $ = (node) => {\n  const ran = node in DATA || EXECUTED.includes(node);\n  const list = () => { if (!(node in DATA)) throw new Error(`step ${node} has no data in this scenario`); return DATA[node]; };\n  return { isExecuted: ran, first: () => list()[0], last: () => list()[list().length - 1], all: () => list(),\n           get item() { return list()[0]; } };\n};\nconst INPUT = \"Read approved rule versions\";\nconst $input = { all: () => $(INPUT).all(), first: () => $(INPUT).first(), last: () => $(INPUT).last(), get item() { return $(INPUT).first(); } };\nconst $execution = { id: input.run_id };\n// Each source's export and control total, as the n8n build's reads pass them on: a failed read is { error }.\nconst asRead = (data, status) => (Number(status) >= 300 || data === undefined || data === null || data === ''\n  ? { error: 'HTTP ' + status } : (typeof data === 'string' ? JSON.parse(data) : data));\nDATA['Read source export'] = DATA['Sources read'].map(i => ({ json: asRead(i.json.export, i.json.export_status) }));\nDATA['Read control total'] = DATA['Sources read'].map(i => ({ json: asRead(i.json.control, i.json.control_status) }));\nconst __config = () => $('Config').first().json;\nconst __as = (r) => (n) => { const j = n === 'Config' ? __config() : r; return { first: () => ({ json: j }), all: () => [{ json: j }] }; };\n// Step 9: Rows and snapshots (n8n build), for one rules result.\nconst rowsAndSnapshots = (result) => { const $ = __as(result);\n// Step 9: one version record, then one row per measure and one snapshot per status measure.\nconst cfg = $('Config').first().json;\nconst r = $('Rules: steps 3 to 8').first().json;\nconst items = [{ url: `${cfg.table_url}/versions`, body: { id: r.version, week: r.week, cutoff: r.cutoff, status: 'writing', files: r.log } }];\nfor (const row of r.rows) items.push({ url: `${cfg.table_url}/weekly_table`, body: row });\nfor (const s of r.snapshots) items.push({ url: `${cfg.snapshots_url}/snapshots`, body: s });\nreturn items.map(i => ({ json: i }));\n};\n// Step 10: Each failed source (n8n build), for one rules result.\nconst eachFailedSource = (result) => { const $ = __as(result);\n// Step 10: one alert per failed source, to the report builder and the source's data owner.\nconst cfg = $('Config').first().json;\nconst r = $('Rules: steps 3 to 8').first().json;\nreturn r.failed.map(f => ({ json: {\n  source: f.source, reason: f.reason, status: f.status,\n  message: { to: [cfg.report_builder, f.data_owner],\n             subject: `Weekly figures ${r.week}: ${f.source} ${f.status}`,\n             text: `${f.source}: ${f.status} (${f.reason}). Its figures print blank in version ${r.version}.` } } }));\n};\nconst BODIES = (out) => ({\"stopped\": out.stop ? 'yes' : 'no', \"stop_message\": JSON.stringify({ to: [__config().report_builder, __config().rule_approver], subject: 'Weekly figures stopped: rule version not approved', text: out.detail }), \"stop_exception\": JSON.stringify({ recipe: 'R12.1', item: $('Step 2: Fingerprint the files').first().json.week, reason: 'rule version not approved', detail: out.detail, owner: __config().report_builder }), \"release_body\": JSON.stringify({ p_recipe: 'R12.1', p_key: $('Step 2: Fingerprint the files').first().json.key }), \"writes\": out.stop ? [] : rowsAndSnapshots(out).map(i => ({ url: i.json.url, body: JSON.stringify(i.json.body) })), \"failed\": out.stop ? [] : eachFailedSource(out).map(i => ({ message: JSON.stringify(i.json.message), exception: JSON.stringify({ recipe: 'R12.1', item: out.week + ':' + i.json.source, reason: 'source failed', detail: i.json.status + ': ' + i.json.reason, owner: __config().report_builder }) })), \"version_q\": encodeURIComponent(out.version || ''), \"done_body\": JSON.stringify({ status: 'done', result: out.version }), \"log_body\": JSON.stringify({ recipe: 'R12.1', item: out.version, decision: 'written', rules: { files: out.log, figures: (out.rows || []).map(x => ({ measure: x.measure, value: x.value, change: x.change, status: x.status, rule_version: x.rule_version })) } }), \"failed_body\": JSON.stringify({ recipe: 'R12.1', item: out.version, reason: 'write failed', detail: 'A weekly table write failed; check the table before any rerun', owner: __config().report_builder })});\nconst one = (r) => (Array.isArray(r) ? r : [r]).filter(Boolean).map(i => (i.json !== undefined ? i.json : i));\nconst $json = INPUT && INPUT in DATA ? $input.first().json : {};\nconst __rule = () => {\n// Steps 3 to 8 of the book's R12.1, in order, with Table 12.2's statuses.\nconst cfg = $('Config').first().json;\nconst fp = $('Step 2: Fingerprint the files').first().json;\nconst table = $('Read the weekly table').first().json.items || [];\nconst versions = $('Read versions').first().json.items || [];\nconst srcs = $('Step 1: List the sources').all().map(i => i.json);\nconst files = $('Read source export').all().map(i => i.json);\nconst controls = $('Read control total').all().map(i => i.json);\nconst approved = Object.fromEntries(($('Read approved rule versions').first().json.items || []).map(r => [r.measure, r.version]));\n// The version this run writes, and the current version of an earlier week, for each change from last week.\nconst seq = v => Number(String(v.id).replace(/\\D/g, '')) || 0;\nconst ver = { version: 'V-' + (Math.max(0, ...versions.map(seq)) + 1) };\nconst written = versions.filter(v => v.status === 'written');\nconst earlier = written.filter(v => v.week < fp.week).sort((a, b) => seq(a) - seq(b)).pop();\nconst lastRows = earlier ? table.filter(r => r.version === earlier.id) : [];\nconst writtenIds = new Set(written.map(v => v.id));\nconst history = table.filter(r => writtenIds.has(r.version));\nconst cutoff = new Date(fp.cutoff);\nconst OK = ['fresh', 'manual'];\n\n// Step 6 first in code, because a stop writes nothing: each formula must be the version the rule approver approved.\nconst unapproved = cfg.measures.filter(m => approved[m.name] !== m.rule_version);\nif (unapproved.length) {\n  return [{ json: { stop: true, detail: unapproved.map(m => `${m.name}: rule ${m.rule_version}, approved ${approved[m.name] || 'none'}`).join('; ') } }];\n}\n\nconst sources = {};\nsrcs.forEach((s, i) => {\n  const def = cfg.sources.find(d => d.id === s.source);\n  const f = files[i] || {}, c = controls[i] || {};\n  const rows = Array.isArray(f.rows) ? f.rows : [];\n  const info = { id: def.id, name: def.name, data_owner: def.data_owner, file: f.file || null, link: f.link || null,\n                 created: f.created || null, row_count: rows.length, control_total: c.error ? null : (c.total ?? null) };\n  // Step 3: a fresh, non-empty export: made after the cut-off and covering data to it.\n  if (f.error || !f.created || !(new Date(f.created) > cutoff) || !f.covers_to || new Date(f.covers_to) < cutoff || !rows.length) {\n    info.status = 'stale';\n    info.reason = f.error ? 'export missing' : !rows.length ? 'export empty' : 'export older than the cut-off';\n  // Step 4: columns match the saved list.\n  } else if (JSON.stringify([...(f.columns || [])].sort()) !== JSON.stringify([...def.columns].sort())) {\n    info.status = 'format changed';\n    info.reason = `columns ${JSON.stringify(f.columns || [])}, saved list ${JSON.stringify(def.columns)}`;\n  // Step 5: totals match the control total; the manual source's rows match its typed row count.\n  } else if (info.control_total === null) {\n    info.status = 'manual';\n  } else {\n    const got = def.control_column ? rows.reduce((t, r) => t + Number(r[def.control_column] || 0), 0) : rows.length;\n    if (Math.abs(got - Number(info.control_total)) > 0.005) {\n      info.status = 'does not reconcile';\n      info.reason = `${def.control_column || 'row count'} ${got}, control total ${info.control_total}`;\n    } else {\n      info.status = def.manual ? 'manual' : 'fresh';\n    }\n  }\n  info.rows = rows;\n  sources[def.id] = info;\n});\n\n// Step 7: compute each fresh or manual measure and its change from last week.\nconst match = (r, where) => Object.entries(where || {}).every(([k, v]) => Array.isArray(v) ? v.includes(r[k]) : r[k] === v);\nconst out = [];\nconst snapshots = [];\nfor (const m of cfg.measures) {\n  const s = sources[m.source];\n  const id = `${ver.version}:${m.id}`;\n  const last = lastRows.find(r => r.measure === m.name);\n  const good = history.filter(r => r.measure === m.name && OK.includes(r.status)).map(r => r.week).sort().pop() || null;\n  const row = { id, version: ver.version, week: fp.week, measure: m.name, kind: m.kind, value: null, change: null,\n                cutoff: fp.cutoff, source: s.name, source_link: s.link, status: s.status, note: null, rule_version: m.rule_version };\n  if (!OK.includes(s.status)) {\n    row.note = s.status === 'stale' ? `stale; last good ${good || 'none'}` : s.status;\n    row.last_good = good;\n    out.push(row);\n    continue;\n  }\n  const counted = s.rows.filter(r => match(r, m.formula.where));\n  const value = m.formula.op === 'sum' ? counted.reduce((t, r) => t + Number(r[m.formula.column] || 0), 0) : counted.length;\n  const lastValue = last && OK.includes(last.status) && typeof last.value === 'number' ? last.value : null;\n  row.value = value;\n  row.change = lastValue === null ? null : Math.round((value - lastValue) * 100) / 100;\n  if (s.status === 'manual') row.note = 'manual, not reconciled';\n  // Step 8: counts of people below the limit, this week or last, print \"fewer than 3\" with the change blank.\n  const lastFew = last && (last.status === 'fewer than 3' || (typeof last.value === 'number' && last.value < cfg.fewer_than));\n  if (m.people && (value < cfg.fewer_than || lastFew)) {\n    row.value = `fewer than ${cfg.fewer_than}`;\n    row.change = null;\n    row.status = `fewer than ${cfg.fewer_than}`;\n    row.note = null;\n  } else if (m.kind === 'status') {\n    // Step 9: a status measure's link opens the snapshot of its counted rows.\n    snapshots.push({ id, version: ver.version, measure: m.name, cutoff: fp.cutoff, rows: counted });\n    row.source_link = `${cfg.snapshots_url}/snapshots/${encodeURIComponent(id)}`;\n  }\n  out.push(row);\n}\n\nconst failed = Object.values(sources).filter(s => !OK.includes(s.status))\n  .map(s => ({ source: s.name, data_owner: s.data_owner, status: s.status, reason: s.reason }));\nconst log = Object.values(sources).map(s => ({ source: s.id, file: s.file, created: s.created, rows: s.row_count, control_total: s.control_total, status: s.status }));\nreturn [{ json: { stop: false, version: ver.version, week: fp.week, cutoff: fp.cutoff, rows: out, snapshots, failed, log } }];\n};\nconst out = one(__rule())[0] || {};\nreturn Object.assign({}, out, BODIES(out));\n",
+        "input": [
+          {
+            "name": "in0_Config",
+            "value": "{{1.result}}"
+          },
+          {
+            "name": "in1_Step2Fingerprintthefiles",
+            "value": "{{12.result}}"
+          },
+          {
+            "name": "in2_Readtheweeklytable",
+            "value": "{{17.data}}"
+          },
+          {
+            "name": "in3_Readversions",
+            "value": "{{15.data}}"
+          },
+          {
+            "name": "in4_Step1Listthesources",
+            "value": "{{5.result.items}}"
+          },
+          {
+            "name": "in5_Sourcesread",
+            "value": "{{11.array}}"
+          },
+          {
+            "name": "in6_Readapprovedruleversions",
+            "value": "{{19.data}}"
+          },
+          {
+            "name": "run_id",
+            "value": "{{var.scenario.executionId}}"
+          }
+        ]
+      },
+      "metadata": {
+        "designer": {
+          "x": 3600,
+          "y": 0,
+          "name": "Rules: steps 3 to 8"
+        }
+      }
+    },
+    {
+      "id": 43,
+      "module": "builtin:BasicRouter",
+      "version": 1,
+      "mapper": null,
+      "routes": [
+        {
+          "flow": [
+            {
+              "id": 21,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{1.result.messaging_url}}/messages",
+                "method": "post",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{20.result.stop_message}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 4200,
+                  "y": 0,
+                  "name": "Step 6: Alert the builder and rule approver"
+                }
+              },
+              "filter": {
+                "name": "rule version not approved",
+                "conditions": [
+                  [
+                    {
+                      "a": "{{20.result.stopped}}",
+                      "b": "yes",
+                      "o": "text:equal"
+                    }
+                  ]
+                ]
+              }
+            },
+            {
+              "id": 22,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{1.result.table_api_url}}/exception_queue",
+                "method": "post",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{20.result.stop_exception}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 4500,
+                  "y": 0,
+                  "name": "Exception queue: rule version not approved"
+                }
+              }
+            },
+            {
+              "id": 23,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{1.result.table_api_url}}/rpc/release_key",
+                "method": "post",
+                "timeout": "40",
+                "parseResponse": true,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{20.result.release_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 4800,
+                  "y": 0,
+                  "name": "Release key"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "flow": [
+            {
+              "id": 24,
+              "module": "builtin:BasicFeeder",
+              "version": 1,
+              "parameters": {},
+              "mapper": {
+                "array": "{{20.result.writes}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 4200,
+                  "y": 300,
+                  "name": "Step 9: Rows and snapshots"
+                }
+              },
+              "filter": {
+                "name": "rule versions approved",
+                "conditions": [
+                  [
+                    {
+                      "a": "{{20.result.stopped}}",
+                      "b": "no",
+                      "o": "text:equal"
+                    }
+                  ]
+                ]
+              }
+            },
+            {
+              "id": 28,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{24.url}}",
+                "method": "post",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{24.body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 4500,
+                  "y": 300,
+                  "name": "Step 9: Write to the weekly table"
+                }
+              },
+              "onerror": [
+                {
+                  "id": 25,
+                  "module": "http:MakeRequest",
+                  "version": 4,
+                  "parameters": {},
+                  "mapper": {
+                    "url": "{{1.result.table_api_url}}/key_log?recipe=eq.R12.1&key=eq.{{12.result.key_q}}",
+                    "method": "patch",
+                    "timeout": "40",
+                    "parseResponse": false,
+                    "stopOnHttpError": true,
+                    "allowRedirects": true,
+                    "shareCookies": false,
+                    "requestCompressedContent": true,
+                    "contentType": "json",
+                    "inputMethod": "jsonString",
+                    "jsonStringBodyContent": "{\"status\": \"failed\", \"result\": \"write failed\"}"
+                  },
+                  "metadata": {
+                    "designer": {
+                      "x": 4500,
+                      "y": 600,
+                      "name": "Step 9: Write to the weekly table: mark key failed"
+                    }
+                  }
+                },
+                {
+                  "id": 26,
+                  "module": "http:MakeRequest",
+                  "version": 4,
+                  "parameters": {},
+                  "mapper": {
+                    "url": "{{1.result.table_api_url}}/exception_queue",
+                    "method": "post",
+                    "timeout": "40",
+                    "parseResponse": false,
+                    "stopOnHttpError": true,
+                    "allowRedirects": true,
+                    "shareCookies": false,
+                    "requestCompressedContent": true,
+                    "contentType": "json",
+                    "inputMethod": "jsonString",
+                    "jsonStringBodyContent": "{{20.result.failed_body}}"
+                  },
+                  "metadata": {
+                    "designer": {
+                      "x": 4800,
+                      "y": 600,
+                      "name": "Step 9: Write to the weekly table: exception queue"
+                    }
+                  }
+                },
+                {
+                  "id": 27,
+                  "module": "builtin:Ignore",
+                  "version": 1,
+                  "metadata": {
+                    "designer": {
+                      "x": 5100,
+                      "y": 600
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "id": 29,
+              "module": "builtin:BasicAggregator",
+              "version": 1,
+              "parameters": {
+                "feeder": 24
+              },
+              "mapper": {
+                "written": "{{24.url}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 4800,
+                  "y": 300,
+                  "name": "All rows written?"
+                }
+              }
+            },
+            {
+              "id": 42,
+              "module": "builtin:BasicRouter",
+              "version": 1,
+              "mapper": null,
+              "routes": [
+                {
+                  "flow": [
+                    {
+                      "id": 36,
+                      "module": "builtin:BasicFeeder",
+                      "version": 1,
+                      "parameters": {},
+                      "mapper": {
+                        "array": "{{20.result.failed}}"
+                      },
+                      "metadata": {
+                        "designer": {
+                          "x": 5400,
+                          "y": 300,
+                          "name": "Step 10: Each failed source"
+                        }
+                      }
+                    },
+                    {
+                      "id": 40,
+                      "module": "http:MakeRequest",
+                      "version": 4,
+                      "parameters": {},
+                      "mapper": {
+                        "url": "{{1.result.messaging_url}}/messages",
+                        "method": "post",
+                        "timeout": "40",
+                        "parseResponse": false,
+                        "stopOnHttpError": true,
+                        "allowRedirects": true,
+                        "shareCookies": false,
+                        "requestCompressedContent": true,
+                        "contentType": "json",
+                        "inputMethod": "jsonString",
+                        "jsonStringBodyContent": "{{36.message}}"
+                      },
+                      "metadata": {
+                        "designer": {
+                          "x": 5700,
+                          "y": 300,
+                          "name": "Step 10: Alert the builder and data owner"
+                        }
+                      },
+                      "onerror": [
+                        {
+                          "id": 37,
+                          "module": "http:MakeRequest",
+                          "version": 4,
+                          "parameters": {},
+                          "mapper": {
+                            "url": "{{1.result.table_api_url}}/key_log?recipe=eq.R12.1&key=eq.{{12.result.key_q}}",
+                            "method": "patch",
+                            "timeout": "40",
+                            "parseResponse": false,
+                            "stopOnHttpError": true,
+                            "allowRedirects": true,
+                            "shareCookies": false,
+                            "requestCompressedContent": true,
+                            "contentType": "json",
+                            "inputMethod": "jsonString",
+                            "jsonStringBodyContent": "{\"status\": \"failed\", \"result\": \"write failed\"}"
+                          },
+                          "metadata": {
+                            "designer": {
+                              "x": 5700,
+                              "y": 600,
+                              "name": "Step 10: Alert the builder and data owner: mark key failed"
+                            }
+                          }
+                        },
+                        {
+                          "id": 38,
+                          "module": "http:MakeRequest",
+                          "version": 4,
+                          "parameters": {},
+                          "mapper": {
+                            "url": "{{1.result.table_api_url}}/exception_queue",
+                            "method": "post",
+                            "timeout": "40",
+                            "parseResponse": false,
+                            "stopOnHttpError": true,
+                            "allowRedirects": true,
+                            "shareCookies": false,
+                            "requestCompressedContent": true,
+                            "contentType": "json",
+                            "inputMethod": "jsonString",
+                            "jsonStringBodyContent": "{{20.result.failed_body}}"
+                          },
+                          "metadata": {
+                            "designer": {
+                              "x": 6000,
+                              "y": 600,
+                              "name": "Step 10: Alert the builder and data owner: exception queue"
+                            }
+                          }
+                        },
+                        {
+                          "id": 39,
+                          "module": "builtin:Ignore",
+                          "version": 1,
+                          "metadata": {
+                            "designer": {
+                              "x": 6300,
+                              "y": 600
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "id": 41,
+                      "module": "http:MakeRequest",
+                      "version": 4,
+                      "parameters": {},
+                      "mapper": {
+                        "url": "{{1.result.table_api_url}}/exception_queue",
+                        "method": "post",
+                        "timeout": "40",
+                        "parseResponse": false,
+                        "stopOnHttpError": true,
+                        "allowRedirects": true,
+                        "shareCookies": false,
+                        "requestCompressedContent": true,
+                        "contentType": "json",
+                        "inputMethod": "jsonString",
+                        "jsonStringBodyContent": "{{36.exception}}"
+                      },
+                      "metadata": {
+                        "designer": {
+                          "x": 6000,
+                          "y": 300,
+                          "name": "Exception queue: source failed"
+                        }
+                      }
+                    }
+                  ]
+                },
+                {
+                  "flow": [
+                    {
+                      "id": 33,
+                      "module": "http:MakeRequest",
+                      "version": 4,
+                      "parameters": {},
+                      "mapper": {
+                        "url": "{{1.result.table_url}}/versions/{{20.result.version_q}}",
+                        "method": "patch",
+                        "timeout": "40",
+                        "parseResponse": false,
+                        "stopOnHttpError": true,
+                        "allowRedirects": true,
+                        "shareCookies": false,
+                        "requestCompressedContent": true,
+                        "contentType": "json",
+                        "inputMethod": "jsonString",
+                        "jsonStringBodyContent": "{\"status\": \"written\"}"
+                      },
+                      "metadata": {
+                        "designer": {
+                          "x": 5400,
+                          "y": 900,
+                          "name": "Step 11: Mark the version written"
+                        }
+                      },
+                      "onerror": [
+                        {
+                          "id": 30,
+                          "module": "http:MakeRequest",
+                          "version": 4,
+                          "parameters": {},
+                          "mapper": {
+                            "url": "{{1.result.table_api_url}}/key_log?recipe=eq.R12.1&key=eq.{{12.result.key_q}}",
+                            "method": "patch",
+                            "timeout": "40",
+                            "parseResponse": false,
+                            "stopOnHttpError": true,
+                            "allowRedirects": true,
+                            "shareCookies": false,
+                            "requestCompressedContent": true,
+                            "contentType": "json",
+                            "inputMethod": "jsonString",
+                            "jsonStringBodyContent": "{\"status\": \"failed\", \"result\": \"write failed\"}"
+                          },
+                          "metadata": {
+                            "designer": {
+                              "x": 5400,
+                              "y": 1200,
+                              "name": "Step 11: Mark the version written: mark key failed"
+                            }
+                          }
+                        },
+                        {
+                          "id": 31,
+                          "module": "http:MakeRequest",
+                          "version": 4,
+                          "parameters": {},
+                          "mapper": {
+                            "url": "{{1.result.table_api_url}}/exception_queue",
+                            "method": "post",
+                            "timeout": "40",
+                            "parseResponse": false,
+                            "stopOnHttpError": true,
+                            "allowRedirects": true,
+                            "shareCookies": false,
+                            "requestCompressedContent": true,
+                            "contentType": "json",
+                            "inputMethod": "jsonString",
+                            "jsonStringBodyContent": "{{20.result.failed_body}}"
+                          },
+                          "metadata": {
+                            "designer": {
+                              "x": 5700,
+                              "y": 1200,
+                              "name": "Step 11: Mark the version written: exception queue"
+                            }
+                          }
+                        },
+                        {
+                          "id": 32,
+                          "module": "builtin:Ignore",
+                          "version": 1,
+                          "metadata": {
+                            "designer": {
+                              "x": 6000,
+                              "y": 1200
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "id": 34,
+                      "module": "http:MakeRequest",
+                      "version": 4,
+                      "parameters": {},
+                      "mapper": {
+                        "url": "{{1.result.table_api_url}}/key_log?recipe=eq.R12.1&key=eq.{{12.result.key_q}}",
+                        "method": "patch",
+                        "timeout": "40",
+                        "parseResponse": false,
+                        "stopOnHttpError": true,
+                        "allowRedirects": true,
+                        "shareCookies": false,
+                        "requestCompressedContent": true,
+                        "contentType": "json",
+                        "inputMethod": "jsonString",
+                        "jsonStringBodyContent": "{{20.result.done_body}}"
+                      },
+                      "metadata": {
+                        "designer": {
+                          "x": 5700,
+                          "y": 900,
+                          "name": "Mark key done"
+                        }
+                      }
+                    },
+                    {
+                      "id": 35,
+                      "module": "http:MakeRequest",
+                      "version": 4,
+                      "parameters": {},
+                      "mapper": {
+                        "url": "{{1.result.table_api_url}}/decision_log",
+                        "method": "post",
+                        "timeout": "40",
+                        "parseResponse": false,
+                        "stopOnHttpError": true,
+                        "allowRedirects": true,
+                        "shareCookies": false,
+                        "requestCompressedContent": true,
+                        "contentType": "json",
+                        "inputMethod": "jsonString",
+                        "jsonStringBodyContent": "{{20.result.log_body}}"
+                      },
+                      "metadata": {
+                        "designer": {
+                          "x": 6000,
+                          "y": 900,
+                          "name": "Decision log"
+                        }
+                      }
+                    }
+                  ]
+                }
+              ],
+              "metadata": {
+                "designer": {
+                  "x": 5100,
+                  "y": 300,
+                  "name": "Table complete"
+                }
+              },
+              "filter": {
+                "name": "every write succeeded",
+                "conditions": [
+                  [
+                    {
+                      "a": "{{length(29.array)}}",
+                      "b": "{{length(20.result.writes)}}",
+                      "o": "number:equal"
+                    }
+                  ]
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "designer": {
+          "x": 3900,
+          "y": 0,
+          "name": "Step 6: Rule version approved?"
+        }
+      }
+    }
+  ],
+  "metadata": {
+    "instant": false,
+    "version": 1,
+    "designer": {
+      "orphans": []
+    },
+    "scenario": {
+      "dlq": true,
+      "slots": null,
+      "dataloss": false,
+      "maxErrors": 3,
+      "autoCommit": true,
+      "roundtrips": 1,
+      "sequential": false,
+      "confidential": false,
+      "freshVariables": false,
+      "autoCommitTriggerLast": true
+    }
+  }
+}

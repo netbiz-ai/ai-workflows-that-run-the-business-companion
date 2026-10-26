@@ -1,0 +1,1044 @@
+{
+  "name": "R5.4 Route quote approval: approver's decision",
+  "flow": [
+    {
+      "id": 1,
+      "module": "gateway:CustomWebHook",
+      "version": 1,
+      "parameters": {
+        "hook": null,
+        "maxResults": 1
+      },
+      "mapper": {},
+      "metadata": {
+        "designer": {
+          "x": 0,
+          "y": 0,
+          "name": "Step 8: Decision recorded"
+        }
+      }
+    },
+    {
+      "id": 2,
+      "module": "code:ExecuteCode",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "language": "javascript",
+        "inputFormat": "editor",
+        "dependencies": [],
+        "codeEditorJavascript": "// Config: edit these values for your company; nothing else in the scenario hard-codes them.\nreturn {\n  \"stop_flag_url\": \"https://<your stop list API>/stop_flags/R5.4\",\n  \"table_api_url\": \"https://<your table API for the key log, decision log and exception queue>\",\n  \"workflow_owner\": \"<your workflow owner>\",\n  \"crm_url\": \"https://<your CRM API>\",\n  \"messaging_url\": \"https://<your messaging API>\",\n  \"salesperson_limit\": \"<your salesperson's limit, after discount>\",\n  \"sales_lead_limit\": \"<your sales lead's limit, after discount>\",\n  \"standard_discount_pct\": \"<your standard line discount, %>\",\n  \"approvers\": {\n    \"salesperson\": {\n      \"deputy\": \"<your salespeople's deputy>\",\n      \"deadline_hours\": \"<hours>\"\n    },\n    \"sales_lead\": {\n      \"person\": \"<your sales lead>\",\n      \"deputy\": \"<deputy>\",\n      \"deadline_hours\": \"<hours>\"\n    },\n    \"ceo\": {\n      \"person\": \"<your owner or CEO>\",\n      \"deputy\": \"<deputy>\",\n      \"deadline_hours\": \"<hours>\"\n    }\n  },\n  \"checklist\": \"<link to your copy of Book 1's Checklist 13.1, the quote approver's check>\",\n  \"systems_owner\": \"<your systems owner>\"\n};",
+        "input": []
+      },
+      "metadata": {
+        "designer": {
+          "x": 300,
+          "y": 0,
+          "name": "Config"
+        }
+      }
+    },
+    {
+      "id": 5,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{2.result.stop_flag_url}}",
+        "method": "get",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true
+      },
+      "metadata": {
+        "designer": {
+          "x": 600,
+          "y": 0,
+          "name": "Stop flag: read"
+        }
+      },
+      "onerror": [
+        {
+          "id": 3,
+          "module": "http:MakeRequest",
+          "version": 4,
+          "parameters": {},
+          "mapper": {
+            "url": "{{2.result.table_api_url}}/exception_queue",
+            "method": "post",
+            "timeout": "40",
+            "parseResponse": false,
+            "stopOnHttpError": true,
+            "allowRedirects": true,
+            "shareCookies": false,
+            "requestCompressedContent": true,
+            "contentType": "json",
+            "inputMethod": "jsonString",
+            "jsonStringBodyContent": "{\"recipe\": \"R5.4\", \"item\": \"run {{var.scenario.executionId}}\", \"reason\": \"stop list unreadable\", \"detail\": \"The stop list could not be read, so the run stopped\", \"owner\": \"{{2.result.workflow_owner}}\"}"
+          },
+          "metadata": {
+            "designer": {
+              "x": 600,
+              "y": 300,
+              "name": "Stop flag: list unreadable"
+            }
+          }
+        },
+        {
+          "id": 4,
+          "module": "builtin:Ignore",
+          "version": 1,
+          "metadata": {
+            "designer": {
+              "x": 900,
+              "y": 300
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{2.result.table_api_url}}/rpc/reserve_key",
+        "method": "post",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true,
+        "contentType": "json",
+        "inputMethod": "jsonString",
+        "jsonStringBodyContent": "{\"p_recipe\": \"R5.4\", \"p_key\": \"decision:{{1.quote_id}}:{{1.revision}}\"}"
+      },
+      "metadata": {
+        "designer": {
+          "x": 900,
+          "y": 0,
+          "name": "Step 8: Reserve decision key"
+        }
+      },
+      "filter": {
+        "name": "stop flag not set",
+        "conditions": [
+          [
+            {
+              "a": "{{5.data.stopped}}",
+              "b": "true",
+              "o": "text:notequal"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "id": 8,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{2.result.crm_url}}/quotes/{{encodeURL(1.quote_id)}}",
+        "method": "get",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true
+      },
+      "metadata": {
+        "designer": {
+          "x": 1200,
+          "y": 0,
+          "name": "Read the quote (decision)"
+        }
+      },
+      "onerror": [
+        {
+          "id": 7,
+          "module": "builtin:Break",
+          "version": 1,
+          "parameters": {},
+          "mapper": {
+            "count": "3",
+            "retry": true,
+            "interval": "1"
+          },
+          "metadata": {
+            "designer": {
+              "x": 1200,
+              "y": 300
+            }
+          }
+        }
+      ],
+      "filter": {
+        "name": "new key (not a copy)",
+        "conditions": [
+          [
+            {
+              "a": "{{6.data}}",
+              "b": "true",
+              "o": "text:equal"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "id": 10,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{2.result.crm_url}}/price_lists/current",
+        "method": "get",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true
+      },
+      "metadata": {
+        "designer": {
+          "x": 1500,
+          "y": 0,
+          "name": "Read the price list (decision)"
+        }
+      },
+      "onerror": [
+        {
+          "id": 9,
+          "module": "builtin:Break",
+          "version": 1,
+          "parameters": {},
+          "mapper": {
+            "count": "3",
+            "retry": true,
+            "interval": "1"
+          },
+          "metadata": {
+            "designer": {
+              "x": 1500,
+              "y": 300
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "module": "code:ExecuteCode",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "language": "javascript",
+        "inputFormat": "editor",
+        "dependencies": [],
+        "codeEditorJavascript": "// Adapter: the rule below is the same JavaScript as the recipe's n8n build.\n// $('Step name') answers from this step's inputs: each is that step's output in this scenario.\nconst SOURCES = {\"Config\": \"in0_Config\", \"Read the quote (decision)\": \"in1_Readthequotedecision\", \"Read the price list (decision)\": \"in2_Readthepricelistdecision\"};\nconst LISTS = [];\nconst EXECUTED = [];\nconst DATA = {};\nfor (const [node, key] of Object.entries(SOURCES)) {\n  const raw = input[key];\n  let v = raw;\n  if (typeof raw === 'string') { try { v = JSON.parse(raw); } catch (e) { v = raw; } }\n  DATA[node] = LISTS.includes(node) ? (v || []).map(i => (i && i.json !== undefined ? i : { json: i })) : [{ json: v }];\n}\nconst $ = (node) => {\n  const ran = node in DATA || EXECUTED.includes(node);\n  const list = () => { if (!(node in DATA)) throw new Error(`step ${node} has no data in this scenario`); return DATA[node]; };\n  return { isExecuted: ran, first: () => list()[0], last: () => list()[list().length - 1], all: () => list(),\n           get item() { return list()[0]; } };\n};\nconst INPUT = \"Read the price list (decision)\";\nconst $input = { all: () => $(INPUT).all(), first: () => $(INPUT).first(), last: () => $(INPUT).last(), get item() { return $(INPUT).first(); } };\nconst $execution = { id: input.run_id };\n// The webhook's fields, as n8n's Webhook node gives them.\nDATA['Step 8: Decision recorded'] = [{ json: { body: Object.fromEntries(Object.entries({ quote_id: input.tr_quote_id, revision: input.tr_revision, decision: input.tr_decision, by: input.tr_by, comment: input.tr_comment }).filter(([, v]) => v !== undefined && v !== null && v !== '')) } }];\nconst BODIES = (out) => ({\"unlock_body\": JSON.stringify({ status: 'approved', locked: false, approved_by: $('Step 8: Decision recorded').first().json.body.by, approved_at: new Date().toISOString(), approved_revision: $('Read the quote (decision)').first().json.revision }), \"return_body\": JSON.stringify({ status: 'returned', locked: true, rejected_by: $('Step 8: Decision recorded').first().json.body.by, comment: $('Step 8: Decision recorded').first().json.body.comment || '' }), \"back_body\": JSON.stringify({ status: 'back to R5.3', locked: true, return_reason: out.reason }), \"salesperson_message\": JSON.stringify({ to: $('Read the quote (decision)').first().json.salesperson, subject: 'Quote ' + $('Step 8: Decision recorded').first().json.body.quote_id + ' back to drafting', text: 'The price list changed while it waited for approval; mark the opportunity ready to quote again to redraft it.' }), \"refused_body\": JSON.stringify({ recipe: 'R5.4', item: String($('Step 8: Decision recorded').first().json.body.quote_id), reason: 'decision not accepted', detail: out.reason, owner: $('Config').first().json.approvers.sales_lead.person }), \"failed_body\": JSON.stringify({ recipe: 'R5.4', item: String($('Step 8: Decision recorded').first().json.body.quote_id), reason: 'write failed', detail: 'Decision write failed, not retried; set the quote by hand, then release the key', owner: $('Config').first().json.approvers.sales_lead.person })});\nconst one = (r) => (Array.isArray(r) ? r : [r]).filter(Boolean).map(i => (i.json !== undefined ? i.json : i));\nconst $json = INPUT && INPUT in DATA ? $input.first().json : {};\nconst __rule = () => {\nfunction recompute(q, list) {\n  const onList = new Set((list.items || []).map(i => i.code));\n  let cents = 0, largest = 0, offList = false, multiYear = Number(q.term_years || 0) > 1;\n  for (const l of q.lines || []) {\n    const disc = Number(l.discount_pct || 0);\n    largest = Math.max(largest, disc);\n    if (Number(l.years || 0) > 1) multiYear = true;\n    if (l.off_list || l.unit_price == null || !onList.has(l.code)) { offList = true; continue; }\n    const u = BigInt(Math.round(Number(l.unit_price) * 10000)), d = BigInt(Math.round(disc * 100));\n    cents += Number((u * BigInt(Number(l.quantity)) * (10000n - d) + 500000n) / 1000000n);\n  }\n  return { value: cents / 100, largest_discount: largest, multi_year: multiYear, off_list: offList, non_standard: q.non_standard_terms === true };\n}\nfunction listCurrent(q, list) {\n  const today = new Date().toISOString().slice(0, 10);\n  return q.price_list_version === list.version && !!list.valid_until && list.valid_until >= today;\n}\n\n// Step 8: only the routed approver or deputy, on the revision they were asked about, decides.\nconst q = $('Read the quote (decision)').first().json, list = $('Read the price list (decision)').first().json;\nconst d = $('Step 8: Decision recorded').first().json.body;\nconst problems = [];\nif (q.status !== 'awaiting approval') problems.push(`quote is ${q.status}, not awaiting approval`);\nif (Number(d.revision) !== Number(q.revision)) problems.push(`decision on revision ${d.revision}; the quote is now revision ${q.revision} and routes again`);\nif (![q.approver, q.deputy].includes(d.by)) problems.push(`${d.by} is not the routed approver or deputy`);\nif (!['approved', 'rejected'].includes(d.decision)) problems.push(`decision \"${d.decision}\" is not approved or rejected`);\nif (problems.length) return [{ json: { outcome: 'refuse', reason: problems.join('; ') } }];\nif (d.decision === 'approved' && !listCurrent(q, list)) return [{ json: { outcome: 'back', reason: `price list ${q.price_list_version} replaced by ${list.version} while waiting` } }];\nreturn [{ json: Object.assign({ outcome: d.decision === 'approved' ? 'approve' : 'reject' }, recompute(q, list)) }];\n};\nconst out = one(__rule())[0] || {};\nreturn Object.assign({}, out, BODIES(out));\n",
+        "input": [
+          {
+            "name": "in0_Config",
+            "value": "{{2.result}}"
+          },
+          {
+            "name": "in1_Readthequotedecision",
+            "value": "{{8.data}}"
+          },
+          {
+            "name": "in2_Readthepricelistdecision",
+            "value": "{{10.data}}"
+          },
+          {
+            "name": "run_id",
+            "value": "{{var.scenario.executionId}}"
+          },
+          {
+            "name": "tr_quote_id",
+            "value": "{{1.quote_id}}"
+          },
+          {
+            "name": "tr_revision",
+            "value": "{{1.revision}}"
+          },
+          {
+            "name": "tr_decision",
+            "value": "{{1.decision}}"
+          },
+          {
+            "name": "tr_by",
+            "value": "{{1.by}}"
+          },
+          {
+            "name": "tr_comment",
+            "value": "{{1.comment}}"
+          }
+        ]
+      },
+      "metadata": {
+        "designer": {
+          "x": 1800,
+          "y": 0,
+          "name": "Step 8: Rule: accept the decision?"
+        }
+      }
+    },
+    {
+      "id": 12,
+      "module": "code:ExecuteCode",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "language": "javascript",
+        "inputFormat": "editor",
+        "dependencies": [],
+        "codeEditorJavascript": "// Adapter: the rule below is the same JavaScript as the recipe's n8n build.\n// $('Step name') answers from this step's inputs: each is that step's output in this scenario.\nconst SOURCES = {\"Step 8: Rule: accept the decision?\": \"in0_Step8Ruleacceptthedecisi\", \"Read the quote (decision)\": \"in1_Readthequotedecision\"};\nconst LISTS = [];\nconst EXECUTED = [];\nconst DATA = {};\nfor (const [node, key] of Object.entries(SOURCES)) {\n  const raw = input[key];\n  let v = raw;\n  if (typeof raw === 'string') { try { v = JSON.parse(raw); } catch (e) { v = raw; } }\n  DATA[node] = LISTS.includes(node) ? (v || []).map(i => (i && i.json !== undefined ? i : { json: i })) : [{ json: v }];\n}\nconst $ = (node) => {\n  const ran = node in DATA || EXECUTED.includes(node);\n  const list = () => { if (!(node in DATA)) throw new Error(`step ${node} has no data in this scenario`); return DATA[node]; };\n  return { isExecuted: ran, first: () => list()[0], last: () => list()[list().length - 1], all: () => list(),\n           get item() { return list()[0]; } };\n};\nconst INPUT = \"Read the quote (decision)\";\nconst $input = { all: () => $(INPUT).all(), first: () => $(INPUT).first(), last: () => $(INPUT).last(), get item() { return $(INPUT).first(); } };\nconst $execution = { id: input.run_id };\n// The webhook's fields, as n8n's Webhook node gives them.\nDATA['Step 8: Decision recorded'] = [{ json: { body: Object.fromEntries(Object.entries({ quote_id: input.tr_quote_id, revision: input.tr_revision, decision: input.tr_decision, by: input.tr_by, comment: input.tr_comment }).filter(([, v]) => v !== undefined && v !== null && v !== '')) } }];\nconst BODIES = (out) => ({\"done_body\": JSON.stringify({ status: 'done', result: out.decision }), \"log_body\": JSON.stringify({ recipe: 'R5.4', item: $('Step 8: Decision recorded').first().json.body.quote_id + ':' + $('Read the quote (decision)').first().json.revision, decision: out.decision, rules: out.rules, approved_by: out.approver })});\nconst one = (r) => (Array.isArray(r) ? r : [r]).filter(Boolean).map(i => (i.json !== undefined ? i.json : i));\nconst $json = INPUT && INPUT in DATA ? $input.first().json : {};\nconst __rule = () => {\nconst r = $('Step 8: Rule: accept the decision?').first().json;\nconst d = $('Step 8: Decision recorded').first().json.body;\nconst q = $('Read the quote (decision)').first().json;\nconst decision = { approve: 'approved; sending unlocked', reject: 'rejected; returned with the comment', back: 'back to R5.3: ' + r.reason, refuse: 'decision not accepted: ' + r.reason }[r.outcome];\nreturn [{ json: { decision, approver: r.outcome === 'approve' ? d.by : null,\n  rules: { revision: q.revision, value: r.value ?? null, largest_discount: r.largest_discount ?? null, by: d.by, decision: d.decision, price_list_version: q.price_list_version } } }];\n};\nconst out = one(__rule())[0] || {};\nreturn Object.assign({}, out, BODIES(out));\n",
+        "input": [
+          {
+            "name": "in0_Step8Ruleacceptthedecisi",
+            "value": "{{11.result}}"
+          },
+          {
+            "name": "in1_Readthequotedecision",
+            "value": "{{8.data}}"
+          },
+          {
+            "name": "run_id",
+            "value": "{{var.scenario.executionId}}"
+          },
+          {
+            "name": "tr_quote_id",
+            "value": "{{1.quote_id}}"
+          },
+          {
+            "name": "tr_revision",
+            "value": "{{1.revision}}"
+          },
+          {
+            "name": "tr_decision",
+            "value": "{{1.decision}}"
+          },
+          {
+            "name": "tr_by",
+            "value": "{{1.by}}"
+          },
+          {
+            "name": "tr_comment",
+            "value": "{{1.comment}}"
+          }
+        ]
+      },
+      "metadata": {
+        "designer": {
+          "x": 2100,
+          "y": 0,
+          "name": "Decision summary"
+        }
+      }
+    },
+    {
+      "id": 38,
+      "module": "builtin:BasicRouter",
+      "version": 1,
+      "mapper": null,
+      "routes": [
+        {
+          "flow": [
+            {
+              "id": 16,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.crm_url}}/quotes/{{encodeURL(1.quote_id)}}",
+                "method": "patch",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{11.result.unlock_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 2700,
+                  "y": 0,
+                  "name": "Step 8: Unlock sending"
+                }
+              },
+              "onerror": [
+                {
+                  "id": 13,
+                  "module": "http:MakeRequest",
+                  "version": 4,
+                  "parameters": {},
+                  "mapper": {
+                    "url": "{{2.result.table_api_url}}/key_log?recipe=eq.R5.4&key=eq.decision%3A{{encodeURL(1.quote_id)}}%3A{{encodeURL(1.revision)}}",
+                    "method": "patch",
+                    "timeout": "40",
+                    "parseResponse": false,
+                    "stopOnHttpError": true,
+                    "allowRedirects": true,
+                    "shareCookies": false,
+                    "requestCompressedContent": true,
+                    "contentType": "json",
+                    "inputMethod": "jsonString",
+                    "jsonStringBodyContent": "{\"status\": \"failed\", \"result\": \"write failed\"}"
+                  },
+                  "metadata": {
+                    "designer": {
+                      "x": 2700,
+                      "y": 300,
+                      "name": "Step 8: Unlock sending: mark key failed"
+                    }
+                  }
+                },
+                {
+                  "id": 14,
+                  "module": "http:MakeRequest",
+                  "version": 4,
+                  "parameters": {},
+                  "mapper": {
+                    "url": "{{2.result.table_api_url}}/exception_queue",
+                    "method": "post",
+                    "timeout": "40",
+                    "parseResponse": false,
+                    "stopOnHttpError": true,
+                    "allowRedirects": true,
+                    "shareCookies": false,
+                    "requestCompressedContent": true,
+                    "contentType": "json",
+                    "inputMethod": "jsonString",
+                    "jsonStringBodyContent": "{{11.result.failed_body}}"
+                  },
+                  "metadata": {
+                    "designer": {
+                      "x": 3000,
+                      "y": 300,
+                      "name": "Step 8: Unlock sending: exception queue"
+                    }
+                  }
+                },
+                {
+                  "id": 15,
+                  "module": "builtin:Ignore",
+                  "version": 1,
+                  "metadata": {
+                    "designer": {
+                      "x": 3300,
+                      "y": 300
+                    }
+                  }
+                }
+              ],
+              "filter": {
+                "name": "outcome is approve",
+                "conditions": [
+                  [
+                    {
+                      "a": "{{11.result.outcome}}",
+                      "b": "approve",
+                      "o": "text:equal"
+                    }
+                  ]
+                ]
+              }
+            },
+            {
+              "id": 17,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.table_api_url}}/key_log?recipe=eq.R5.4&key=eq.decision%3A{{encodeURL(1.quote_id)}}%3A{{encodeURL(1.revision)}}",
+                "method": "patch",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{12.result.done_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 3000,
+                  "y": 0,
+                  "name": "Mark decision key done (approve)"
+                }
+              }
+            },
+            {
+              "id": 18,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.table_api_url}}/decision_log",
+                "method": "post",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{12.result.log_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 3300,
+                  "y": 0,
+                  "name": "Step 8: Log approver, time and version (approve)"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "flow": [
+            {
+              "id": 22,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.crm_url}}/quotes/{{encodeURL(1.quote_id)}}",
+                "method": "patch",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{11.result.return_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 2700,
+                  "y": 600,
+                  "name": "Step 8: Return with the comment"
+                }
+              },
+              "onerror": [
+                {
+                  "id": 19,
+                  "module": "http:MakeRequest",
+                  "version": 4,
+                  "parameters": {},
+                  "mapper": {
+                    "url": "{{2.result.table_api_url}}/key_log?recipe=eq.R5.4&key=eq.decision%3A{{encodeURL(1.quote_id)}}%3A{{encodeURL(1.revision)}}",
+                    "method": "patch",
+                    "timeout": "40",
+                    "parseResponse": false,
+                    "stopOnHttpError": true,
+                    "allowRedirects": true,
+                    "shareCookies": false,
+                    "requestCompressedContent": true,
+                    "contentType": "json",
+                    "inputMethod": "jsonString",
+                    "jsonStringBodyContent": "{\"status\": \"failed\", \"result\": \"write failed\"}"
+                  },
+                  "metadata": {
+                    "designer": {
+                      "x": 2700,
+                      "y": 900,
+                      "name": "Step 8: Return with the comment: mark key failed"
+                    }
+                  }
+                },
+                {
+                  "id": 20,
+                  "module": "http:MakeRequest",
+                  "version": 4,
+                  "parameters": {},
+                  "mapper": {
+                    "url": "{{2.result.table_api_url}}/exception_queue",
+                    "method": "post",
+                    "timeout": "40",
+                    "parseResponse": false,
+                    "stopOnHttpError": true,
+                    "allowRedirects": true,
+                    "shareCookies": false,
+                    "requestCompressedContent": true,
+                    "contentType": "json",
+                    "inputMethod": "jsonString",
+                    "jsonStringBodyContent": "{{11.result.failed_body}}"
+                  },
+                  "metadata": {
+                    "designer": {
+                      "x": 3000,
+                      "y": 900,
+                      "name": "Step 8: Return with the comment: exception queue"
+                    }
+                  }
+                },
+                {
+                  "id": 21,
+                  "module": "builtin:Ignore",
+                  "version": 1,
+                  "metadata": {
+                    "designer": {
+                      "x": 3300,
+                      "y": 900
+                    }
+                  }
+                }
+              ],
+              "filter": {
+                "name": "outcome is reject",
+                "conditions": [
+                  [
+                    {
+                      "a": "{{11.result.outcome}}",
+                      "b": "reject",
+                      "o": "text:equal"
+                    }
+                  ]
+                ]
+              }
+            },
+            {
+              "id": 23,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.table_api_url}}/key_log?recipe=eq.R5.4&key=eq.decision%3A{{encodeURL(1.quote_id)}}%3A{{encodeURL(1.revision)}}",
+                "method": "patch",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{12.result.done_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 3000,
+                  "y": 600,
+                  "name": "Mark decision key done (reject)"
+                }
+              }
+            },
+            {
+              "id": 24,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.table_api_url}}/decision_log",
+                "method": "post",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{12.result.log_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 3300,
+                  "y": 600,
+                  "name": "Step 8: Log approver, time and version (reject)"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "flow": [
+            {
+              "id": 28,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.crm_url}}/quotes/{{encodeURL(1.quote_id)}}",
+                "method": "patch",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{11.result.back_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 2700,
+                  "y": 1200,
+                  "name": "Step 8: Send back to R5.3"
+                }
+              },
+              "onerror": [
+                {
+                  "id": 25,
+                  "module": "http:MakeRequest",
+                  "version": 4,
+                  "parameters": {},
+                  "mapper": {
+                    "url": "{{2.result.table_api_url}}/key_log?recipe=eq.R5.4&key=eq.decision%3A{{encodeURL(1.quote_id)}}%3A{{encodeURL(1.revision)}}",
+                    "method": "patch",
+                    "timeout": "40",
+                    "parseResponse": false,
+                    "stopOnHttpError": true,
+                    "allowRedirects": true,
+                    "shareCookies": false,
+                    "requestCompressedContent": true,
+                    "contentType": "json",
+                    "inputMethod": "jsonString",
+                    "jsonStringBodyContent": "{\"status\": \"failed\", \"result\": \"write failed\"}"
+                  },
+                  "metadata": {
+                    "designer": {
+                      "x": 2700,
+                      "y": 1500,
+                      "name": "Step 8: Send back to R5.3: mark key failed"
+                    }
+                  }
+                },
+                {
+                  "id": 26,
+                  "module": "http:MakeRequest",
+                  "version": 4,
+                  "parameters": {},
+                  "mapper": {
+                    "url": "{{2.result.table_api_url}}/exception_queue",
+                    "method": "post",
+                    "timeout": "40",
+                    "parseResponse": false,
+                    "stopOnHttpError": true,
+                    "allowRedirects": true,
+                    "shareCookies": false,
+                    "requestCompressedContent": true,
+                    "contentType": "json",
+                    "inputMethod": "jsonString",
+                    "jsonStringBodyContent": "{{11.result.failed_body}}"
+                  },
+                  "metadata": {
+                    "designer": {
+                      "x": 3000,
+                      "y": 1500,
+                      "name": "Step 8: Send back to R5.3: exception queue"
+                    }
+                  }
+                },
+                {
+                  "id": 27,
+                  "module": "builtin:Ignore",
+                  "version": 1,
+                  "metadata": {
+                    "designer": {
+                      "x": 3300,
+                      "y": 1500
+                    }
+                  }
+                }
+              ],
+              "filter": {
+                "name": "outcome is back",
+                "conditions": [
+                  [
+                    {
+                      "a": "{{11.result.outcome}}",
+                      "b": "back",
+                      "o": "text:equal"
+                    }
+                  ]
+                ]
+              }
+            },
+            {
+              "id": 32,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.messaging_url}}/messages",
+                "method": "post",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{11.result.salesperson_message}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 3000,
+                  "y": 1200,
+                  "name": "Step 8: Tell the salesperson"
+                }
+              },
+              "onerror": [
+                {
+                  "id": 29,
+                  "module": "http:MakeRequest",
+                  "version": 4,
+                  "parameters": {},
+                  "mapper": {
+                    "url": "{{2.result.table_api_url}}/key_log?recipe=eq.R5.4&key=eq.decision%3A{{encodeURL(1.quote_id)}}%3A{{encodeURL(1.revision)}}",
+                    "method": "patch",
+                    "timeout": "40",
+                    "parseResponse": false,
+                    "stopOnHttpError": true,
+                    "allowRedirects": true,
+                    "shareCookies": false,
+                    "requestCompressedContent": true,
+                    "contentType": "json",
+                    "inputMethod": "jsonString",
+                    "jsonStringBodyContent": "{\"status\": \"failed\", \"result\": \"write failed\"}"
+                  },
+                  "metadata": {
+                    "designer": {
+                      "x": 3000,
+                      "y": 1500,
+                      "name": "Step 8: Tell the salesperson: mark key failed"
+                    }
+                  }
+                },
+                {
+                  "id": 30,
+                  "module": "http:MakeRequest",
+                  "version": 4,
+                  "parameters": {},
+                  "mapper": {
+                    "url": "{{2.result.table_api_url}}/exception_queue",
+                    "method": "post",
+                    "timeout": "40",
+                    "parseResponse": false,
+                    "stopOnHttpError": true,
+                    "allowRedirects": true,
+                    "shareCookies": false,
+                    "requestCompressedContent": true,
+                    "contentType": "json",
+                    "inputMethod": "jsonString",
+                    "jsonStringBodyContent": "{{11.result.failed_body}}"
+                  },
+                  "metadata": {
+                    "designer": {
+                      "x": 3300,
+                      "y": 1500,
+                      "name": "Step 8: Tell the salesperson: exception queue"
+                    }
+                  }
+                },
+                {
+                  "id": 31,
+                  "module": "builtin:Ignore",
+                  "version": 1,
+                  "metadata": {
+                    "designer": {
+                      "x": 3600,
+                      "y": 1500
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "id": 33,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.table_api_url}}/key_log?recipe=eq.R5.4&key=eq.decision%3A{{encodeURL(1.quote_id)}}%3A{{encodeURL(1.revision)}}",
+                "method": "patch",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{12.result.done_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 3300,
+                  "y": 1200,
+                  "name": "Mark decision key done (back)"
+                }
+              }
+            },
+            {
+              "id": 34,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.table_api_url}}/decision_log",
+                "method": "post",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{12.result.log_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 3600,
+                  "y": 1200,
+                  "name": "Step 8: Log approver, time and version (back)"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "flow": [
+            {
+              "id": 35,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.table_api_url}}/exception_queue",
+                "method": "post",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{11.result.refused_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 2700,
+                  "y": 1800,
+                  "name": "Exception queue: decision not accepted"
+                }
+              },
+              "filter": {
+                "name": "outcome is refuse",
+                "conditions": [
+                  [
+                    {
+                      "a": "{{11.result.outcome}}",
+                      "b": "refuse",
+                      "o": "text:equal"
+                    }
+                  ]
+                ]
+              }
+            },
+            {
+              "id": 36,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.table_api_url}}/key_log?recipe=eq.R5.4&key=eq.decision%3A{{encodeURL(1.quote_id)}}%3A{{encodeURL(1.revision)}}",
+                "method": "patch",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{12.result.done_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 3000,
+                  "y": 1800,
+                  "name": "Mark decision key done (refuse)"
+                }
+              }
+            },
+            {
+              "id": 37,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.table_api_url}}/decision_log",
+                "method": "post",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{12.result.log_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 3300,
+                  "y": 1800,
+                  "name": "Step 8: Log approver, time and version (refuse)"
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "designer": {
+          "x": 2400,
+          "y": 0,
+          "name": "Step 8: Outcome"
+        }
+      }
+    }
+  ],
+  "metadata": {
+    "instant": true,
+    "version": 1,
+    "designer": {
+      "orphans": []
+    },
+    "scenario": {
+      "dlq": true,
+      "slots": null,
+      "dataloss": false,
+      "maxErrors": 3,
+      "autoCommit": true,
+      "roundtrips": 1,
+      "sequential": false,
+      "confidential": false,
+      "freshVariables": false,
+      "autoCommitTriggerLast": true
+    }
+  }
+}

@@ -1,0 +1,1151 @@
+{
+  "name": "R14.3 Chase overdue actions: Friday comparison and count",
+  "flow": [
+    {
+      "id": 1,
+      "module": "code:ExecuteCode",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "language": "javascript",
+        "inputFormat": "editor",
+        "dependencies": [],
+        "codeEditorJavascript": "// Config: edit these values for your company; nothing else in the scenario hard-codes them.\n// Schedule: set this scenario to run every Friday at 06:00; Make keeps the schedule outside the blueprint.\nreturn {\n  \"stop_flag_url\": \"https://<your stop list API>/stop_flags/R14.3\",\n  \"table_api_url\": \"https://<your table API for the key log, decision log and exception queue>\",\n  \"workflow_owner\": \"<your workflow owner>\",\n  \"register_url\": \"https://<your meeting register API>\",\n  \"tasks_url\": \"https://<your task system API>\",\n  \"tracking_url\": \"https://<your tracking list API>\",\n  \"calendar_url\": \"https://<your calendar API>\",\n  \"agenda_url\": \"https://<your agenda list API>\",\n  \"workdays_url\": \"https://<your working-day calendar API>\",\n  \"messaging_url\": \"https://<your messaging API>\",\n  \"working_weekdays\": [\n    1,\n    2,\n    3,\n    4,\n    5\n  ],\n  \"meeting_window_days\": 14,\n  \"register_owner\": \"<your register owner>\",\n  \"exception_owner\": \"<your workflow editor>\"\n};",
+        "input": []
+      },
+      "metadata": {
+        "designer": {
+          "x": 0,
+          "y": 0,
+          "name": "Config"
+        }
+      }
+    },
+    {
+      "id": 4,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{1.result.stop_flag_url}}",
+        "method": "get",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true
+      },
+      "metadata": {
+        "designer": {
+          "x": 300,
+          "y": 0,
+          "name": "Stop flag: read"
+        }
+      },
+      "onerror": [
+        {
+          "id": 2,
+          "module": "http:MakeRequest",
+          "version": 4,
+          "parameters": {},
+          "mapper": {
+            "url": "{{1.result.table_api_url}}/exception_queue",
+            "method": "post",
+            "timeout": "40",
+            "parseResponse": false,
+            "stopOnHttpError": true,
+            "allowRedirects": true,
+            "shareCookies": false,
+            "requestCompressedContent": true,
+            "contentType": "json",
+            "inputMethod": "jsonString",
+            "jsonStringBodyContent": "{\"recipe\": \"R14.3\", \"item\": \"run {{var.scenario.executionId}}\", \"reason\": \"stop list unreadable\", \"detail\": \"The stop list could not be read, so the run stopped\", \"owner\": \"{{1.result.workflow_owner}}\"}"
+          },
+          "metadata": {
+            "designer": {
+              "x": 300,
+              "y": 300,
+              "name": "Stop flag: list unreadable"
+            }
+          }
+        },
+        {
+          "id": 3,
+          "module": "builtin:Ignore",
+          "version": 1,
+          "metadata": {
+            "designer": {
+              "x": 600,
+              "y": 300
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{1.result.workdays_url}}/holidays",
+        "method": "get",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true,
+        "queryParameters": [
+          {
+            "name": "_wrap",
+            "value": "1"
+          }
+        ]
+      },
+      "metadata": {
+        "designer": {
+          "x": 600,
+          "y": 0,
+          "name": "Read holidays"
+        }
+      },
+      "onerror": [
+        {
+          "id": 5,
+          "module": "builtin:Break",
+          "version": 1,
+          "parameters": {},
+          "mapper": {
+            "count": "3",
+            "retry": true,
+            "interval": "1"
+          },
+          "metadata": {
+            "designer": {
+              "x": 600,
+              "y": 300
+            }
+          }
+        }
+      ],
+      "filter": {
+        "name": "stop flag not set",
+        "conditions": [
+          [
+            {
+              "a": "{{4.data.stopped}}",
+              "b": "true",
+              "o": "text:notequal"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "id": 7,
+      "module": "code:ExecuteCode",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "language": "javascript",
+        "inputFormat": "editor",
+        "dependencies": [],
+        "codeEditorJavascript": "// Adapter: the rule below is the same JavaScript as the recipe's n8n build.\n// $('Step name') answers from this step's inputs: each is that step's output in this scenario.\nconst SOURCES = {\"Config\": \"in0_Config\", \"Read holidays\": \"in1_Readholidays\"};\nconst LISTS = [];\nconst EXECUTED = [\"Step 8: Each Friday\"];\nconst DATA = {};\nfor (const [node, key] of Object.entries(SOURCES)) {\n  const raw = input[key];\n  let v = raw;\n  if (typeof raw === 'string') { try { v = JSON.parse(raw); } catch (e) { v = raw; } }\n  DATA[node] = LISTS.includes(node) ? (v || []).map(i => (i && i.json !== undefined ? i : { json: i })) : [{ json: v }];\n}\nconst $ = (node) => {\n  const ran = node in DATA || EXECUTED.includes(node);\n  const list = () => { if (!(node in DATA)) throw new Error(`step ${node} has no data in this scenario`); return DATA[node]; };\n  return { isExecuted: ran, first: () => list()[0], last: () => list()[list().length - 1], all: () => list(),\n           get item() { return list()[0]; } };\n};\nconst INPUT = \"Read holidays\";\nconst $input = { all: () => $(INPUT).all(), first: () => $(INPUT).first(), last: () => $(INPUT).last(), get item() { return $(INPUT).first(); } };\nconst $execution = { id: input.run_id };\nconst BODIES = (out) => ({});\nconst one = (r) => (Array.isArray(r) ? r : [r]).filter(Boolean).map(i => (i.json !== undefined ? i.json : i));\nconst $json = INPUT && INPUT in DATA ? $input.first().json : {};\nconst __rule = () => {\n// Working days: the weekdays in Config, less the holidays in your working-day calendar.\nconst iso = d => d.toISOString().slice(0, 10);\nconst todayUtc = () => new Date(iso(new Date()) + 'T00:00:00Z');\nconst addDays = (d, n) => new Date(d.getTime() + n * 86400000);\nconst isWorkday = (d, cfg, holidays) => cfg.working_weekdays.includes(d.getUTCDay()) && !holidays.includes(iso(d));\n\n// Step 1: the morning run skips weekends and holidays; the Friday count (step 8) always runs, as the heartbeat.\nconst cfg = $('Config').first().json;\nconst holidays = ($('Read holidays').first().json.items || []).map(h => String(h.date).slice(0, 10));\nconst friday = $('Step 8: Each Friday').isExecuted;\nreturn [{ json: { run: friday || isWorkday(todayUtc(), cfg, holidays), friday } }];\n};\nconst out = one(__rule())[0] || {};\nreturn Object.assign({}, out, BODIES(out));\n",
+        "input": [
+          {
+            "name": "in0_Config",
+            "value": "{{1.result}}"
+          },
+          {
+            "name": "in1_Readholidays",
+            "value": "{{6.data}}"
+          },
+          {
+            "name": "run_id",
+            "value": "{{var.scenario.executionId}}"
+          }
+        ]
+      },
+      "metadata": {
+        "designer": {
+          "x": 900,
+          "y": 0,
+          "name": "Step 1: Rule: working day?"
+        }
+      }
+    },
+    {
+      "id": 9,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{1.result.register_url}}/series",
+        "method": "get",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true,
+        "queryParameters": [
+          {
+            "name": "_wrap",
+            "value": "1"
+          }
+        ]
+      },
+      "metadata": {
+        "designer": {
+          "x": 1200,
+          "y": 0,
+          "name": "Read the register"
+        }
+      },
+      "onerror": [
+        {
+          "id": 8,
+          "module": "builtin:Break",
+          "version": 1,
+          "parameters": {},
+          "mapper": {
+            "count": "3",
+            "retry": true,
+            "interval": "1"
+          },
+          "metadata": {
+            "designer": {
+              "x": 1200,
+              "y": 300
+            }
+          }
+        }
+      ],
+      "filter": {
+        "name": "run today",
+        "conditions": [
+          [
+            {
+              "a": "{{7.result.run}}",
+              "b": "true",
+              "o": "text:equal"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "id": 11,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{1.result.tasks_url}}/tasks",
+        "method": "get",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true,
+        "queryParameters": [
+          {
+            "name": "_wrap",
+            "value": "1"
+          }
+        ]
+      },
+      "metadata": {
+        "designer": {
+          "x": 1500,
+          "y": 0,
+          "name": "Read tasks"
+        }
+      },
+      "onerror": [
+        {
+          "id": 10,
+          "module": "builtin:Break",
+          "version": 1,
+          "parameters": {},
+          "mapper": {
+            "count": "3",
+            "retry": true,
+            "interval": "1"
+          },
+          "metadata": {
+            "designer": {
+              "x": 1500,
+              "y": 300
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 13,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{1.result.tracking_url}}/rows",
+        "method": "get",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true,
+        "queryParameters": [
+          {
+            "name": "_wrap",
+            "value": "1"
+          }
+        ]
+      },
+      "metadata": {
+        "designer": {
+          "x": 1800,
+          "y": 0,
+          "name": "Read the tracking list"
+        }
+      },
+      "onerror": [
+        {
+          "id": 12,
+          "module": "builtin:Break",
+          "version": 1,
+          "parameters": {},
+          "mapper": {
+            "count": "3",
+            "retry": true,
+            "interval": "1"
+          },
+          "metadata": {
+            "designer": {
+              "x": 1800,
+              "y": 300
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 15,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{1.result.calendar_url}}/meetings",
+        "method": "get",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true,
+        "queryParameters": [
+          {
+            "name": "_wrap",
+            "value": "1"
+          }
+        ]
+      },
+      "metadata": {
+        "designer": {
+          "x": 2100,
+          "y": 0,
+          "name": "Read series meetings"
+        }
+      },
+      "onerror": [
+        {
+          "id": 14,
+          "module": "builtin:Break",
+          "version": 1,
+          "parameters": {},
+          "mapper": {
+            "count": "3",
+            "retry": true,
+            "interval": "1"
+          },
+          "metadata": {
+            "designer": {
+              "x": 2100,
+              "y": 300
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 17,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{1.result.agenda_url}}/items",
+        "method": "get",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true,
+        "queryParameters": [
+          {
+            "name": "_wrap",
+            "value": "1"
+          },
+          {
+            "name": "status",
+            "value": "listed"
+          }
+        ]
+      },
+      "metadata": {
+        "designer": {
+          "x": 2400,
+          "y": 0,
+          "name": "Read listed agenda items"
+        }
+      },
+      "onerror": [
+        {
+          "id": 16,
+          "module": "builtin:Break",
+          "version": 1,
+          "parameters": {},
+          "mapper": {
+            "count": "3",
+            "retry": true,
+            "interval": "1"
+          },
+          "metadata": {
+            "designer": {
+              "x": 2400,
+              "y": 300
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 18,
+      "module": "code:ExecuteCode",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "language": "javascript",
+        "inputFormat": "editor",
+        "dependencies": [],
+        "codeEditorJavascript": "// Adapter: the rule below is the same JavaScript as the recipe's n8n build.\n// $('Step name') answers from this step's inputs: each is that step's output in this scenario.\nconst SOURCES = {\"Config\": \"in0_Config\", \"Step 1: Rule: working day?\": \"in1_Step1Ruleworkingday\", \"Read holidays\": \"in2_Readholidays\", \"Read the register\": \"in3_Readtheregister\", \"Read tasks\": \"in4_Readtasks\", \"Read the tracking list\": \"in5_Readthetrackinglist\", \"Read series meetings\": \"in6_Readseriesmeetings\", \"Read listed agenda items\": \"in7_Readlistedagendaitems\"};\nconst LISTS = [];\nconst EXECUTED = [];\nconst DATA = {};\nfor (const [node, key] of Object.entries(SOURCES)) {\n  const raw = input[key];\n  let v = raw;\n  if (typeof raw === 'string') { try { v = JSON.parse(raw); } catch (e) { v = raw; } }\n  DATA[node] = LISTS.includes(node) ? (v || []).map(i => (i && i.json !== undefined ? i : { json: i })) : [{ json: v }];\n}\nconst $ = (node) => {\n  const ran = node in DATA || EXECUTED.includes(node);\n  const list = () => { if (!(node in DATA)) throw new Error(`step ${node} has no data in this scenario`); return DATA[node]; };\n  return { isExecuted: ran, first: () => list()[0], last: () => list()[list().length - 1], all: () => list(),\n           get item() { return list()[0]; } };\n};\nconst INPUT = \"Read listed agenda items\";\nconst $input = { all: () => $(INPUT).all(), first: () => $(INPUT).first(), last: () => $(INPUT).last(), get item() { return $(INPUT).first(); } };\nconst $execution = { id: input.run_id };\nconst BODIES = (out) => ({\"key_q\": encodeURIComponent(out.key || ''), \"task_q\": encodeURIComponent(out.task_id || ''), \"agenda_item_q\": encodeURIComponent(out.agenda_item_id || ''), \"reserve_body\": JSON.stringify({ p_recipe: 'R14.3', p_key: out.key }), \"row_body\": JSON.stringify(out.row || {}), \"remind_message\": JSON.stringify({ to: [out.owner_email], subject: 'Overdue action: ' + out.title, text: out.title + ' was due ' + out.due_date + ' (' + out.series + '). Source: ' + out.source_link }), \"sent_body\": JSON.stringify({ reminder_state: 'sent', reminded_on: new Date().toISOString().slice(0, 10) }), \"pending_body\": JSON.stringify({ p_recipe: 'R14.3', p_item: out.key, p_reason: 'reminder key pending', p_detail: 'The reminder may have been sent but was never marked sent; it is not resent. Release or close the key.', p_owner: $('Config').first().json.exception_owner }), \"agenda_body\": JSON.stringify({ meeting_id: out.meeting_id, series_id: out.series_id, task_id: out.task_id, action: out.title, owner: out.owner, verified_date: out.verified_date, due_date: out.due_date, days_overdue: out.days_overdue, reason: out.why, status: 'listed' }), \"register_message\": JSON.stringify({ to: [$('Config').first().json.register_owner], subject: 'No meeting within ' + $('Config').first().json.meeting_window_days + ' days: ' + out.series, text: out.title + ' (' + out.owner + '), verified for ' + out.verified_date + ', is ' + out.days_overdue + ' day(s) overdue (' + out.why + '), and ' + out.series + ' has no meeting within ' + $('Config').first().json.meeting_window_days + ' days.' }), \"done_body\": JSON.stringify({ status: 'done', result: (out.kind === 'remind' ? 'reminded' : out.kind === 'agenda' ? 'on agenda ' + out.meeting_id : 'register owner told: no meeting') }), \"log_body\": JSON.stringify({ recipe: 'R14.3', item: out.task_id, decision: (out.kind === 'remind' ? 'reminded' : out.kind === 'agenda' ? 'on agenda ' + out.meeting_id : 'register owner told: no meeting'), rules: { key: out.key, series: out.series_id, reason: out.why || 'overdue', days_overdue: out.days_overdue } }), \"failed_body\": JSON.stringify({ recipe: 'R14.3', item: out.key, reason: 'write failed', detail: 'A send or write failed; never retried. Check, then release or close the key.', owner: $('Config').first().json.exception_owner }), \"other_failed_body\": JSON.stringify({ recipe: 'R14.3', item: out.task_id || ('weekly count ' + out.date), reason: 'write failed', detail: 'A tracking-list, agenda or count write failed; never retried.', owner: $('Config').first().json.exception_owner }), \"track_log_body\": JSON.stringify({ recipe: 'R14.3', item: out.task_id, decision: out.row && out.row.changes ? 'due date change tracked' : 'first seen', rules: { changes: out.row && out.row.changes, series: out.row && out.row.series_id } }), \"count_message\": JSON.stringify({ to: [$('Config').first().json.register_owner], subject: 'Open overdue actions by series: ' + out.total, text: Object.entries(out.counts || {}).map(([s, n]) => s + ': ' + n).join('\\n') || 'None overdue.' }), \"count_log_body\": JSON.stringify({ recipe: 'R14.3', item: 'weekly count ' + out.date, decision: 'weekly count sent', rules: { by_series: out.counts, total: out.total } })});\nconst one = (r) => (Array.isArray(r) ? r : [r]).filter(Boolean).map(i => (i.json !== undefined ? i.json : i));\nconst $json = INPUT && INPUT in DATA ? $input.first().json : {};\nconst __rule = () => {\n// Working days: the weekdays in Config, less the holidays in your working-day calendar.\nconst iso = d => d.toISOString().slice(0, 10);\nconst todayUtc = () => new Date(iso(new Date()) + 'T00:00:00Z');\nconst addDays = (d, n) => new Date(d.getTime() + n * 86400000);\nconst isWorkday = (d, cfg, holidays) => cfg.working_weekdays.includes(d.getUTCDay()) && !holidays.includes(iso(d));\n\n// Steps 2 to 8 and 10 of the book's R14.3. Each output item is one action, with its duplicate key.\nconst cfg = $('Config').first().json;\nconst friday = $('Step 1: Rule: working day?').first().json.friday;\nconst holidays = ($('Read holidays').first().json.items || []).map(h => String(h.date).slice(0, 10));\nconst series = Object.fromEntries(($('Read the register').first().json.items || []).map(s => [s.id, s]));\nconst allTasks = $('Read tasks').first().json.items || [];\nconst tracking = Object.fromEntries(($('Read the tracking list').first().json.items || []).map(r => [r.id, r]));\nconst meetings = $('Read series meetings').first().json.items || [];\nconst listed = $('Read listed agenda items').first().json.items || [];\nconst today = todayUtc(), t = iso(today);\nlet prev = addDays(today, -1);\nwhile (!isWorkday(prev, cfg, holidays)) prev = addDays(prev, -1);\nconst windowEnd = iso(addDays(today, cfg.meeting_window_days));\n\n// Step 2: open tasks tagged with a registered series; a hand-made task's first-seen date counts as verified.\nconst open = allTasks.filter(k => k.status === 'open' && series[k.series_id]);\nconst verifiedOf = (k, row) => (row && row.verified_date) || k.verified_due_date || k.due_date;\nconst newRow = k => ({ id: k.id, series_id: k.series_id, verified_date: verifiedOf(k, null), first_seen: t, last_due_seen: k.due_date,\n                       changes: 0, reminder_key: '', reminder_state: 'none', reminded_on: '' });\nconst base = (k, row) => ({ task_id: k.id, title: k.title, owner: k.owner, owner_email: k.owner_email, due_date: k.due_date,\n                            source_link: k.source_link || '', series_id: k.series_id, series: series[k.series_id].name,\n                            verified_date: verifiedOf(k, row),\n                            days_overdue: Math.max(0, Math.round((today - new Date(k.due_date + 'T00:00:00Z')) / 86400000)) });\nconst out = [];\n\n// Steps 5 to 7: the series' next meeting within the window gets an agenda item; none, and the register owner is told once.\nfunction carry(k, row, why) {\n  const m = meetings.filter(x => x.series_id === k.series_id && String(x.start).slice(0, 10) >= t && String(x.start).slice(0, 10) <= windowEnd)\n    .sort((a, b) => String(a.start).localeCompare(String(b.start)))[0];\n  const b = base(k, row);\n  if (m) out.push({ ...b, kind: 'agenda', why, meeting_id: m.id, meeting_start: String(m.start).slice(0, 10), key: `${k.id}:${m.id}` });\n  else out.push({ ...b, kind: 'no_meeting', why, key: `${k.id}:${b.verified_date}:no meeting` });\n}\n\nif (!friday) {\n  for (const k of open.filter(k => k.due_date < t)) {\n    const row = tracking[k.id];\n    const key = `${k.id}:${verifiedOf(k, row)}`;   // Step 3: task ID plus current verified date\n    if (!row || row.reminder_key !== key) {\n      // Step 4: not yet reminded for this date.\n      out.push({ ...base(k, row), kind: 'remind', key, row: { ...(row || newRow(k)), reminder_key: key, reminder_state: 'pending' } });\n    } else if (row.reminder_state !== 'sent') {\n      // A \"pending\" key is never resent; Owen checks it.\n      out.push({ ...base(k, row), kind: 'pending', key });\n    } else if (row.reminded_on && row.reminded_on <= iso(prev)) {\n      carry(k, row, 'overdue after one reminder');\n    }\n  }\n  // Step 10: a task closed after listing is marked, never removed.\n  const byId = Object.fromEntries(allTasks.map(k => [k.id, k]));\n  for (const a of listed) if (byId[a.task_id] && byId[a.task_id].status !== 'open') out.push({ kind: 'closed', agenda_item_id: a.id, task_id: a.task_id });\n} else {\n  // Step 8: compare due dates with the tracking list; a second change goes on the agenda.\n  for (const k of open) {\n    const row = tracking[k.id];\n    if (!row) { out.push({ kind: 'track', task_id: k.id, row: newRow(k) }); continue; }\n    if (k.due_date !== row.last_due_seen) {\n      const changes = (Number(row.changes) || 0) + 1;\n      out.push({ kind: 'track', task_id: k.id, row: { ...row, last_due_seen: k.due_date, changes } });\n      if (changes >= 2) carry(k, row, `due date moved ${changes} times`);\n    }\n  }\n  // The count is by series, never by person.\n  const counts = {};\n  for (const k of open.filter(k => k.due_date < t)) counts[series[k.series_id].name] = (counts[series[k.series_id].name] || 0) + 1;\n  out.push({ kind: 'count', counts, total: Object.values(counts).reduce((a, b) => a + b, 0), date: t });\n}\nreturn out.map(j => ({ json: j }));\n};\nreturn { items: one(__rule()).map(o => Object.assign({}, o, BODIES(o))) };\n",
+        "input": [
+          {
+            "name": "in0_Config",
+            "value": "{{1.result}}"
+          },
+          {
+            "name": "in1_Step1Ruleworkingday",
+            "value": "{{7.result}}"
+          },
+          {
+            "name": "in2_Readholidays",
+            "value": "{{6.data}}"
+          },
+          {
+            "name": "in3_Readtheregister",
+            "value": "{{9.data}}"
+          },
+          {
+            "name": "in4_Readtasks",
+            "value": "{{11.data}}"
+          },
+          {
+            "name": "in5_Readthetrackinglist",
+            "value": "{{13.data}}"
+          },
+          {
+            "name": "in6_Readseriesmeetings",
+            "value": "{{15.data}}"
+          },
+          {
+            "name": "in7_Readlistedagendaitems",
+            "value": "{{17.data}}"
+          },
+          {
+            "name": "run_id",
+            "value": "{{var.scenario.executionId}}"
+          }
+        ]
+      },
+      "metadata": {
+        "designer": {
+          "x": 2700,
+          "y": 0,
+          "name": "Steps 2 to 8: Rules"
+        }
+      }
+    },
+    {
+      "id": 19,
+      "module": "builtin:BasicFeeder",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "array": "{{18.result.items}}"
+      },
+      "metadata": {
+        "designer": {
+          "x": 3000,
+          "y": 0,
+          "name": "Each action"
+        }
+      }
+    },
+    {
+      "id": 42,
+      "module": "builtin:BasicRouter",
+      "version": 1,
+      "mapper": null,
+      "routes": [
+        {
+          "flow": [
+            {
+              "id": 28,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{1.result.table_api_url}}/rpc/reserve_key",
+                "method": "post",
+                "timeout": "40",
+                "parseResponse": true,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{19.reserve_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 3600,
+                  "y": 0,
+                  "name": "Step 6: Reserve agenda key"
+                }
+              },
+              "filter": {
+                "name": "action is agenda",
+                "conditions": [
+                  [
+                    {
+                      "a": "{{19.kind}}",
+                      "b": "agenda",
+                      "o": "text:equal"
+                    }
+                  ]
+                ]
+              }
+            },
+            {
+              "id": 32,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{1.result.agenda_url}}/items",
+                "method": "post",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{19.agenda_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 3900,
+                  "y": 0,
+                  "name": "Step 6: Add the agenda item"
+                }
+              },
+              "onerror": [
+                {
+                  "id": 29,
+                  "module": "http:MakeRequest",
+                  "version": 4,
+                  "parameters": {},
+                  "mapper": {
+                    "url": "{{1.result.table_api_url}}/key_log?recipe=eq.R14.3&key=eq.{{19.key_q}}",
+                    "method": "patch",
+                    "timeout": "40",
+                    "parseResponse": false,
+                    "stopOnHttpError": true,
+                    "allowRedirects": true,
+                    "shareCookies": false,
+                    "requestCompressedContent": true,
+                    "contentType": "json",
+                    "inputMethod": "jsonString",
+                    "jsonStringBodyContent": "{\"status\": \"failed\", \"result\": \"write failed\"}"
+                  },
+                  "metadata": {
+                    "designer": {
+                      "x": 3900,
+                      "y": 300,
+                      "name": "Step 6: Add the agenda item: mark key failed"
+                    }
+                  }
+                },
+                {
+                  "id": 30,
+                  "module": "http:MakeRequest",
+                  "version": 4,
+                  "parameters": {},
+                  "mapper": {
+                    "url": "{{1.result.table_api_url}}/exception_queue",
+                    "method": "post",
+                    "timeout": "40",
+                    "parseResponse": false,
+                    "stopOnHttpError": true,
+                    "allowRedirects": true,
+                    "shareCookies": false,
+                    "requestCompressedContent": true,
+                    "contentType": "json",
+                    "inputMethod": "jsonString",
+                    "jsonStringBodyContent": "{{19.failed_body}}"
+                  },
+                  "metadata": {
+                    "designer": {
+                      "x": 4200,
+                      "y": 300,
+                      "name": "Step 6: Add the agenda item: exception queue"
+                    }
+                  }
+                },
+                {
+                  "id": 31,
+                  "module": "builtin:Ignore",
+                  "version": 1,
+                  "metadata": {
+                    "designer": {
+                      "x": 4500,
+                      "y": 300
+                    }
+                  }
+                }
+              ],
+              "filter": {
+                "name": "new key (not a copy)",
+                "conditions": [
+                  [
+                    {
+                      "a": "{{28.data}}",
+                      "b": "true",
+                      "o": "text:equal"
+                    }
+                  ]
+                ]
+              }
+            },
+            {
+              "id": 33,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{1.result.table_api_url}}/key_log?recipe=eq.R14.3&key=eq.{{19.key_q}}",
+                "method": "patch",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{19.done_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 4200,
+                  "y": 0,
+                  "name": "Mark key done (on agenda)"
+                }
+              }
+            },
+            {
+              "id": 34,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{1.result.table_api_url}}/decision_log",
+                "method": "post",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{19.log_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 4500,
+                  "y": 0,
+                  "name": "Decision log (on agenda)"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "flow": [
+            {
+              "id": 35,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{1.result.table_api_url}}/rpc/reserve_key",
+                "method": "post",
+                "timeout": "40",
+                "parseResponse": true,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{19.reserve_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 3600,
+                  "y": 600,
+                  "name": "Step 7: Reserve no-meeting key"
+                }
+              },
+              "filter": {
+                "name": "action is no_meeting",
+                "conditions": [
+                  [
+                    {
+                      "a": "{{19.kind}}",
+                      "b": "no_meeting",
+                      "o": "text:equal"
+                    }
+                  ]
+                ]
+              }
+            },
+            {
+              "id": 39,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{1.result.messaging_url}}/messages",
+                "method": "post",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{19.register_message}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 3900,
+                  "y": 600,
+                  "name": "Step 7: Tell the register owner"
+                }
+              },
+              "onerror": [
+                {
+                  "id": 36,
+                  "module": "http:MakeRequest",
+                  "version": 4,
+                  "parameters": {},
+                  "mapper": {
+                    "url": "{{1.result.table_api_url}}/key_log?recipe=eq.R14.3&key=eq.{{19.key_q}}",
+                    "method": "patch",
+                    "timeout": "40",
+                    "parseResponse": false,
+                    "stopOnHttpError": true,
+                    "allowRedirects": true,
+                    "shareCookies": false,
+                    "requestCompressedContent": true,
+                    "contentType": "json",
+                    "inputMethod": "jsonString",
+                    "jsonStringBodyContent": "{\"status\": \"failed\", \"result\": \"write failed\"}"
+                  },
+                  "metadata": {
+                    "designer": {
+                      "x": 3900,
+                      "y": 900,
+                      "name": "Step 7: Tell the register owner: mark key failed"
+                    }
+                  }
+                },
+                {
+                  "id": 37,
+                  "module": "http:MakeRequest",
+                  "version": 4,
+                  "parameters": {},
+                  "mapper": {
+                    "url": "{{1.result.table_api_url}}/exception_queue",
+                    "method": "post",
+                    "timeout": "40",
+                    "parseResponse": false,
+                    "stopOnHttpError": true,
+                    "allowRedirects": true,
+                    "shareCookies": false,
+                    "requestCompressedContent": true,
+                    "contentType": "json",
+                    "inputMethod": "jsonString",
+                    "jsonStringBodyContent": "{{19.failed_body}}"
+                  },
+                  "metadata": {
+                    "designer": {
+                      "x": 4200,
+                      "y": 900,
+                      "name": "Step 7: Tell the register owner: exception queue"
+                    }
+                  }
+                },
+                {
+                  "id": 38,
+                  "module": "builtin:Ignore",
+                  "version": 1,
+                  "metadata": {
+                    "designer": {
+                      "x": 4500,
+                      "y": 900
+                    }
+                  }
+                }
+              ],
+              "filter": {
+                "name": "new key (not a copy)",
+                "conditions": [
+                  [
+                    {
+                      "a": "{{35.data}}",
+                      "b": "true",
+                      "o": "text:equal"
+                    }
+                  ]
+                ]
+              }
+            },
+            {
+              "id": 40,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{1.result.table_api_url}}/key_log?recipe=eq.R14.3&key=eq.{{19.key_q}}",
+                "method": "patch",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{19.done_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 4200,
+                  "y": 600,
+                  "name": "Mark key done (no meeting)"
+                }
+              }
+            },
+            {
+              "id": 41,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{1.result.table_api_url}}/decision_log",
+                "method": "post",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{19.log_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 4500,
+                  "y": 600,
+                  "name": "Decision log (no meeting)"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "flow": [
+            {
+              "id": 22,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{1.result.tracking_url}}/rows/{{19.task_q}}",
+                "method": "put",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{19.row_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 3600,
+                  "y": 1200,
+                  "name": "Step 8: Update the tracking list"
+                }
+              },
+              "onerror": [
+                {
+                  "id": 20,
+                  "module": "http:MakeRequest",
+                  "version": 4,
+                  "parameters": {},
+                  "mapper": {
+                    "url": "{{1.result.table_api_url}}/exception_queue",
+                    "method": "post",
+                    "timeout": "40",
+                    "parseResponse": false,
+                    "stopOnHttpError": true,
+                    "allowRedirects": true,
+                    "shareCookies": false,
+                    "requestCompressedContent": true,
+                    "contentType": "json",
+                    "inputMethod": "jsonString",
+                    "jsonStringBodyContent": "{{19.other_failed_body}}"
+                  },
+                  "metadata": {
+                    "designer": {
+                      "x": 3600,
+                      "y": 1500,
+                      "name": "Step 8: Update the tracking list: exception queue"
+                    }
+                  }
+                },
+                {
+                  "id": 21,
+                  "module": "builtin:Ignore",
+                  "version": 1,
+                  "metadata": {
+                    "designer": {
+                      "x": 3900,
+                      "y": 1500
+                    }
+                  }
+                }
+              ],
+              "filter": {
+                "name": "action is track",
+                "conditions": [
+                  [
+                    {
+                      "a": "{{19.kind}}",
+                      "b": "track",
+                      "o": "text:equal"
+                    }
+                  ]
+                ]
+              }
+            },
+            {
+              "id": 23,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{1.result.table_api_url}}/decision_log",
+                "method": "post",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{19.track_log_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 3900,
+                  "y": 1200,
+                  "name": "Step 8: Decision log: date change"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "flow": [
+            {
+              "id": 26,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{1.result.messaging_url}}/messages",
+                "method": "post",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{19.count_message}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 3600,
+                  "y": 1800,
+                  "name": "Step 8: Send the weekly count"
+                }
+              },
+              "onerror": [
+                {
+                  "id": 24,
+                  "module": "http:MakeRequest",
+                  "version": 4,
+                  "parameters": {},
+                  "mapper": {
+                    "url": "{{1.result.table_api_url}}/exception_queue",
+                    "method": "post",
+                    "timeout": "40",
+                    "parseResponse": false,
+                    "stopOnHttpError": true,
+                    "allowRedirects": true,
+                    "shareCookies": false,
+                    "requestCompressedContent": true,
+                    "contentType": "json",
+                    "inputMethod": "jsonString",
+                    "jsonStringBodyContent": "{{19.other_failed_body}}"
+                  },
+                  "metadata": {
+                    "designer": {
+                      "x": 3600,
+                      "y": 2100,
+                      "name": "Step 8: Send the weekly count: exception queue"
+                    }
+                  }
+                },
+                {
+                  "id": 25,
+                  "module": "builtin:Ignore",
+                  "version": 1,
+                  "metadata": {
+                    "designer": {
+                      "x": 3900,
+                      "y": 2100
+                    }
+                  }
+                }
+              ],
+              "filter": {
+                "name": "action is count",
+                "conditions": [
+                  [
+                    {
+                      "a": "{{19.kind}}",
+                      "b": "count",
+                      "o": "text:equal"
+                    }
+                  ]
+                ]
+              }
+            },
+            {
+              "id": 27,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{1.result.table_api_url}}/decision_log",
+                "method": "post",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{19.count_log_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 3900,
+                  "y": 1800,
+                  "name": "Step 8: Decision log: weekly count"
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "designer": {
+          "x": 3300,
+          "y": 0,
+          "name": "Action"
+        }
+      }
+    }
+  ],
+  "metadata": {
+    "instant": false,
+    "version": 1,
+    "designer": {
+      "orphans": []
+    },
+    "scenario": {
+      "dlq": true,
+      "slots": null,
+      "dataloss": false,
+      "maxErrors": 3,
+      "autoCommit": true,
+      "roundtrips": 1,
+      "sequential": false,
+      "confidential": false,
+      "freshVariables": false,
+      "autoCommitTriggerLast": true
+    }
+  }
+}

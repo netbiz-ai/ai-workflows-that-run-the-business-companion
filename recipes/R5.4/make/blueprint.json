@@ -1,0 +1,1163 @@
+{
+  "name": "R5.4 Route quote approval by value and discount",
+  "flow": [
+    {
+      "id": 1,
+      "module": "gateway:CustomWebHook",
+      "version": 1,
+      "parameters": {
+        "hook": null,
+        "maxResults": 1
+      },
+      "mapper": {},
+      "metadata": {
+        "designer": {
+          "x": 0,
+          "y": 0,
+          "name": "Step 1: Quote awaiting approval"
+        }
+      }
+    },
+    {
+      "id": 2,
+      "module": "code:ExecuteCode",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "language": "javascript",
+        "inputFormat": "editor",
+        "dependencies": [],
+        "codeEditorJavascript": "// Config: edit these values for your company; nothing else in the scenario hard-codes them.\nreturn {\n  \"stop_flag_url\": \"https://<your stop list API>/stop_flags/R5.4\",\n  \"table_api_url\": \"https://<your table API for the key log, decision log and exception queue>\",\n  \"workflow_owner\": \"<your workflow owner>\",\n  \"crm_url\": \"https://<your CRM API>\",\n  \"messaging_url\": \"https://<your messaging API>\",\n  \"salesperson_limit\": \"<your salesperson's limit, after discount>\",\n  \"sales_lead_limit\": \"<your sales lead's limit, after discount>\",\n  \"standard_discount_pct\": \"<your standard line discount, %>\",\n  \"approvers\": {\n    \"salesperson\": {\n      \"deputy\": \"<your salespeople's deputy>\",\n      \"deadline_hours\": \"<hours>\"\n    },\n    \"sales_lead\": {\n      \"person\": \"<your sales lead>\",\n      \"deputy\": \"<deputy>\",\n      \"deadline_hours\": \"<hours>\"\n    },\n    \"ceo\": {\n      \"person\": \"<your owner or CEO>\",\n      \"deputy\": \"<deputy>\",\n      \"deadline_hours\": \"<hours>\"\n    }\n  },\n  \"checklist\": \"<link to your copy of Book 1's Checklist 13.1, the quote approver's check>\",\n  \"systems_owner\": \"<your systems owner>\"\n};",
+        "input": []
+      },
+      "metadata": {
+        "designer": {
+          "x": 300,
+          "y": 0,
+          "name": "Config"
+        }
+      }
+    },
+    {
+      "id": 5,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{2.result.stop_flag_url}}",
+        "method": "get",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true
+      },
+      "metadata": {
+        "designer": {
+          "x": 600,
+          "y": 0,
+          "name": "Stop flag: read"
+        }
+      },
+      "onerror": [
+        {
+          "id": 3,
+          "module": "http:MakeRequest",
+          "version": 4,
+          "parameters": {},
+          "mapper": {
+            "url": "{{2.result.table_api_url}}/exception_queue",
+            "method": "post",
+            "timeout": "40",
+            "parseResponse": false,
+            "stopOnHttpError": true,
+            "allowRedirects": true,
+            "shareCookies": false,
+            "requestCompressedContent": true,
+            "contentType": "json",
+            "inputMethod": "jsonString",
+            "jsonStringBodyContent": "{\"recipe\": \"R5.4\", \"item\": \"run {{var.scenario.executionId}}\", \"reason\": \"stop list unreadable\", \"detail\": \"The stop list could not be read, so the run stopped\", \"owner\": \"{{2.result.workflow_owner}}\"}"
+          },
+          "metadata": {
+            "designer": {
+              "x": 600,
+              "y": 300,
+              "name": "Stop flag: list unreadable"
+            }
+          }
+        },
+        {
+          "id": 4,
+          "module": "builtin:Ignore",
+          "version": 1,
+          "metadata": {
+            "designer": {
+              "x": 900,
+              "y": 300
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{2.result.table_api_url}}/rpc/reserve_key",
+        "method": "post",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true,
+        "contentType": "json",
+        "inputMethod": "jsonString",
+        "jsonStringBodyContent": "{\"p_recipe\": \"R5.4\", \"p_key\": \"{{1.quote_id}}:{{1.revision}}\"}"
+      },
+      "metadata": {
+        "designer": {
+          "x": 900,
+          "y": 0,
+          "name": "Step 2: Reserve key"
+        }
+      },
+      "filter": {
+        "name": "stop flag not set",
+        "conditions": [
+          [
+            {
+              "a": "{{5.data.stopped}}",
+              "b": "true",
+              "o": "text:notequal"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "id": 8,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{2.result.crm_url}}/quotes/{{encodeURL(1.quote_id)}}",
+        "method": "get",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true
+      },
+      "metadata": {
+        "designer": {
+          "x": 1200,
+          "y": 0,
+          "name": "Read the quote"
+        }
+      },
+      "onerror": [
+        {
+          "id": 7,
+          "module": "builtin:Break",
+          "version": 1,
+          "parameters": {},
+          "mapper": {
+            "count": "3",
+            "retry": true,
+            "interval": "1"
+          },
+          "metadata": {
+            "designer": {
+              "x": 1200,
+              "y": 300
+            }
+          }
+        }
+      ],
+      "filter": {
+        "name": "new key (not a copy)",
+        "conditions": [
+          [
+            {
+              "a": "{{6.data}}",
+              "b": "true",
+              "o": "text:equal"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "id": 10,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{2.result.crm_url}}/price_lists/current",
+        "method": "get",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true
+      },
+      "metadata": {
+        "designer": {
+          "x": 1500,
+          "y": 0,
+          "name": "Read the price list"
+        }
+      },
+      "onerror": [
+        {
+          "id": 9,
+          "module": "builtin:Break",
+          "version": 1,
+          "parameters": {},
+          "mapper": {
+            "count": "3",
+            "retry": true,
+            "interval": "1"
+          },
+          "metadata": {
+            "designer": {
+              "x": 1500,
+              "y": 300
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "module": "code:ExecuteCode",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "language": "javascript",
+        "inputFormat": "editor",
+        "dependencies": [],
+        "codeEditorJavascript": "// Adapter: the rule below is the same JavaScript as the recipe's n8n build.\n// $('Step name') answers from this step's inputs: each is that step's output in this scenario.\nconst SOURCES = {\"Read the quote\": \"in0_Readthequote\", \"Read the price list\": \"in1_Readthepricelist\", \"Config\": \"in2_Config\"};\nconst LISTS = [];\nconst EXECUTED = [];\nconst DATA = {};\nfor (const [node, key] of Object.entries(SOURCES)) {\n  const raw = input[key];\n  let v = raw;\n  if (typeof raw === 'string') { try { v = JSON.parse(raw); } catch (e) { v = raw; } }\n  DATA[node] = LISTS.includes(node) ? (v || []).map(i => (i && i.json !== undefined ? i : { json: i })) : [{ json: v }];\n}\nconst $ = (node) => {\n  const ran = node in DATA || EXECUTED.includes(node);\n  const list = () => { if (!(node in DATA)) throw new Error(`step ${node} has no data in this scenario`); return DATA[node]; };\n  return { isExecuted: ran, first: () => list()[0], last: () => list()[list().length - 1], all: () => list(),\n           get item() { return list()[0]; } };\n};\nconst INPUT = \"Read the quote\";\nconst $input = { all: () => $(INPUT).all(), first: () => $(INPUT).first(), last: () => $(INPUT).last(), get item() { return $(INPUT).first(); } };\nconst $execution = { id: input.run_id };\n// The webhook's fields, as n8n's Webhook node gives them.\nDATA['Step 1: Quote awaiting approval'] = [{ json: { body: Object.fromEntries(Object.entries({ quote_id: input.tr_quote_id, revision: input.tr_revision }).filter(([, v]) => v !== undefined && v !== null && v !== '')) } }];\nconst BODIES = (out) => ({\"back_body\": JSON.stringify({ status: 'back to R5.3', locked: true, return_reason: 'price list ' + out.stamped + ' replaced by ' + out.list_version }), \"salesperson_message\": JSON.stringify({ to: $('Read the quote').first().json.salesperson, subject: 'Quote ' + $('Step 1: Quote awaiting approval').first().json.body.quote_id + ' back to drafting', text: 'The price list it was drafted from is no longer current; mark the opportunity ready to quote again to redraft it.' }), \"failed_body\": JSON.stringify({ recipe: 'R5.4', item: String($('Step 1: Quote awaiting approval').first().json.body.quote_id), reason: 'write failed', detail: 'Quote status or request write failed, not retried; route by hand, then release the key', owner: $('Config').first().json.approvers.sales_lead.person })});\nconst one = (r) => (Array.isArray(r) ? r : [r]).filter(Boolean).map(i => (i.json !== undefined ? i.json : i));\nconst $json = INPUT && INPUT in DATA ? $input.first().json : {};\nconst __rule = () => {\nfunction recompute(q, list) {\n  const onList = new Set((list.items || []).map(i => i.code));\n  let cents = 0, largest = 0, offList = false, multiYear = Number(q.term_years || 0) > 1;\n  for (const l of q.lines || []) {\n    const disc = Number(l.discount_pct || 0);\n    largest = Math.max(largest, disc);\n    if (Number(l.years || 0) > 1) multiYear = true;\n    if (l.off_list || l.unit_price == null || !onList.has(l.code)) { offList = true; continue; }\n    const u = BigInt(Math.round(Number(l.unit_price) * 10000)), d = BigInt(Math.round(disc * 100));\n    cents += Number((u * BigInt(Number(l.quantity)) * (10000n - d) + 500000n) / 1000000n);\n  }\n  return { value: cents / 100, largest_discount: largest, multi_year: multiYear, off_list: offList, non_standard: q.non_standard_terms === true };\n}\nfunction listCurrent(q, list) {\n  const today = new Date().toISOString().slice(0, 10);\n  return q.price_list_version === list.version && !!list.valid_until && list.valid_until >= today;\n}\n\n// Steps 3 and 4: recompute from the CRM record; is the stamped price list still current?\nconst q = $('Read the quote').first().json, list = $('Read the price list').first().json;\nreturn [{ json: Object.assign(recompute(q, list), { current: listCurrent(q, list), stamped: q.price_list_version, list_version: list.version }) }];\n};\nconst out = one(__rule())[0] || {};\nreturn Object.assign({}, out, BODIES(out));\n",
+        "input": [
+          {
+            "name": "in0_Readthequote",
+            "value": "{{8.data}}"
+          },
+          {
+            "name": "in1_Readthepricelist",
+            "value": "{{10.data}}"
+          },
+          {
+            "name": "in2_Config",
+            "value": "{{2.result}}"
+          },
+          {
+            "name": "run_id",
+            "value": "{{var.scenario.executionId}}"
+          },
+          {
+            "name": "tr_quote_id",
+            "value": "{{1.quote_id}}"
+          },
+          {
+            "name": "tr_revision",
+            "value": "{{1.revision}}"
+          }
+        ]
+      },
+      "metadata": {
+        "designer": {
+          "x": 1800,
+          "y": 0,
+          "name": "Step 3: Recompute from the CRM record"
+        }
+      }
+    },
+    {
+      "id": 44,
+      "module": "builtin:BasicRouter",
+      "version": 1,
+      "mapper": null,
+      "routes": [
+        {
+          "flow": [
+            {
+              "id": 12,
+              "module": "code:ExecuteCode",
+              "version": 1,
+              "parameters": {},
+              "mapper": {
+                "language": "javascript",
+                "inputFormat": "editor",
+                "dependencies": [],
+                "codeEditorJavascript": "// Adapter: the rule below is the same JavaScript as the recipe's n8n build.\n// $('Step name') answers from this step's inputs: each is that step's output in this scenario.\nconst SOURCES = {\"Config\": \"in0_Config\", \"Read the quote\": \"in1_Readthequote\", \"Step 3: Recompute from the CRM record\": \"in2_Step3RecomputefromtheCRM\"};\nconst LISTS = [];\nconst EXECUTED = [];\nconst DATA = {};\nfor (const [node, key] of Object.entries(SOURCES)) {\n  const raw = input[key];\n  let v = raw;\n  if (typeof raw === 'string') { try { v = JSON.parse(raw); } catch (e) { v = raw; } }\n  DATA[node] = LISTS.includes(node) ? (v || []).map(i => (i && i.json !== undefined ? i : { json: i })) : [{ json: v }];\n}\nconst $ = (node) => {\n  const ran = node in DATA || EXECUTED.includes(node);\n  const list = () => { if (!(node in DATA)) throw new Error(`step ${node} has no data in this scenario`); return DATA[node]; };\n  return { isExecuted: ran, first: () => list()[0], last: () => list()[list().length - 1], all: () => list(),\n           get item() { return list()[0]; } };\n};\nconst INPUT = \"Step 3: Recompute from the CRM record\";\nconst $input = { all: () => $(INPUT).all(), first: () => $(INPUT).first(), last: () => $(INPUT).last(), get item() { return $(INPUT).first(); } };\nconst $execution = { id: input.run_id };\n// The webhook's fields, as n8n's Webhook node gives them.\nDATA['Step 1: Quote awaiting approval'] = [{ json: { body: Object.fromEntries(Object.entries({ quote_id: input.tr_quote_id, revision: input.tr_revision }).filter(([, v]) => v !== undefined && v !== null && v !== '')) } }];\nconst BODIES = (out) => ({\"lock_body\": JSON.stringify({ locked: true, approver: out.approver, deputy: out.deputy, approval_level: out.level, deadline_hours: out.deadline_hours, requested_at: out.requested_at, escalation: 0 }), \"request_message\": JSON.stringify({ to: out.approver, subject: 'Approve quote ' + $('Step 1: Quote awaiting approval').first().json.body.quote_id + ' revision ' + $('Step 1: Quote awaiting approval').first().json.body.revision, text: 'Value after discount ' + $('Step 3: Recompute from the CRM record').first().json.value + '; largest line discount ' + $('Step 3: Recompute from the CRM record').first().json.largest_discount + '%; ' + out.why + '. Record your decision in the CRM within ' + out.deadline_hours + ' hours.', checklist: $('Config').first().json.checklist }), \"owen_message\": JSON.stringify({ to: $('Config').first().json.systems_owner, subject: 'Approval request not sent: quote ' + $('Step 1: Quote awaiting approval').first().json.body.quote_id, text: 'The quote is returned and locked; check the messaging connection, then set it awaiting approval again.' })});\nconst one = (r) => (Array.isArray(r) ? r : [r]).filter(Boolean).map(i => (i.json !== undefined ? i.json : i));\nconst $json = INPUT && INPUT in DATA ? $input.first().json : {};\nconst __rule = () => {\n// Step 5: Table 5.1. Ben's own quotes go to Helen; an off-list line counts as over standard.\nconst cfg = $('Config').first().json;\nconst q = $('Read the quote').first().json;\nconst f = $('Step 3: Recompute from the CRM record').first().json;\nconst A = cfg.approvers;\nconst spLimit = Number(cfg.salesperson_limit), leadLimit = Number(cfg.sales_lead_limit), std = Number(cfg.standard_discount_pct);\nif (![spLimit, leadLimit, std].every(Number.isFinite)) throw new Error('Config: set salesperson_limit, sales_lead_limit and standard_discount_pct to numbers');\nconst overStd = f.largest_discount > std || f.off_list;\nconst term = f.multi_year || f.non_standard;\nlet level, why;\nif (q.salesperson === A.sales_lead.person) { level = 'ceo'; why = \"sales lead's own quote\"; }\nelse if (f.value > leadLimit) { level = 'ceo'; why = \"over the sales lead's limit\"; }\nelse if (f.value > spLimit) { level = 'sales_lead'; why = \"between the salesperson's and the sales lead's limits\"; }\nelse if (overStd || term) { level = 'sales_lead'; why = [f.largest_discount > std && 'discount over standard', f.off_list && 'off-list line', f.multi_year && 'multi-year', f.non_standard && 'non-standard term'].filter(Boolean).join(', '); }\nelse { level = 'salesperson'; why = \"within the salesperson's limit and standard discount\"; }\nconst approver = level === 'salesperson' ? q.salesperson : A[level].person;\nconst now = new Date();\nreturn [{ json: { level, why, approver, deputy: A[level].deputy, deadline_hours: Number(A[level].deadline_hours), requested_at: now.toISOString() } }];\n};\nconst out = one(__rule())[0] || {};\nreturn Object.assign({}, out, BODIES(out));\n",
+                "input": [
+                  {
+                    "name": "in0_Config",
+                    "value": "{{2.result}}"
+                  },
+                  {
+                    "name": "in1_Readthequote",
+                    "value": "{{8.data}}"
+                  },
+                  {
+                    "name": "in2_Step3RecomputefromtheCRM",
+                    "value": "{{11.result}}"
+                  },
+                  {
+                    "name": "run_id",
+                    "value": "{{var.scenario.executionId}}"
+                  },
+                  {
+                    "name": "tr_quote_id",
+                    "value": "{{1.quote_id}}"
+                  },
+                  {
+                    "name": "tr_revision",
+                    "value": "{{1.revision}}"
+                  }
+                ]
+              },
+              "metadata": {
+                "designer": {
+                  "x": 2400,
+                  "y": 0,
+                  "name": "Step 5: Rule: Table 5.1"
+                }
+              },
+              "filter": {
+                "name": "price list current",
+                "conditions": [
+                  [
+                    {
+                      "a": "{{11.result.current}}",
+                      "b": "true",
+                      "o": "text:equal"
+                    }
+                  ]
+                ]
+              }
+            },
+            {
+              "id": 16,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.crm_url}}/quotes/{{encodeURL(1.quote_id)}}",
+                "method": "patch",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{12.result.lock_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 2700,
+                  "y": 0,
+                  "name": "Step 6: Lock and record the approver"
+                }
+              },
+              "onerror": [
+                {
+                  "id": 13,
+                  "module": "http:MakeRequest",
+                  "version": 4,
+                  "parameters": {},
+                  "mapper": {
+                    "url": "{{2.result.table_api_url}}/key_log?recipe=eq.R5.4&key=eq.{{encodeURL(1.quote_id)}}%3A{{encodeURL(1.revision)}}",
+                    "method": "patch",
+                    "timeout": "40",
+                    "parseResponse": false,
+                    "stopOnHttpError": true,
+                    "allowRedirects": true,
+                    "shareCookies": false,
+                    "requestCompressedContent": true,
+                    "contentType": "json",
+                    "inputMethod": "jsonString",
+                    "jsonStringBodyContent": "{\"status\": \"failed\", \"result\": \"write failed\"}"
+                  },
+                  "metadata": {
+                    "designer": {
+                      "x": 2700,
+                      "y": 300,
+                      "name": "Step 6: Lock and record the approver: mark key failed"
+                    }
+                  }
+                },
+                {
+                  "id": 14,
+                  "module": "http:MakeRequest",
+                  "version": 4,
+                  "parameters": {},
+                  "mapper": {
+                    "url": "{{2.result.table_api_url}}/exception_queue",
+                    "method": "post",
+                    "timeout": "40",
+                    "parseResponse": false,
+                    "stopOnHttpError": true,
+                    "allowRedirects": true,
+                    "shareCookies": false,
+                    "requestCompressedContent": true,
+                    "contentType": "json",
+                    "inputMethod": "jsonString",
+                    "jsonStringBodyContent": "{{11.result.failed_body}}"
+                  },
+                  "metadata": {
+                    "designer": {
+                      "x": 3000,
+                      "y": 300,
+                      "name": "Step 6: Lock and record the approver: exception queue"
+                    }
+                  }
+                },
+                {
+                  "id": 15,
+                  "module": "builtin:Ignore",
+                  "version": 1,
+                  "metadata": {
+                    "designer": {
+                      "x": 3300,
+                      "y": 300
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "id": 29,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.messaging_url}}/messages",
+                "method": "post",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{12.result.request_message}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 3000,
+                  "y": 0,
+                  "name": "Step 6: Send the request with Checklist 13.1"
+                }
+              },
+              "onerror": [
+                {
+                  "id": 20,
+                  "module": "http:MakeRequest",
+                  "version": 4,
+                  "parameters": {},
+                  "mapper": {
+                    "url": "{{2.result.crm_url}}/quotes/{{encodeURL(1.quote_id)}}",
+                    "method": "patch",
+                    "timeout": "40",
+                    "parseResponse": false,
+                    "stopOnHttpError": true,
+                    "allowRedirects": true,
+                    "shareCookies": false,
+                    "requestCompressedContent": true,
+                    "contentType": "json",
+                    "inputMethod": "jsonString",
+                    "jsonStringBodyContent": "{\"status\": \"returned\", \"locked\": true, \"return_reason\": \"approval request not sent\"}"
+                  },
+                  "metadata": {
+                    "designer": {
+                      "x": 3000,
+                      "y": 300,
+                      "name": "Step 6: Return the quote, locked"
+                    }
+                  },
+                  "onerror": [
+                    {
+                      "id": 17,
+                      "module": "http:MakeRequest",
+                      "version": 4,
+                      "parameters": {},
+                      "mapper": {
+                        "url": "{{2.result.table_api_url}}/key_log?recipe=eq.R5.4&key=eq.{{encodeURL(1.quote_id)}}%3A{{encodeURL(1.revision)}}",
+                        "method": "patch",
+                        "timeout": "40",
+                        "parseResponse": false,
+                        "stopOnHttpError": true,
+                        "allowRedirects": true,
+                        "shareCookies": false,
+                        "requestCompressedContent": true,
+                        "contentType": "json",
+                        "inputMethod": "jsonString",
+                        "jsonStringBodyContent": "{\"status\": \"failed\", \"result\": \"write failed\"}"
+                      },
+                      "metadata": {
+                        "designer": {
+                          "x": 3000,
+                          "y": 600,
+                          "name": "Step 6: Return the quote, locked: mark key failed"
+                        }
+                      }
+                    },
+                    {
+                      "id": 18,
+                      "module": "http:MakeRequest",
+                      "version": 4,
+                      "parameters": {},
+                      "mapper": {
+                        "url": "{{2.result.table_api_url}}/exception_queue",
+                        "method": "post",
+                        "timeout": "40",
+                        "parseResponse": false,
+                        "stopOnHttpError": true,
+                        "allowRedirects": true,
+                        "shareCookies": false,
+                        "requestCompressedContent": true,
+                        "contentType": "json",
+                        "inputMethod": "jsonString",
+                        "jsonStringBodyContent": "{{11.result.failed_body}}"
+                      },
+                      "metadata": {
+                        "designer": {
+                          "x": 3300,
+                          "y": 600,
+                          "name": "Step 6: Return the quote, locked: exception queue"
+                        }
+                      }
+                    },
+                    {
+                      "id": 19,
+                      "module": "builtin:Ignore",
+                      "version": 1,
+                      "metadata": {
+                        "designer": {
+                          "x": 3600,
+                          "y": 600
+                        }
+                      }
+                    }
+                  ]
+                },
+                {
+                  "id": 24,
+                  "module": "http:MakeRequest",
+                  "version": 4,
+                  "parameters": {},
+                  "mapper": {
+                    "url": "{{2.result.messaging_url}}/messages",
+                    "method": "post",
+                    "timeout": "40",
+                    "parseResponse": false,
+                    "stopOnHttpError": true,
+                    "allowRedirects": true,
+                    "shareCookies": false,
+                    "requestCompressedContent": true,
+                    "contentType": "json",
+                    "inputMethod": "jsonString",
+                    "jsonStringBodyContent": "{{12.result.owen_message}}"
+                  },
+                  "metadata": {
+                    "designer": {
+                      "x": 3300,
+                      "y": 300,
+                      "name": "Step 6: Tell Owen"
+                    }
+                  },
+                  "onerror": [
+                    {
+                      "id": 21,
+                      "module": "http:MakeRequest",
+                      "version": 4,
+                      "parameters": {},
+                      "mapper": {
+                        "url": "{{2.result.table_api_url}}/key_log?recipe=eq.R5.4&key=eq.{{encodeURL(1.quote_id)}}%3A{{encodeURL(1.revision)}}",
+                        "method": "patch",
+                        "timeout": "40",
+                        "parseResponse": false,
+                        "stopOnHttpError": true,
+                        "allowRedirects": true,
+                        "shareCookies": false,
+                        "requestCompressedContent": true,
+                        "contentType": "json",
+                        "inputMethod": "jsonString",
+                        "jsonStringBodyContent": "{\"status\": \"failed\", \"result\": \"write failed\"}"
+                      },
+                      "metadata": {
+                        "designer": {
+                          "x": 3300,
+                          "y": 600,
+                          "name": "Step 6: Tell Owen: mark key failed"
+                        }
+                      }
+                    },
+                    {
+                      "id": 22,
+                      "module": "http:MakeRequest",
+                      "version": 4,
+                      "parameters": {},
+                      "mapper": {
+                        "url": "{{2.result.table_api_url}}/exception_queue",
+                        "method": "post",
+                        "timeout": "40",
+                        "parseResponse": false,
+                        "stopOnHttpError": true,
+                        "allowRedirects": true,
+                        "shareCookies": false,
+                        "requestCompressedContent": true,
+                        "contentType": "json",
+                        "inputMethod": "jsonString",
+                        "jsonStringBodyContent": "{{11.result.failed_body}}"
+                      },
+                      "metadata": {
+                        "designer": {
+                          "x": 3600,
+                          "y": 600,
+                          "name": "Step 6: Tell Owen: exception queue"
+                        }
+                      }
+                    },
+                    {
+                      "id": 23,
+                      "module": "builtin:Ignore",
+                      "version": 1,
+                      "metadata": {
+                        "designer": {
+                          "x": 3900,
+                          "y": 600
+                        }
+                      }
+                    }
+                  ]
+                },
+                {
+                  "id": 25,
+                  "module": "code:ExecuteCode",
+                  "version": 1,
+                  "parameters": {},
+                  "mapper": {
+                    "language": "javascript",
+                    "inputFormat": "editor",
+                    "dependencies": [],
+                    "codeEditorJavascript": "// Adapter: the rule below is the same JavaScript as the recipe's n8n build.\n// $('Step name') answers from this step's inputs: each is that step's output in this scenario.\nconst SOURCES = {\"Step 3: Recompute from the CRM record\": \"in0_Step3RecomputefromtheCRM\", \"Step 5: Rule: Table 5.1\": \"in1_Step5RuleTable51\"};\nconst LISTS = [];\nconst EXECUTED = [\"Step 6: Return the quote, locked\"];\nconst DATA = {};\nfor (const [node, key] of Object.entries(SOURCES)) {\n  const raw = input[key];\n  let v = raw;\n  if (typeof raw === 'string') { try { v = JSON.parse(raw); } catch (e) { v = raw; } }\n  DATA[node] = LISTS.includes(node) ? (v || []).map(i => (i && i.json !== undefined ? i : { json: i })) : [{ json: v }];\n}\nconst $ = (node) => {\n  const ran = node in DATA || EXECUTED.includes(node);\n  const list = () => { if (!(node in DATA)) throw new Error(`step ${node} has no data in this scenario`); return DATA[node]; };\n  return { isExecuted: ran, first: () => list()[0], last: () => list()[list().length - 1], all: () => list(),\n           get item() { return list()[0]; } };\n};\nconst INPUT = \"Step 5: Rule: Table 5.1\";\nconst $input = { all: () => $(INPUT).all(), first: () => $(INPUT).first(), last: () => $(INPUT).last(), get item() { return $(INPUT).first(); } };\nconst $execution = { id: input.run_id };\n// The webhook's fields, as n8n's Webhook node gives them.\nDATA['Step 1: Quote awaiting approval'] = [{ json: { body: Object.fromEntries(Object.entries({ quote_id: input.tr_quote_id, revision: input.tr_revision }).filter(([, v]) => v !== undefined && v !== null && v !== '')) } }];\nconst BODIES = (out) => ({\"done_body\": JSON.stringify({ status: 'done', result: out.decision }), \"log_body\": JSON.stringify({ recipe: 'R5.4', item: $('Step 1: Quote awaiting approval').first().json.body.quote_id + ':' + $('Step 1: Quote awaiting approval').first().json.body.revision, decision: out.decision, rules: out.rules })});\nconst one = (r) => (Array.isArray(r) ? r : [r]).filter(Boolean).map(i => (i.json !== undefined ? i.json : i));\nconst $json = INPUT && INPUT in DATA ? $input.first().json : {};\nconst __rule = () => {\n// What the routing run decided, for the decision log: quote, revision, value, discount, approver.\nconst ran = n => { try { return $(n).isExecuted; } catch (e) { return false; } };\nconst f = $('Step 3: Recompute from the CRM record').first().json;\nconst t = ran('Step 5: Rule: Table 5.1') ? $('Step 5: Rule: Table 5.1').first().json : null;\nlet decision;\nif (!f.current) decision = 'back to R5.3: price list ' + f.stamped + ' is not current';\nelse if (ran('Step 6: Return the quote, locked')) decision = 'returned: approval request not sent';\nelse decision = 'routed to ' + t.approver;\nreturn [{ json: { decision, approver: null, rules: { value: f.value, largest_discount: f.largest_discount, multi_year: f.multi_year,\n  off_list: f.off_list, non_standard: f.non_standard, level: t ? t.level : null, approver: t ? t.approver : null, why: t ? t.why : null } } }];\n};\nconst out = one(__rule())[0] || {};\nreturn Object.assign({}, out, BODIES(out));\n",
+                    "input": [
+                      {
+                        "name": "in0_Step3RecomputefromtheCRM",
+                        "value": "{{11.result}}"
+                      },
+                      {
+                        "name": "in1_Step5RuleTable51",
+                        "value": "{{12.result}}"
+                      },
+                      {
+                        "name": "run_id",
+                        "value": "{{var.scenario.executionId}}"
+                      },
+                      {
+                        "name": "tr_quote_id",
+                        "value": "{{1.quote_id}}"
+                      },
+                      {
+                        "name": "tr_revision",
+                        "value": "{{1.revision}}"
+                      }
+                    ]
+                  },
+                  "metadata": {
+                    "designer": {
+                      "x": 3600,
+                      "y": 300,
+                      "name": "Routing summary (returned)"
+                    }
+                  }
+                },
+                {
+                  "id": 26,
+                  "module": "http:MakeRequest",
+                  "version": 4,
+                  "parameters": {},
+                  "mapper": {
+                    "url": "{{2.result.table_api_url}}/key_log?recipe=eq.R5.4&key=eq.{{encodeURL(1.quote_id)}}%3A{{encodeURL(1.revision)}}",
+                    "method": "patch",
+                    "timeout": "40",
+                    "parseResponse": false,
+                    "stopOnHttpError": true,
+                    "allowRedirects": true,
+                    "shareCookies": false,
+                    "requestCompressedContent": true,
+                    "contentType": "json",
+                    "inputMethod": "jsonString",
+                    "jsonStringBodyContent": "{{25.result.done_body}}"
+                  },
+                  "metadata": {
+                    "designer": {
+                      "x": 3900,
+                      "y": 300,
+                      "name": "Mark key done (returned)"
+                    }
+                  }
+                },
+                {
+                  "id": 27,
+                  "module": "http:MakeRequest",
+                  "version": 4,
+                  "parameters": {},
+                  "mapper": {
+                    "url": "{{2.result.table_api_url}}/decision_log",
+                    "method": "post",
+                    "timeout": "40",
+                    "parseResponse": false,
+                    "stopOnHttpError": true,
+                    "allowRedirects": true,
+                    "shareCookies": false,
+                    "requestCompressedContent": true,
+                    "contentType": "json",
+                    "inputMethod": "jsonString",
+                    "jsonStringBodyContent": "{{25.result.log_body}}"
+                  },
+                  "metadata": {
+                    "designer": {
+                      "x": 4200,
+                      "y": 300,
+                      "name": "Decision log (returned)"
+                    }
+                  }
+                },
+                {
+                  "id": 28,
+                  "module": "builtin:Ignore",
+                  "version": 1,
+                  "metadata": {
+                    "designer": {
+                      "x": 4500,
+                      "y": 300
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "id": 30,
+              "module": "code:ExecuteCode",
+              "version": 1,
+              "parameters": {},
+              "mapper": {
+                "language": "javascript",
+                "inputFormat": "editor",
+                "dependencies": [],
+                "codeEditorJavascript": "// Adapter: the rule below is the same JavaScript as the recipe's n8n build.\n// $('Step name') answers from this step's inputs: each is that step's output in this scenario.\nconst SOURCES = {\"Step 3: Recompute from the CRM record\": \"in0_Step3RecomputefromtheCRM\", \"Step 5: Rule: Table 5.1\": \"in1_Step5RuleTable51\"};\nconst LISTS = [];\nconst EXECUTED = [];\nconst DATA = {};\nfor (const [node, key] of Object.entries(SOURCES)) {\n  const raw = input[key];\n  let v = raw;\n  if (typeof raw === 'string') { try { v = JSON.parse(raw); } catch (e) { v = raw; } }\n  DATA[node] = LISTS.includes(node) ? (v || []).map(i => (i && i.json !== undefined ? i : { json: i })) : [{ json: v }];\n}\nconst $ = (node) => {\n  const ran = node in DATA || EXECUTED.includes(node);\n  const list = () => { if (!(node in DATA)) throw new Error(`step ${node} has no data in this scenario`); return DATA[node]; };\n  return { isExecuted: ran, first: () => list()[0], last: () => list()[list().length - 1], all: () => list(),\n           get item() { return list()[0]; } };\n};\nconst INPUT = \"Step 5: Rule: Table 5.1\";\nconst $input = { all: () => $(INPUT).all(), first: () => $(INPUT).first(), last: () => $(INPUT).last(), get item() { return $(INPUT).first(); } };\nconst $execution = { id: input.run_id };\n// The webhook's fields, as n8n's Webhook node gives them.\nDATA['Step 1: Quote awaiting approval'] = [{ json: { body: Object.fromEntries(Object.entries({ quote_id: input.tr_quote_id, revision: input.tr_revision }).filter(([, v]) => v !== undefined && v !== null && v !== '')) } }];\nconst BODIES = (out) => ({\"done_body\": JSON.stringify({ status: 'done', result: out.decision }), \"log_body\": JSON.stringify({ recipe: 'R5.4', item: $('Step 1: Quote awaiting approval').first().json.body.quote_id + ':' + $('Step 1: Quote awaiting approval').first().json.body.revision, decision: out.decision, rules: out.rules })});\nconst one = (r) => (Array.isArray(r) ? r : [r]).filter(Boolean).map(i => (i.json !== undefined ? i.json : i));\nconst $json = INPUT && INPUT in DATA ? $input.first().json : {};\nconst __rule = () => {\n// What the routing run decided, for the decision log: quote, revision, value, discount, approver.\nconst ran = n => { try { return $(n).isExecuted; } catch (e) { return false; } };\nconst f = $('Step 3: Recompute from the CRM record').first().json;\nconst t = ran('Step 5: Rule: Table 5.1') ? $('Step 5: Rule: Table 5.1').first().json : null;\nlet decision;\nif (!f.current) decision = 'back to R5.3: price list ' + f.stamped + ' is not current';\nelse if (ran('Step 6: Return the quote, locked')) decision = 'returned: approval request not sent';\nelse decision = 'routed to ' + t.approver;\nreturn [{ json: { decision, approver: null, rules: { value: f.value, largest_discount: f.largest_discount, multi_year: f.multi_year,\n  off_list: f.off_list, non_standard: f.non_standard, level: t ? t.level : null, approver: t ? t.approver : null, why: t ? t.why : null } } }];\n};\nconst out = one(__rule())[0] || {};\nreturn Object.assign({}, out, BODIES(out));\n",
+                "input": [
+                  {
+                    "name": "in0_Step3RecomputefromtheCRM",
+                    "value": "{{11.result}}"
+                  },
+                  {
+                    "name": "in1_Step5RuleTable51",
+                    "value": "{{12.result}}"
+                  },
+                  {
+                    "name": "run_id",
+                    "value": "{{var.scenario.executionId}}"
+                  },
+                  {
+                    "name": "tr_quote_id",
+                    "value": "{{1.quote_id}}"
+                  },
+                  {
+                    "name": "tr_revision",
+                    "value": "{{1.revision}}"
+                  }
+                ]
+              },
+              "metadata": {
+                "designer": {
+                  "x": 3300,
+                  "y": 0,
+                  "name": "Routing summary (routed)"
+                }
+              }
+            },
+            {
+              "id": 31,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.table_api_url}}/key_log?recipe=eq.R5.4&key=eq.{{encodeURL(1.quote_id)}}%3A{{encodeURL(1.revision)}}",
+                "method": "patch",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{30.result.done_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 3600,
+                  "y": 0,
+                  "name": "Mark key done (routed)"
+                }
+              }
+            },
+            {
+              "id": 32,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.table_api_url}}/decision_log",
+                "method": "post",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{30.result.log_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 3900,
+                  "y": 0,
+                  "name": "Decision log (routed)"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "flow": [
+            {
+              "id": 36,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.crm_url}}/quotes/{{encodeURL(1.quote_id)}}",
+                "method": "patch",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{11.result.back_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 2400,
+                  "y": 900,
+                  "name": "Step 4: Send back to R5.3"
+                }
+              },
+              "onerror": [
+                {
+                  "id": 33,
+                  "module": "http:MakeRequest",
+                  "version": 4,
+                  "parameters": {},
+                  "mapper": {
+                    "url": "{{2.result.table_api_url}}/key_log?recipe=eq.R5.4&key=eq.{{encodeURL(1.quote_id)}}%3A{{encodeURL(1.revision)}}",
+                    "method": "patch",
+                    "timeout": "40",
+                    "parseResponse": false,
+                    "stopOnHttpError": true,
+                    "allowRedirects": true,
+                    "shareCookies": false,
+                    "requestCompressedContent": true,
+                    "contentType": "json",
+                    "inputMethod": "jsonString",
+                    "jsonStringBodyContent": "{\"status\": \"failed\", \"result\": \"write failed\"}"
+                  },
+                  "metadata": {
+                    "designer": {
+                      "x": 2400,
+                      "y": 1200,
+                      "name": "Step 4: Send back to R5.3: mark key failed"
+                    }
+                  }
+                },
+                {
+                  "id": 34,
+                  "module": "http:MakeRequest",
+                  "version": 4,
+                  "parameters": {},
+                  "mapper": {
+                    "url": "{{2.result.table_api_url}}/exception_queue",
+                    "method": "post",
+                    "timeout": "40",
+                    "parseResponse": false,
+                    "stopOnHttpError": true,
+                    "allowRedirects": true,
+                    "shareCookies": false,
+                    "requestCompressedContent": true,
+                    "contentType": "json",
+                    "inputMethod": "jsonString",
+                    "jsonStringBodyContent": "{{11.result.failed_body}}"
+                  },
+                  "metadata": {
+                    "designer": {
+                      "x": 2700,
+                      "y": 1200,
+                      "name": "Step 4: Send back to R5.3: exception queue"
+                    }
+                  }
+                },
+                {
+                  "id": 35,
+                  "module": "builtin:Ignore",
+                  "version": 1,
+                  "metadata": {
+                    "designer": {
+                      "x": 3000,
+                      "y": 1200
+                    }
+                  }
+                }
+              ],
+              "filter": {
+                "name": "price list not current",
+                "conditions": [
+                  [
+                    {
+                      "a": "{{11.result.current}}",
+                      "b": "true",
+                      "o": "text:notequal"
+                    }
+                  ]
+                ]
+              }
+            },
+            {
+              "id": 40,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.messaging_url}}/messages",
+                "method": "post",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{11.result.salesperson_message}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 2700,
+                  "y": 900,
+                  "name": "Step 4: Tell the salesperson"
+                }
+              },
+              "onerror": [
+                {
+                  "id": 37,
+                  "module": "http:MakeRequest",
+                  "version": 4,
+                  "parameters": {},
+                  "mapper": {
+                    "url": "{{2.result.table_api_url}}/key_log?recipe=eq.R5.4&key=eq.{{encodeURL(1.quote_id)}}%3A{{encodeURL(1.revision)}}",
+                    "method": "patch",
+                    "timeout": "40",
+                    "parseResponse": false,
+                    "stopOnHttpError": true,
+                    "allowRedirects": true,
+                    "shareCookies": false,
+                    "requestCompressedContent": true,
+                    "contentType": "json",
+                    "inputMethod": "jsonString",
+                    "jsonStringBodyContent": "{\"status\": \"failed\", \"result\": \"write failed\"}"
+                  },
+                  "metadata": {
+                    "designer": {
+                      "x": 2700,
+                      "y": 1200,
+                      "name": "Step 4: Tell the salesperson: mark key failed"
+                    }
+                  }
+                },
+                {
+                  "id": 38,
+                  "module": "http:MakeRequest",
+                  "version": 4,
+                  "parameters": {},
+                  "mapper": {
+                    "url": "{{2.result.table_api_url}}/exception_queue",
+                    "method": "post",
+                    "timeout": "40",
+                    "parseResponse": false,
+                    "stopOnHttpError": true,
+                    "allowRedirects": true,
+                    "shareCookies": false,
+                    "requestCompressedContent": true,
+                    "contentType": "json",
+                    "inputMethod": "jsonString",
+                    "jsonStringBodyContent": "{{11.result.failed_body}}"
+                  },
+                  "metadata": {
+                    "designer": {
+                      "x": 3000,
+                      "y": 1200,
+                      "name": "Step 4: Tell the salesperson: exception queue"
+                    }
+                  }
+                },
+                {
+                  "id": 39,
+                  "module": "builtin:Ignore",
+                  "version": 1,
+                  "metadata": {
+                    "designer": {
+                      "x": 3300,
+                      "y": 1200
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "id": 41,
+              "module": "code:ExecuteCode",
+              "version": 1,
+              "parameters": {},
+              "mapper": {
+                "language": "javascript",
+                "inputFormat": "editor",
+                "dependencies": [],
+                "codeEditorJavascript": "// Adapter: the rule below is the same JavaScript as the recipe's n8n build.\n// $('Step name') answers from this step's inputs: each is that step's output in this scenario.\nconst SOURCES = {\"Step 3: Recompute from the CRM record\": \"in0_Step3RecomputefromtheCRM\"};\nconst LISTS = [];\nconst EXECUTED = [];\nconst DATA = {};\nfor (const [node, key] of Object.entries(SOURCES)) {\n  const raw = input[key];\n  let v = raw;\n  if (typeof raw === 'string') { try { v = JSON.parse(raw); } catch (e) { v = raw; } }\n  DATA[node] = LISTS.includes(node) ? (v || []).map(i => (i && i.json !== undefined ? i : { json: i })) : [{ json: v }];\n}\nconst $ = (node) => {\n  const ran = node in DATA || EXECUTED.includes(node);\n  const list = () => { if (!(node in DATA)) throw new Error(`step ${node} has no data in this scenario`); return DATA[node]; };\n  return { isExecuted: ran, first: () => list()[0], last: () => list()[list().length - 1], all: () => list(),\n           get item() { return list()[0]; } };\n};\nconst INPUT = \"Step 3: Recompute from the CRM record\";\nconst $input = { all: () => $(INPUT).all(), first: () => $(INPUT).first(), last: () => $(INPUT).last(), get item() { return $(INPUT).first(); } };\nconst $execution = { id: input.run_id };\n// The webhook's fields, as n8n's Webhook node gives them.\nDATA['Step 1: Quote awaiting approval'] = [{ json: { body: Object.fromEntries(Object.entries({ quote_id: input.tr_quote_id, revision: input.tr_revision }).filter(([, v]) => v !== undefined && v !== null && v !== '')) } }];\nconst BODIES = (out) => ({\"done_body\": JSON.stringify({ status: 'done', result: out.decision }), \"log_body\": JSON.stringify({ recipe: 'R5.4', item: $('Step 1: Quote awaiting approval').first().json.body.quote_id + ':' + $('Step 1: Quote awaiting approval').first().json.body.revision, decision: out.decision, rules: out.rules })});\nconst one = (r) => (Array.isArray(r) ? r : [r]).filter(Boolean).map(i => (i.json !== undefined ? i.json : i));\nconst $json = INPUT && INPUT in DATA ? $input.first().json : {};\nconst __rule = () => {\n// What the routing run decided, for the decision log: quote, revision, value, discount, approver.\nconst ran = n => { try { return $(n).isExecuted; } catch (e) { return false; } };\nconst f = $('Step 3: Recompute from the CRM record').first().json;\nconst t = ran('Step 5: Rule: Table 5.1') ? $('Step 5: Rule: Table 5.1').first().json : null;\nlet decision;\nif (!f.current) decision = 'back to R5.3: price list ' + f.stamped + ' is not current';\nelse if (ran('Step 6: Return the quote, locked')) decision = 'returned: approval request not sent';\nelse decision = 'routed to ' + t.approver;\nreturn [{ json: { decision, approver: null, rules: { value: f.value, largest_discount: f.largest_discount, multi_year: f.multi_year,\n  off_list: f.off_list, non_standard: f.non_standard, level: t ? t.level : null, approver: t ? t.approver : null, why: t ? t.why : null } } }];\n};\nconst out = one(__rule())[0] || {};\nreturn Object.assign({}, out, BODIES(out));\n",
+                "input": [
+                  {
+                    "name": "in0_Step3RecomputefromtheCRM",
+                    "value": "{{11.result}}"
+                  },
+                  {
+                    "name": "run_id",
+                    "value": "{{var.scenario.executionId}}"
+                  },
+                  {
+                    "name": "tr_quote_id",
+                    "value": "{{1.quote_id}}"
+                  },
+                  {
+                    "name": "tr_revision",
+                    "value": "{{1.revision}}"
+                  }
+                ]
+              },
+              "metadata": {
+                "designer": {
+                  "x": 3000,
+                  "y": 900,
+                  "name": "Routing summary (back)"
+                }
+              }
+            },
+            {
+              "id": 42,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.table_api_url}}/key_log?recipe=eq.R5.4&key=eq.{{encodeURL(1.quote_id)}}%3A{{encodeURL(1.revision)}}",
+                "method": "patch",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{41.result.done_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 3300,
+                  "y": 900,
+                  "name": "Mark key done (back)"
+                }
+              }
+            },
+            {
+              "id": 43,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.table_api_url}}/decision_log",
+                "method": "post",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{41.result.log_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 3600,
+                  "y": 900,
+                  "name": "Decision log (back)"
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "designer": {
+          "x": 2100,
+          "y": 0,
+          "name": "Step 4: Stamped price list current?"
+        }
+      }
+    }
+  ],
+  "metadata": {
+    "instant": true,
+    "version": 1,
+    "designer": {
+      "orphans": []
+    },
+    "scenario": {
+      "dlq": true,
+      "slots": null,
+      "dataloss": false,
+      "maxErrors": 3,
+      "autoCommit": true,
+      "roundtrips": 1,
+      "sequential": false,
+      "confidential": false,
+      "freshVariables": false,
+      "autoCommitTriggerLast": true
+    }
+  }
+}

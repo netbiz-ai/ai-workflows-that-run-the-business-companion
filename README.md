@@ -13,7 +13,7 @@ Every recipe here follows the book's anatomy and rule: AI drafts, rules check, p
 | Build specifications, governance cards, golden sets, prompts (all 40 recipes) | Available |
 | Platform cards, patterns, governance templates, golden-set method, monitoring, recipe library | Available |
 | n8n builds (all 40 recipes), each run against its golden set | Available |
-| Make builds | R11.2 available, run against its golden set; the other 39 recipes not yet available |
+| Make builds | R5.4, R8.2, R9.3, R11.2, R12.1, R14.2, R14.3 and R15.2 available, each run against its golden set; the other 32 recipes not yet available |
 | Power Automate and Zapier builds | Not yet available |
 
 Each recipe's `build-spec.md`, each prompt file and the index below say when its golden set last passed.

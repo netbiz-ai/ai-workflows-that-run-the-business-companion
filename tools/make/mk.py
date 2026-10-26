@@ -139,10 +139,22 @@ class Scenario:
     def table(self, path: str) -> str:
         return "{{" + str(self.ref("Config")) + ".result.table_api_url}}" + path
 
-    def reserve_key(self, name: str, key_expr: str, x=0, y=0) -> dict:
-        """POST the key to reserve_key; the step's data is true for a new key, false for a copy."""
-        body = '{"p_recipe": "' + self.recipe + '", "p_key": "' + key_expr + '"}'
-        return self.http(name, "POST", self.table("/rpc/reserve_key"), body=body, x=x, y=y)
+    def rpc(self, name: str, function: str, body_expr: str, *, onerror: list[dict] | None = None, x=0, y=0) -> dict:
+        """Call one of the key-log functions in patterns/duplicate-check/schema.sql over the table API.
+        The step's data is the function's result (true/false, a count, or a list of keys)."""
+        return self.http(name, "POST", self.table(f"/rpc/{function}"), body=body_expr, onerror=onerror, x=x, y=y)
+
+    def reserve_key(self, name: str, key_expr: str, *, reopen_done: bool = False, x=0, y=0) -> dict:
+        """POST the key to reserve_key; the step's data is true for a new key, false for a copy.
+        key_expr is spliced into JSON text, so it may hold only IDs; build anything else in a Code step
+        and pass body_expr to rpc() instead. reopen_done: a key whose run is done may be reserved again."""
+        body = ('{"p_recipe": "' + self.recipe + '", "p_key": "' + key_expr + '"'
+                + (', "p_reopen_done": true' if reopen_done else "") + "}")
+        return self.rpc(name, "reserve_key", body, x=x, y=y)
+
+    def release_key(self, name: str, body_expr: str, x=0, y=0) -> dict:
+        """Release a key so the item runs again; body_expr maps a Code-built {"p_recipe", "p_key"} body."""
+        return self.rpc(name, "release_key", body_expr, x=x, y=y)
 
     def is_new_key(self, reserve_name: str) -> dict:
         return self.when("new key (not a copy)", "{{" + str(self.ref(reserve_name)) + ".data}}", "true")
@@ -182,6 +194,12 @@ class Scenario:
         return {"id": self._id(name), "module": "builtin:BasicFeeder", "version": 1, "parameters": {},
                 "mapper": {"array": array_expr}, "metadata": self._meta(name, x, y)}
 
+    def aggregator(self, name: str, iterator_name: str, fields: dict[str, str], x=0, y=0) -> dict:
+        """Gather the bundles an iterator started back into one: {{<this>.array}} is a list of
+        {field: value} objects, one per bundle, which a Code step receives as a real array."""
+        return {"id": self._id(name), "module": "builtin:BasicAggregator", "version": 1,
+                "parameters": {"feeder": self.ref(iterator_name)}, "mapper": dict(fields), "metadata": self._meta(name, x, y)}
+
     def continue_unless_stopped(self) -> dict:
         s = str(self.ref("Stop flag: read"))
         return self.when("stop flag not set", "{{" + s + ".data.stopped}}", "true", "text:notequal")
@@ -213,34 +231,73 @@ class Scenario:
                                           "confidential": False, "freshVariables": False, "autoCommitTriggerLast": True}}}
 
 
-def n8n_rule(js: str, sources: dict[str, str], *, bodies: dict[str, str] | None = None, many: bool = False) -> tuple[str, dict[str, str]]:
-    """Wrap an n8n Code-node rule (runOnceForAllItems, returning [{json: ...}]) for a Make Code step.
-    sources maps each n8n node name the rule reads with $('...') to the Make expression for that
-    node's data (a whole collection, such as {{4.data}}). bodies maps an output name to a JavaScript
-    expression over `out` (the rule's result) and `$`, evaluated after the rule: the request bodies
-    later steps map whole. many: the rule returns several items; the step returns {items: [...]}
-    for an iterator, and bodies are computed per item into each element. Returns (code, inputs)."""
+def n8n_rule(js: str, sources: dict[str, str], *, bodies: dict[str, str] | None = None, many: bool = False,
+             items: tuple[str, ...] = (), input_node: str | None = None, executed: tuple[str, ...] = (),
+             per_item: bool = False, prelude: str = "") -> tuple[str, dict[str, str]]:
+    """Wrap an n8n Code-node rule for a Make Code step, keeping the rule's JavaScript unchanged.
+
+    sources: each n8n node name the rule reads with $('...'), mapped to the Make expression for that
+      node's data, such as {{4.data}}. A mapped collection reaches the Code step as an object.
+    items: source nodes whose expression is a list of items (an aggregator's {{N.array}} of
+      {json: ...} objects, or a rule's {{N.result.items}}), so .all() gives every item.
+    input_node: the node $input and $json read (default: the last source).
+    executed: node names that ran without data the rule needs, such as the scenario's own
+      trigger, so $('...').isExecuted is true; any other node not in sources is false.
+    per_item: the n8n node ran once for each item (runOnceForEachItem): the rule runs once per
+      input item with $json set to it, and the step returns {items: [...]}.
+    many: the rule (run once) returns several items; the step returns {items: [...]}.
+    bodies: an output name -> a JavaScript expression over `out` (the rule's result for one item)
+      and `$`, evaluated after the rule: the request bodies later steps map whole. With many or
+      per_item they are computed into each element.
+    prelude: JavaScript run before the rule, for what Make's Code app lacks (it has no Luxon, so a
+      rule using $now needs a small shim here).
+    $execution.id is the Make run's ID. Returns (code, inputs)."""
     inputs, table = {}, {}
     for i, (node, expr) in enumerate(sources.items()):
         key = f"in{i}_" + re.sub(r"[^A-Za-z0-9_]", "", node)[:24]
         inputs[key] = expr
         table[node] = key
+    inputs["run_id"] = "{{var.scenario.executionId}}"
+    unknown = set(items) - set(sources) | ({input_node} - set(sources) if input_node else set())
+    if unknown:
+        raise ValueError(f"not in sources: {sorted(unknown)}")
+    first_input = input_node or (list(sources)[-1] if sources else None)
     body_js = ", ".join(f"{json.dumps(k)}: {v}" for k, v in (bodies or {}).items())
+    multi = many or per_item
     code = (
         "// Adapter: the rule below is the same JavaScript as the recipe's n8n build.\n"
-        "// $('Step name') answers from this step's inputs, which Make passes as JSON text.\n"
+        "// $('Step name') answers from this step's inputs: each is that step's output in this scenario.\n"
         f"const SOURCES = {json.dumps(table)};\n"
+        f"const LISTS = {json.dumps(sorted(items))};\n"
+        f"const EXECUTED = {json.dumps(sorted(executed))};\n"
         "const DATA = {};\n"
         "for (const [node, key] of Object.entries(SOURCES)) {\n"
         "  const raw = input[key];\n"
-        "  try { DATA[node] = typeof raw === 'string' ? JSON.parse(raw) : raw; } catch (e) { DATA[node] = raw; }\n"
+        "  let v = raw;\n"
+        "  if (typeof raw === 'string') { try { v = JSON.parse(raw); } catch (e) { v = raw; } }\n"
+        "  DATA[node] = LISTS.includes(node) ? (v || []).map(i => (i && i.json !== undefined ? i : { json: i })) : [{ json: v }];\n"
         "}\n"
-        "const $ = (node) => ({ first: () => ({ json: DATA[node] }), all: () => [{ json: DATA[node] }], item: { json: DATA[node] } });\n"
-        "const __rule = () => {\n" + js.strip() + "\n};\n"
-        f"const BODIES = (out) => ({{{body_js}}});\n"
-        + ("return { items: __rule().map(i => Object.assign({}, i.json, BODIES(i.json))) };\n" if many else
-           "const out = (__rule()[0] || { json: {} }).json;\nreturn Object.assign({}, out, BODIES(out));\n")
+        "const $ = (node) => {\n"
+        "  const ran = node in DATA || EXECUTED.includes(node);\n"
+        "  const list = () => { if (!(node in DATA)) throw new Error(`step ${node} has no data in this scenario`); return DATA[node]; };\n"
+        "  return { isExecuted: ran, first: () => list()[0], last: () => list()[list().length - 1], all: () => list(),\n"
+        "           get item() { return list()[0]; } };\n"
+        "};\n"
+        f"const INPUT = {json.dumps(first_input)};\n"
+        "const $input = { all: () => $(INPUT).all(), first: () => $(INPUT).first(), last: () => $(INPUT).last(), get item() { return $(INPUT).first(); } };\n"
+        "const $execution = { id: input.run_id };\n"
+        + (prelude.strip() + "\n" if prelude.strip() else "")
+        + "const BODIES = (out) => ({" + body_js + "});\n"
+        "const one = (r) => (Array.isArray(r) ? r : [r]).filter(Boolean).map(i => (i.json !== undefined ? i.json : i));\n"
     )
+    if per_item:
+        code += ("const __rule = ($json, $item) => {\n" + js.strip() + "\n};\n"
+                 "return { items: $input.all().flatMap(it => one(__rule(it.json, it))).map(o => Object.assign({}, o, BODIES(o))) };\n")
+    else:
+        code += ("const $json = INPUT && INPUT in DATA ? $input.first().json : {};\n"
+                 "const __rule = () => {\n" + js.strip() + "\n};\n"
+                 + ("return { items: one(__rule()).map(o => Object.assign({}, o, BODIES(o))) };\n" if multi else
+                    "const out = one(__rule())[0] || {};\nreturn Object.assign({}, out, BODIES(out));\n"))
     return code, inputs
 
 

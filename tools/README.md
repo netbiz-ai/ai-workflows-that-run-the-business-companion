@@ -46,4 +46,4 @@ export MAKE_API_TOKEN=... MAKE_ZONE=us2.make.com MAKE_TEAM_ID=... MOCKS_PUBLIC_U
 python3 tools/make/golden_make.py R11.2
 ```
 
-Each run creates its scenarios and webhooks in your team and deletes them when it ends; the report lists the credits each case used (about 112 for R11.2).
+Each run loads its blueprints, first the reader's copy (the import check) and then the test copy, into five kept scenarios named "[companion test slot 1]" to "[companion test slot 5]", each with its own webhook, created on the first run (Make limits how many scenarios a team may create), and stops them when it ends; the report lists the credits each case used (about 112 for R11.2).

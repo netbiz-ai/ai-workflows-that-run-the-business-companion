@@ -1,0 +1,2335 @@
+{
+  "name": "R14.2 Create tasks with owners and due dates after verification",
+  "flow": [
+    {
+      "id": 1,
+      "module": "gateway:CustomWebHook",
+      "version": 1,
+      "parameters": {
+        "hook": null,
+        "maxResults": 1
+      },
+      "mapper": {},
+      "metadata": {
+        "designer": {
+          "x": 0,
+          "y": 0,
+          "name": "Step 1: List verified"
+        }
+      }
+    },
+    {
+      "id": 2,
+      "module": "code:ExecuteCode",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "language": "javascript",
+        "inputFormat": "editor",
+        "dependencies": [],
+        "codeEditorJavascript": "// Config: edit these values for your company; nothing else in the scenario hard-codes them.\nreturn {\n  \"stop_flag_url\": \"https://<your stop list API>/stop_flags/R14.2\",\n  \"table_api_url\": \"https://<your table API for the key log, decision log and exception queue>\",\n  \"workflow_owner\": \"<your workflow owner>\",\n  \"register_url\": \"https://<your meeting register API>\",\n  \"actions_url\": \"https://<your action list API>\",\n  \"directory_url\": \"https://<your staff directory API>\",\n  \"tasks_url\": \"https://<your task system API>\",\n  \"minutes_url\": \"https://<your minutes API>\",\n  \"messaging_url\": \"https://<your messaging API>\",\n  \"register_owner\": \"<your register owner>\",\n  \"exception_owner\": \"<your workflow editor>\"\n};",
+        "input": []
+      },
+      "metadata": {
+        "designer": {
+          "x": 300,
+          "y": 0,
+          "name": "Config"
+        }
+      }
+    },
+    {
+      "id": 5,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{2.result.stop_flag_url}}",
+        "method": "get",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true
+      },
+      "metadata": {
+        "designer": {
+          "x": 600,
+          "y": 0,
+          "name": "Stop flag: read"
+        }
+      },
+      "onerror": [
+        {
+          "id": 3,
+          "module": "http:MakeRequest",
+          "version": 4,
+          "parameters": {},
+          "mapper": {
+            "url": "{{2.result.table_api_url}}/exception_queue",
+            "method": "post",
+            "timeout": "40",
+            "parseResponse": false,
+            "stopOnHttpError": true,
+            "allowRedirects": true,
+            "shareCookies": false,
+            "requestCompressedContent": true,
+            "contentType": "json",
+            "inputMethod": "jsonString",
+            "jsonStringBodyContent": "{\"recipe\": \"R14.2\", \"item\": \"run {{var.scenario.executionId}}\", \"reason\": \"stop list unreadable\", \"detail\": \"The stop list could not be read, so the run stopped\", \"owner\": \"{{2.result.workflow_owner}}\"}"
+          },
+          "metadata": {
+            "designer": {
+              "x": 600,
+              "y": 300,
+              "name": "Stop flag: list unreadable"
+            }
+          }
+        },
+        {
+          "id": 4,
+          "module": "builtin:Ignore",
+          "version": 1,
+          "metadata": {
+            "designer": {
+              "x": 900,
+              "y": 300
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{2.result.register_url}}/series",
+        "method": "get",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true,
+        "queryParameters": [
+          {
+            "name": "_wrap",
+            "value": "1"
+          },
+          {
+            "name": "id",
+            "value": "{{1.series_id}}"
+          }
+        ]
+      },
+      "metadata": {
+        "designer": {
+          "x": 900,
+          "y": 0,
+          "name": "Read the register"
+        }
+      },
+      "onerror": [
+        {
+          "id": 6,
+          "module": "builtin:Break",
+          "version": 1,
+          "parameters": {},
+          "mapper": {
+            "count": "3",
+            "retry": true,
+            "interval": "1"
+          },
+          "metadata": {
+            "designer": {
+              "x": 900,
+              "y": 300
+            }
+          }
+        }
+      ],
+      "filter": {
+        "name": "stop flag not set",
+        "conditions": [
+          [
+            {
+              "a": "{{5.data.stopped}}",
+              "b": "true",
+              "o": "text:notequal"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "id": 9,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{2.result.actions_url}}/items",
+        "method": "get",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true,
+        "queryParameters": [
+          {
+            "name": "_wrap",
+            "value": "1"
+          },
+          {
+            "name": "occurrence_id",
+            "value": "{{1.occurrence_id}}"
+          }
+        ]
+      },
+      "metadata": {
+        "designer": {
+          "x": 1200,
+          "y": 0,
+          "name": "Read the verified list"
+        }
+      },
+      "onerror": [
+        {
+          "id": 8,
+          "module": "builtin:Break",
+          "version": 1,
+          "parameters": {},
+          "mapper": {
+            "count": "3",
+            "retry": true,
+            "interval": "1"
+          },
+          "metadata": {
+            "designer": {
+              "x": 1200,
+              "y": 300
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{2.result.directory_url}}/staff",
+        "method": "get",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true,
+        "queryParameters": [
+          {
+            "name": "_wrap",
+            "value": "1"
+          }
+        ]
+      },
+      "metadata": {
+        "designer": {
+          "x": 1500,
+          "y": 0,
+          "name": "Read staff accounts"
+        }
+      },
+      "onerror": [
+        {
+          "id": 10,
+          "module": "builtin:Break",
+          "version": 1,
+          "parameters": {},
+          "mapper": {
+            "count": "3",
+            "retry": true,
+            "interval": "1"
+          },
+          "metadata": {
+            "designer": {
+              "x": 1500,
+              "y": 300
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 12,
+      "module": "code:ExecuteCode",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "language": "javascript",
+        "inputFormat": "editor",
+        "dependencies": [],
+        "codeEditorJavascript": "// Adapter: the rule below is the same JavaScript as the recipe's n8n build.\n// $('Step name') answers from this step's inputs: each is that step's output in this scenario.\nconst SOURCES = {\"Config\": \"in0_Config\", \"Read the register\": \"in1_Readtheregister\", \"Read the verified list\": \"in2_Readtheverifiedlist\", \"Read staff accounts\": \"in3_Readstaffaccounts\"};\nconst LISTS = [];\nconst EXECUTED = [];\nconst DATA = {};\nfor (const [node, key] of Object.entries(SOURCES)) {\n  const raw = input[key];\n  let v = raw;\n  if (typeof raw === 'string') { try { v = JSON.parse(raw); } catch (e) { v = raw; } }\n  DATA[node] = LISTS.includes(node) ? (v || []).map(i => (i && i.json !== undefined ? i : { json: i })) : [{ json: v }];\n}\nconst $ = (node) => {\n  const ran = node in DATA || EXECUTED.includes(node);\n  const list = () => { if (!(node in DATA)) throw new Error(`step ${node} has no data in this scenario`); return DATA[node]; };\n  return { isExecuted: ran, first: () => list()[0], last: () => list()[list().length - 1], all: () => list(),\n           get item() { return list()[0]; } };\n};\nconst INPUT = \"Read staff accounts\";\nconst $input = { all: () => $(INPUT).all(), first: () => $(INPUT).first(), last: () => $(INPUT).last(), get item() { return $(INPUT).first(); } };\nconst $execution = { id: input.run_id };\nDATA['Step 1: List verified'] = [{ json: { body: { series_id: input.ev_series_id, occurrence_id: input.ev_occurrence_id, verified_by: input.ev_verified_by } } }];\n// One stamp for the run: every task-ID write-back carries it, so step 8 finds this run's new tasks.\nconst STAMP = new Date().toISOString();\nconst BODIES = (out) => ({\"stamp\": STAMP, \"item_q\": encodeURIComponent(out.item_id || ''), \"refuse_exception\": JSON.stringify({ recipe: 'R14.2', item: $('Step 1: List verified').first().json.body.occurrence_id, reason: 'verifier not chair or backup', detail: out.reason + ': ' + $('Step 1: List verified').first().json.body.verified_by, owner: $('Config').first().json.register_owner }), \"refuse_message\": JSON.stringify({ to: [$('Config').first().json.register_owner], subject: 'Action list not verified by its chair or backup', text: 'No tasks created for meeting ' + $('Step 1: List verified').first().json.body.occurrence_id + ': ' + out.reason + ' (' + $('Step 1: List verified').first().json.body.verified_by + ').' }), \"return_body\": JSON.stringify({ status: 'returned', return_reason: (out.reasons || []).join('; ') }), \"log_returned\": JSON.stringify(Object.assign({ recipe: 'R14.2', item: out.item_id, approved_by: out.verified_by, decision: 'returned to chair' }, { rules: { reasons: out.reasons } })), \"minutes_body\": JSON.stringify(out.minutes || {}), \"task_body\": JSON.stringify({ title: out.title, owner: out.task_owner, owner_email: out.task_email, due_date: out.due_date, verified_due_date: out.due_date, series: out.series, series_id: out.series_id, source_link: out.source_link, item_id: out.item_id, quoted_line: out.quoted_line, verified_by: out.verified_by, status: 'open' }), \"created_body\": JSON.stringify({ task_id: '__TASK_ID__', verified_due_date: out.due_date, verified_at: STAMP }), \"found_body\": JSON.stringify({ task_id: '__TASK_ID__' }), \"log_created\": JSON.stringify(Object.assign({ recipe: 'R14.2', item: out.item_id, approved_by: out.verified_by, decision: 'task created' }, { rules: { task_id: '__TASK_ID__', route: out.route } })), \"log_found\": JSON.stringify(Object.assign({ recipe: 'R14.2', item: out.item_id, approved_by: out.verified_by, decision: 'existing task linked' }, { rules: { task_id: '__TASK_ID__', route: out.route } })), \"task_error\": JSON.stringify({ recipe: 'R14.2', item: out.item_id, reason: 'task system error', detail: 'Task system failed after one retry', owner: out.chair }), \"task_error_message\": JSON.stringify({ to: [out.chair], subject: 'Task not created: ' + out.series, text: 'The task system failed after one retry for: ' + out.title + '. Owen reruns the list; items with a task ID are skipped.' }), \"write_failed\": JSON.stringify({ recipe: 'R14.2', item: $('Step 1: List verified').first().json.body.occurrence_id, reason: 'write failed', detail: 'A write or message failed; never retried. Check the list, then rerun it: steps 5 and 6 guard.', owner: $('Config').first().json.exception_owner })});\nconst one = (r) => (Array.isArray(r) ? r : [r]).filter(Boolean).map(i => (i.json !== undefined ? i.json : i));\nconst $json = INPUT && INPUT in DATA ? $input.first().json : {};\nconst __rule = () => {\n// Steps 2 to 5 of the book's R14.2 and the checks in Table 14.1. The workflow never fills a gap.\nconst ev = $('Step 1: List verified').first().json.body;\nconst series = ($('Read the register').first().json.items || [])[0] || null;\nconst staff = $('Read staff accounts').first().json.items || [];\nconst items = ($('Read the verified list').first().json.items || []).filter(i => i.status === 'approved');\nconst today = new Date().toISOString().slice(0, 10);\nconst low = s => String(s || '').trim().toLowerCase();\n\n// Step 2: the verifier must be the series' chair or backup.\nif (!series || ![series.chair, series.backup].map(low).includes(low(ev.verified_by))) {\n  return [{ json: { route: 'refuse', reason: series ? 'verifier not chair or backup' : 'series not in the register', verified_by: ev.verified_by } }];\n}\nconst chair = staff.find(s => low(s.email) === low(series.chair)) || { name: series.chair, email: series.chair };\n\n// The owner as a staff account: full name or address, else a unique first-name match.\nfunction account(owner) {\n  const o = low(owner);\n  const exact = staff.filter(s => low(s.name) === o || low(s.email) === o);\n  if (exact.length) return { acct: exact[0] };\n  const first = staff.filter(s => low(s.name).split(/\\s+/)[0] === o);\n  if (first.length > 1) return { ambiguous: true };\n  return { acct: first[0] || null };\n}\nconst isDate = d => /^\\d{4}-\\d{2}-\\d{2}$/.test(d || '') && !isNaN(Date.parse(d + 'T00:00:00Z'))\n  && new Date(d + 'T00:00:00Z').toISOString().slice(0, 10) === d;\n\nconst out = [];\nfor (const it of items) {\n  // Step 5: an item already holding a task ID is skipped, whatever steps 3 and 4 would say.\n  if (it.task_id) continue;\n  const owner = String(it.owner || '').trim();\n  const { acct, ambiguous } = account(owner);\n  const base = { item_id: it.id, action: String(it.action || '').trim(), owner, due_date: it.due_date || '',\n                 source_link: it.source_link || '', quoted_line: it.quoted_line || '' };\n  // Step 3: an owner outside the company goes into the minutes, with a follow-up task for the chair.\n  if (owner && low(owner) !== 'unassigned' && !acct && !ambiguous) {\n    out.push({ ...base, route: 'outside', task_owner: chair.name, task_email: chair.email,\n               title: `Follow up with ${owner}: ${base.action}`,\n               minutes: { id: it.id, occurrence_id: it.occurrence_id, series_id: series.id,\n                          text: `${owner} (outside the company): ${base.action}${base.due_date ? ', due ' + base.due_date : ''}`,\n                          source_link: base.source_link } });\n    continue;\n  }\n  // Step 4: Table 14.1. A failure returns the item to the chair with the reason.\n  const reasons = [];\n  if (!base.action) reasons.push('no action');\n  if (!owner || low(owner) === 'unassigned') reasons.push('no owner');\n  else if (ambiguous) reasons.push('owner matches more than one staff account');\n  else if (!acct.active) reasons.push('owner not an active staff account');\n  if (!isDate(base.due_date)) reasons.push('due date is not a calendar date');\n  else if (base.due_date < today) reasons.push('due date is in the past');\n  if (!base.source_link) reasons.push('no source link');\n  if (reasons.length) { out.push({ ...base, route: 'return', reasons }); continue; }\n  out.push({ ...base, route: 'task', task_owner: acct.name, task_email: acct.email, title: base.action });\n}\nreturn out.map(j => ({ json: { ...j, series_id: series.id, series: series.name, chair: series.chair, verified_by: ev.verified_by } }));\n};\nreturn { items: one(__rule()).map(o => Object.assign({}, o, BODIES(o))) };\n",
+        "input": [
+          {
+            "name": "in0_Config",
+            "value": "{{2.result}}"
+          },
+          {
+            "name": "in1_Readtheregister",
+            "value": "{{7.data}}"
+          },
+          {
+            "name": "in2_Readtheverifiedlist",
+            "value": "{{9.data}}"
+          },
+          {
+            "name": "in3_Readstaffaccounts",
+            "value": "{{11.data}}"
+          },
+          {
+            "name": "run_id",
+            "value": "{{var.scenario.executionId}}"
+          },
+          {
+            "name": "ev_series_id",
+            "value": "{{1.series_id}}"
+          },
+          {
+            "name": "ev_occurrence_id",
+            "value": "{{1.occurrence_id}}"
+          },
+          {
+            "name": "ev_verified_by",
+            "value": "{{1.verified_by}}"
+          }
+        ]
+      },
+      "metadata": {
+        "designer": {
+          "x": 1800,
+          "y": 0,
+          "name": "Steps 2 to 5: Rules"
+        }
+      }
+    },
+    {
+      "id": 92,
+      "module": "builtin:BasicRouter",
+      "version": 1,
+      "mapper": null,
+      "routes": [
+        {
+          "flow": [
+            {
+              "id": 13,
+              "module": "builtin:BasicFeeder",
+              "version": 1,
+              "parameters": {},
+              "mapper": {
+                "array": "{{12.result.items}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 2400,
+                  "y": 0,
+                  "name": "Each item"
+                }
+              }
+            },
+            {
+              "id": 84,
+              "module": "builtin:BasicRouter",
+              "version": 1,
+              "mapper": null,
+              "routes": [
+                {
+                  "flow": [
+                    {
+                      "id": 16,
+                      "module": "http:MakeRequest",
+                      "version": 4,
+                      "parameters": {},
+                      "mapper": {
+                        "url": "{{2.result.table_api_url}}/exception_queue",
+                        "method": "post",
+                        "timeout": "40",
+                        "parseResponse": false,
+                        "stopOnHttpError": true,
+                        "allowRedirects": true,
+                        "shareCookies": false,
+                        "requestCompressedContent": true,
+                        "contentType": "json",
+                        "inputMethod": "jsonString",
+                        "jsonStringBodyContent": "{{13.refuse_exception}}"
+                      },
+                      "metadata": {
+                        "designer": {
+                          "x": 3000,
+                          "y": 0,
+                          "name": "Step 2: Exception queue: verifier not registered"
+                        }
+                      },
+                      "filter": {
+                        "name": "route is refuse",
+                        "conditions": [
+                          [
+                            {
+                              "a": "{{13.route}}",
+                              "b": "refuse",
+                              "o": "text:equal"
+                            }
+                          ]
+                        ]
+                      }
+                    },
+                    {
+                      "id": 19,
+                      "module": "http:MakeRequest",
+                      "version": 4,
+                      "parameters": {},
+                      "mapper": {
+                        "url": "{{2.result.messaging_url}}/messages",
+                        "method": "post",
+                        "timeout": "40",
+                        "parseResponse": false,
+                        "stopOnHttpError": true,
+                        "allowRedirects": true,
+                        "shareCookies": false,
+                        "requestCompressedContent": true,
+                        "contentType": "json",
+                        "inputMethod": "jsonString",
+                        "jsonStringBodyContent": "{{13.refuse_message}}"
+                      },
+                      "metadata": {
+                        "designer": {
+                          "x": 3300,
+                          "y": 0,
+                          "name": "Step 2: Alert the register owner"
+                        }
+                      },
+                      "onerror": [
+                        {
+                          "id": 17,
+                          "module": "http:MakeRequest",
+                          "version": 4,
+                          "parameters": {},
+                          "mapper": {
+                            "url": "{{2.result.table_api_url}}/exception_queue",
+                            "method": "post",
+                            "timeout": "40",
+                            "parseResponse": false,
+                            "stopOnHttpError": true,
+                            "allowRedirects": true,
+                            "shareCookies": false,
+                            "requestCompressedContent": true,
+                            "contentType": "json",
+                            "inputMethod": "jsonString",
+                            "jsonStringBodyContent": "{{13.write_failed}}"
+                          },
+                          "metadata": {
+                            "designer": {
+                              "x": 3300,
+                              "y": 300,
+                              "name": "Step 2: Alert the register owner: exception queue"
+                            }
+                          }
+                        },
+                        {
+                          "id": 18,
+                          "module": "builtin:Ignore",
+                          "version": 1,
+                          "metadata": {
+                            "designer": {
+                              "x": 3600,
+                              "y": 300
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "flow": [
+                    {
+                      "id": 22,
+                      "module": "http:MakeRequest",
+                      "version": 4,
+                      "parameters": {},
+                      "mapper": {
+                        "url": "{{2.result.actions_url}}/items/{{13.item_q}}",
+                        "method": "patch",
+                        "timeout": "40",
+                        "parseResponse": false,
+                        "stopOnHttpError": true,
+                        "allowRedirects": true,
+                        "shareCookies": false,
+                        "requestCompressedContent": true,
+                        "contentType": "json",
+                        "inputMethod": "jsonString",
+                        "jsonStringBodyContent": "{{13.return_body}}"
+                      },
+                      "metadata": {
+                        "designer": {
+                          "x": 3000,
+                          "y": 600,
+                          "name": "Step 4: Return the item to the chair"
+                        }
+                      },
+                      "onerror": [
+                        {
+                          "id": 20,
+                          "module": "http:MakeRequest",
+                          "version": 4,
+                          "parameters": {},
+                          "mapper": {
+                            "url": "{{2.result.table_api_url}}/exception_queue",
+                            "method": "post",
+                            "timeout": "40",
+                            "parseResponse": false,
+                            "stopOnHttpError": true,
+                            "allowRedirects": true,
+                            "shareCookies": false,
+                            "requestCompressedContent": true,
+                            "contentType": "json",
+                            "inputMethod": "jsonString",
+                            "jsonStringBodyContent": "{{13.write_failed}}"
+                          },
+                          "metadata": {
+                            "designer": {
+                              "x": 3000,
+                              "y": 900,
+                              "name": "Step 4: Return the item to the chair: exception queue"
+                            }
+                          }
+                        },
+                        {
+                          "id": 21,
+                          "module": "builtin:Ignore",
+                          "version": 1,
+                          "metadata": {
+                            "designer": {
+                              "x": 3300,
+                              "y": 900
+                            }
+                          }
+                        }
+                      ],
+                      "filter": {
+                        "name": "route is return",
+                        "conditions": [
+                          [
+                            {
+                              "a": "{{13.route}}",
+                              "b": "return",
+                              "o": "text:equal"
+                            }
+                          ]
+                        ]
+                      }
+                    },
+                    {
+                      "id": 23,
+                      "module": "http:MakeRequest",
+                      "version": 4,
+                      "parameters": {},
+                      "mapper": {
+                        "url": "{{2.result.table_api_url}}/decision_log",
+                        "method": "post",
+                        "timeout": "40",
+                        "parseResponse": false,
+                        "stopOnHttpError": true,
+                        "allowRedirects": true,
+                        "shareCookies": false,
+                        "requestCompressedContent": true,
+                        "contentType": "json",
+                        "inputMethod": "jsonString",
+                        "jsonStringBodyContent": "{{13.log_returned}}"
+                      },
+                      "metadata": {
+                        "designer": {
+                          "x": 3300,
+                          "y": 600,
+                          "name": "Decision log: returned"
+                        }
+                      }
+                    },
+                    {
+                      "id": 14,
+                      "module": "builtin:BasicAggregator",
+                      "version": 1,
+                      "parameters": {
+                        "feeder": 13
+                      },
+                      "mapper": {
+                        "action": "{{13.action}}",
+                        "reasons": "{{13.reasons}}",
+                        "chair": "{{13.chair}}",
+                        "series": "{{13.series}}"
+                      },
+                      "metadata": {
+                        "designer": {
+                          "x": 3600,
+                          "y": 600,
+                          "name": "Step 4: Returned items"
+                        }
+                      }
+                    },
+                    {
+                      "id": 15,
+                      "module": "code:ExecuteCode",
+                      "version": 1,
+                      "parameters": {},
+                      "mapper": {
+                        "language": "javascript",
+                        "inputFormat": "editor",
+                        "dependencies": [],
+                        "codeEditorJavascript": "// Adapter: the rule below is the same JavaScript as the recipe's n8n build.\n// $('Step name') answers from this step's inputs: each is that step's output in this scenario.\nconst SOURCES = {\"Steps 2 to 5: Rules\": \"in0_Steps2to5Rules\"};\nconst LISTS = [\"Steps 2 to 5: Rules\"];\nconst EXECUTED = [];\nconst DATA = {};\nfor (const [node, key] of Object.entries(SOURCES)) {\n  const raw = input[key];\n  let v = raw;\n  if (typeof raw === 'string') { try { v = JSON.parse(raw); } catch (e) { v = raw; } }\n  DATA[node] = LISTS.includes(node) ? (v || []).map(i => (i && i.json !== undefined ? i : { json: i })) : [{ json: v }];\n}\nconst $ = (node) => {\n  const ran = node in DATA || EXECUTED.includes(node);\n  const list = () => { if (!(node in DATA)) throw new Error(`step ${node} has no data in this scenario`); return DATA[node]; };\n  return { isExecuted: ran, first: () => list()[0], last: () => list()[list().length - 1], all: () => list(),\n           get item() { return list()[0]; } };\n};\nconst INPUT = \"Steps 2 to 5: Rules\";\nconst $input = { all: () => $(INPUT).all(), first: () => $(INPUT).first(), last: () => $(INPUT).last(), get item() { return $(INPUT).first(); } };\nconst $execution = { id: input.run_id };\nconst BODIES = (out) => ({\"message\": JSON.stringify({ to: [out.chair], subject: out.count + ' action item(s) returned: ' + out.series, text: 'Fix and verify again:\\n' + out.text })});\nconst one = (r) => (Array.isArray(r) ? r : [r]).filter(Boolean).map(i => (i.json !== undefined ? i.json : i));\nconst $json = INPUT && INPUT in DATA ? $input.first().json : {};\nconst __rule = () => {\nconst __outer = $;\n{\nconst $ = (node) => Object.assign(__outer(node), { itemMatching: (i) => __outer(node).all()[i] });\n// One message to the chair listing every returned item.\nconst rows = $input.all().map((_, i) => $('Steps 2 to 5: Rules').itemMatching(i).json);\nconst lines = rows.map(r => `- ${r.action || '(no action)'}: ${r.reasons.join('; ')}`);\nreturn [{ json: { chair: rows[0].chair, series: rows[0].series, count: rows.length, text: lines.join('\\n') }, pairedItem: { item: 0 } }];\n}\n};\nconst out = one(__rule())[0] || {};\nreturn Object.assign({}, out, BODIES(out));\n",
+                        "input": [
+                          {
+                            "name": "in0_Steps2to5Rules",
+                            "value": "{{14.array}}"
+                          },
+                          {
+                            "name": "run_id",
+                            "value": "{{var.scenario.executionId}}"
+                          }
+                        ]
+                      },
+                      "metadata": {
+                        "designer": {
+                          "x": 3900,
+                          "y": 600,
+                          "name": "Step 4: One message to the chair"
+                        }
+                      },
+                      "filter": {
+                        "name": "items returned",
+                        "conditions": [
+                          [
+                            {
+                              "a": "{{length(14.array)}}",
+                              "b": "0",
+                              "o": "number:greater"
+                            }
+                          ]
+                        ]
+                      }
+                    },
+                    {
+                      "id": 26,
+                      "module": "http:MakeRequest",
+                      "version": 4,
+                      "parameters": {},
+                      "mapper": {
+                        "url": "{{2.result.messaging_url}}/messages",
+                        "method": "post",
+                        "timeout": "40",
+                        "parseResponse": false,
+                        "stopOnHttpError": true,
+                        "allowRedirects": true,
+                        "shareCookies": false,
+                        "requestCompressedContent": true,
+                        "contentType": "json",
+                        "inputMethod": "jsonString",
+                        "jsonStringBodyContent": "{{15.result.message}}"
+                      },
+                      "metadata": {
+                        "designer": {
+                          "x": 4200,
+                          "y": 600,
+                          "name": "Step 4: Tell the chair"
+                        }
+                      },
+                      "onerror": [
+                        {
+                          "id": 24,
+                          "module": "http:MakeRequest",
+                          "version": 4,
+                          "parameters": {},
+                          "mapper": {
+                            "url": "{{2.result.table_api_url}}/exception_queue",
+                            "method": "post",
+                            "timeout": "40",
+                            "parseResponse": false,
+                            "stopOnHttpError": true,
+                            "allowRedirects": true,
+                            "shareCookies": false,
+                            "requestCompressedContent": true,
+                            "contentType": "json",
+                            "inputMethod": "jsonString",
+                            "jsonStringBodyContent": "{{13.write_failed}}"
+                          },
+                          "metadata": {
+                            "designer": {
+                              "x": 4200,
+                              "y": 900,
+                              "name": "Step 4: Tell the chair: exception queue"
+                            }
+                          }
+                        },
+                        {
+                          "id": 25,
+                          "module": "builtin:Ignore",
+                          "version": 1,
+                          "metadata": {
+                            "designer": {
+                              "x": 4500,
+                              "y": 900
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "flow": [
+                    {
+                      "id": 29,
+                      "module": "http:MakeRequest",
+                      "version": 4,
+                      "parameters": {},
+                      "mapper": {
+                        "url": "{{2.result.minutes_url}}/entries/{{13.item_q}}",
+                        "method": "put",
+                        "timeout": "40",
+                        "parseResponse": false,
+                        "stopOnHttpError": true,
+                        "allowRedirects": true,
+                        "shareCookies": false,
+                        "requestCompressedContent": true,
+                        "contentType": "json",
+                        "inputMethod": "jsonString",
+                        "jsonStringBodyContent": "{{13.minutes_body}}"
+                      },
+                      "metadata": {
+                        "designer": {
+                          "x": 3000,
+                          "y": 1200,
+                          "name": "Step 3: Write to the minutes"
+                        }
+                      },
+                      "onerror": [
+                        {
+                          "id": 27,
+                          "module": "http:MakeRequest",
+                          "version": 4,
+                          "parameters": {},
+                          "mapper": {
+                            "url": "{{2.result.table_api_url}}/exception_queue",
+                            "method": "post",
+                            "timeout": "40",
+                            "parseResponse": false,
+                            "stopOnHttpError": true,
+                            "allowRedirects": true,
+                            "shareCookies": false,
+                            "requestCompressedContent": true,
+                            "contentType": "json",
+                            "inputMethod": "jsonString",
+                            "jsonStringBodyContent": "{{13.write_failed}}"
+                          },
+                          "metadata": {
+                            "designer": {
+                              "x": 3000,
+                              "y": 1500,
+                              "name": "Step 3: Write to the minutes: exception queue"
+                            }
+                          }
+                        },
+                        {
+                          "id": 28,
+                          "module": "builtin:Ignore",
+                          "version": 1,
+                          "metadata": {
+                            "designer": {
+                              "x": 3300,
+                              "y": 1500
+                            }
+                          }
+                        }
+                      ],
+                      "filter": {
+                        "name": "route is outside",
+                        "conditions": [
+                          [
+                            {
+                              "a": "{{13.route}}",
+                              "b": "outside",
+                              "o": "text:equal"
+                            }
+                          ]
+                        ]
+                      }
+                    },
+                    {
+                      "id": 35,
+                      "module": "http:MakeRequest",
+                      "version": 4,
+                      "parameters": {},
+                      "mapper": {
+                        "url": "{{2.result.tasks_url}}/tasks",
+                        "method": "get",
+                        "timeout": "40",
+                        "parseResponse": true,
+                        "stopOnHttpError": true,
+                        "allowRedirects": true,
+                        "shareCookies": false,
+                        "requestCompressedContent": true,
+                        "queryParameters": [
+                          {
+                            "name": "_wrap",
+                            "value": "1"
+                          },
+                          {
+                            "name": "item_id",
+                            "value": "{{13.item_id}}"
+                          }
+                        ]
+                      },
+                      "metadata": {
+                        "designer": {
+                          "x": 3300,
+                          "y": 1200,
+                          "name": "Step 6: Search tasks for the item ID (outside owner)"
+                        }
+                      },
+                      "onerror": [
+                        {
+                          "id": 30,
+                          "module": "http:MakeRequest",
+                          "version": 4,
+                          "parameters": {},
+                          "mapper": {
+                            "url": "{{2.result.table_api_url}}/exception_queue",
+                            "method": "post",
+                            "timeout": "40",
+                            "parseResponse": false,
+                            "stopOnHttpError": true,
+                            "allowRedirects": true,
+                            "shareCookies": false,
+                            "requestCompressedContent": true,
+                            "contentType": "json",
+                            "inputMethod": "jsonString",
+                            "jsonStringBodyContent": "{{13.task_error}}"
+                          },
+                          "metadata": {
+                            "designer": {
+                              "x": 3300,
+                              "y": 1500,
+                              "name": "Step 9: Exception queue: task system error (search, outside owner)"
+                            }
+                          }
+                        },
+                        {
+                          "id": 33,
+                          "module": "http:MakeRequest",
+                          "version": 4,
+                          "parameters": {},
+                          "mapper": {
+                            "url": "{{2.result.messaging_url}}/messages",
+                            "method": "post",
+                            "timeout": "40",
+                            "parseResponse": false,
+                            "stopOnHttpError": true,
+                            "allowRedirects": true,
+                            "shareCookies": false,
+                            "requestCompressedContent": true,
+                            "contentType": "json",
+                            "inputMethod": "jsonString",
+                            "jsonStringBodyContent": "{{13.task_error_message}}"
+                          },
+                          "metadata": {
+                            "designer": {
+                              "x": 3600,
+                              "y": 1500,
+                              "name": "Step 9: Tell the chair (search, outside owner)"
+                            }
+                          },
+                          "onerror": [
+                            {
+                              "id": 31,
+                              "module": "http:MakeRequest",
+                              "version": 4,
+                              "parameters": {},
+                              "mapper": {
+                                "url": "{{2.result.table_api_url}}/exception_queue",
+                                "method": "post",
+                                "timeout": "40",
+                                "parseResponse": false,
+                                "stopOnHttpError": true,
+                                "allowRedirects": true,
+                                "shareCookies": false,
+                                "requestCompressedContent": true,
+                                "contentType": "json",
+                                "inputMethod": "jsonString",
+                                "jsonStringBodyContent": "{{13.write_failed}}"
+                              },
+                              "metadata": {
+                                "designer": {
+                                  "x": 3600,
+                                  "y": 1800,
+                                  "name": "Step 9: Tell the chair (search, outside owner): exception queue"
+                                }
+                              }
+                            },
+                            {
+                              "id": 32,
+                              "module": "builtin:Ignore",
+                              "version": 1,
+                              "metadata": {
+                                "designer": {
+                                  "x": 3900,
+                                  "y": 1800
+                                }
+                              }
+                            }
+                          ]
+                        },
+                        {
+                          "id": 34,
+                          "module": "builtin:Ignore",
+                          "version": 1,
+                          "metadata": {
+                            "designer": {
+                              "x": 3900,
+                              "y": 1500
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "id": 56,
+                      "module": "builtin:BasicRouter",
+                      "version": 1,
+                      "mapper": null,
+                      "routes": [
+                        {
+                          "flow": [
+                            {
+                              "id": 45,
+                              "module": "http:MakeRequest",
+                              "version": 4,
+                              "parameters": {},
+                              "mapper": {
+                                "url": "{{2.result.actions_url}}/items/{{13.item_q}}",
+                                "method": "patch",
+                                "timeout": "40",
+                                "parseResponse": false,
+                                "stopOnHttpError": true,
+                                "allowRedirects": true,
+                                "shareCookies": false,
+                                "requestCompressedContent": true,
+                                "contentType": "json",
+                                "inputMethod": "jsonString",
+                                "jsonStringBodyContent": "{{replace(13.found_body; \"__TASK_ID__\"; 35.data.items[1].id)}}"
+                              },
+                              "metadata": {
+                                "designer": {
+                                  "x": 3900,
+                                  "y": 1200,
+                                  "name": "Step 6: Write the found task ID back (outside owner)"
+                                }
+                              },
+                              "onerror": [
+                                {
+                                  "id": 43,
+                                  "module": "http:MakeRequest",
+                                  "version": 4,
+                                  "parameters": {},
+                                  "mapper": {
+                                    "url": "{{2.result.table_api_url}}/exception_queue",
+                                    "method": "post",
+                                    "timeout": "40",
+                                    "parseResponse": false,
+                                    "stopOnHttpError": true,
+                                    "allowRedirects": true,
+                                    "shareCookies": false,
+                                    "requestCompressedContent": true,
+                                    "contentType": "json",
+                                    "inputMethod": "jsonString",
+                                    "jsonStringBodyContent": "{{13.write_failed}}"
+                                  },
+                                  "metadata": {
+                                    "designer": {
+                                      "x": 3900,
+                                      "y": 1500,
+                                      "name": "Step 6: Write the found task ID back (outside owner): exception queue"
+                                    }
+                                  }
+                                },
+                                {
+                                  "id": 44,
+                                  "module": "builtin:Ignore",
+                                  "version": 1,
+                                  "metadata": {
+                                    "designer": {
+                                      "x": 4200,
+                                      "y": 1500
+                                    }
+                                  }
+                                }
+                              ],
+                              "filter": {
+                                "name": "task found",
+                                "conditions": [
+                                  [
+                                    {
+                                      "a": "{{length(35.data.items)}}",
+                                      "b": "0",
+                                      "o": "number:greater"
+                                    }
+                                  ]
+                                ]
+                              }
+                            },
+                            {
+                              "id": 46,
+                              "module": "http:MakeRequest",
+                              "version": 4,
+                              "parameters": {},
+                              "mapper": {
+                                "url": "{{2.result.table_api_url}}/decision_log",
+                                "method": "post",
+                                "timeout": "40",
+                                "parseResponse": false,
+                                "stopOnHttpError": true,
+                                "allowRedirects": true,
+                                "shareCookies": false,
+                                "requestCompressedContent": true,
+                                "contentType": "json",
+                                "inputMethod": "jsonString",
+                                "jsonStringBodyContent": "{{replace(13.log_found; \"__TASK_ID__\"; 35.data.items[1].id)}}"
+                              },
+                              "metadata": {
+                                "designer": {
+                                  "x": 4200,
+                                  "y": 1200,
+                                  "name": "Decision log: task found (outside owner)"
+                                }
+                              }
+                            }
+                          ]
+                        },
+                        {
+                          "flow": [
+                            {
+                              "id": 36,
+                              "module": "http:MakeRequest",
+                              "version": 4,
+                              "parameters": {},
+                              "mapper": {
+                                "url": "{{2.result.tasks_url}}/tasks",
+                                "method": "post",
+                                "timeout": "40",
+                                "parseResponse": true,
+                                "stopOnHttpError": false,
+                                "allowRedirects": true,
+                                "shareCookies": false,
+                                "requestCompressedContent": true,
+                                "contentType": "json",
+                                "inputMethod": "jsonString",
+                                "jsonStringBodyContent": "{{13.task_body}}"
+                              },
+                              "metadata": {
+                                "designer": {
+                                  "x": 3900,
+                                  "y": 1800,
+                                  "name": "Step 7: Create the task (outside owner)"
+                                }
+                              },
+                              "filter": {
+                                "name": "no task",
+                                "conditions": [
+                                  [
+                                    {
+                                      "a": "{{length(35.data.items)}}",
+                                      "b": "0",
+                                      "o": "number:equal"
+                                    }
+                                  ]
+                                ]
+                              }
+                            },
+                            {
+                              "id": 55,
+                              "module": "builtin:BasicRouter",
+                              "version": 1,
+                              "mapper": null,
+                              "routes": [
+                                {
+                                  "flow": [
+                                    {
+                                      "id": 49,
+                                      "module": "http:MakeRequest",
+                                      "version": 4,
+                                      "parameters": {},
+                                      "mapper": {
+                                        "url": "{{2.result.actions_url}}/items/{{13.item_q}}",
+                                        "method": "patch",
+                                        "timeout": "40",
+                                        "parseResponse": false,
+                                        "stopOnHttpError": true,
+                                        "allowRedirects": true,
+                                        "shareCookies": false,
+                                        "requestCompressedContent": true,
+                                        "contentType": "json",
+                                        "inputMethod": "jsonString",
+                                        "jsonStringBodyContent": "{{replace(13.created_body; \"__TASK_ID__\"; 36.data.id)}}"
+                                      },
+                                      "metadata": {
+                                        "designer": {
+                                          "x": 4500,
+                                          "y": 1800,
+                                          "name": "Step 8: Write task ID back (outside owner)"
+                                        }
+                                      },
+                                      "onerror": [
+                                        {
+                                          "id": 47,
+                                          "module": "http:MakeRequest",
+                                          "version": 4,
+                                          "parameters": {},
+                                          "mapper": {
+                                            "url": "{{2.result.table_api_url}}/exception_queue",
+                                            "method": "post",
+                                            "timeout": "40",
+                                            "parseResponse": false,
+                                            "stopOnHttpError": true,
+                                            "allowRedirects": true,
+                                            "shareCookies": false,
+                                            "requestCompressedContent": true,
+                                            "contentType": "json",
+                                            "inputMethod": "jsonString",
+                                            "jsonStringBodyContent": "{{13.write_failed}}"
+                                          },
+                                          "metadata": {
+                                            "designer": {
+                                              "x": 4500,
+                                              "y": 2100,
+                                              "name": "Step 8: Write task ID back (outside owner): exception queue"
+                                            }
+                                          }
+                                        },
+                                        {
+                                          "id": 48,
+                                          "module": "builtin:Ignore",
+                                          "version": 1,
+                                          "metadata": {
+                                            "designer": {
+                                              "x": 4800,
+                                              "y": 2100
+                                            }
+                                          }
+                                        }
+                                      ],
+                                      "filter": {
+                                        "name": "created",
+                                        "conditions": [
+                                          [
+                                            {
+                                              "a": "{{36.statusCode}}",
+                                              "b": "300",
+                                              "o": "number:less"
+                                            }
+                                          ]
+                                        ]
+                                      }
+                                    },
+                                    {
+                                      "id": 50,
+                                      "module": "http:MakeRequest",
+                                      "version": 4,
+                                      "parameters": {},
+                                      "mapper": {
+                                        "url": "{{2.result.table_api_url}}/decision_log",
+                                        "method": "post",
+                                        "timeout": "40",
+                                        "parseResponse": false,
+                                        "stopOnHttpError": true,
+                                        "allowRedirects": true,
+                                        "shareCookies": false,
+                                        "requestCompressedContent": true,
+                                        "contentType": "json",
+                                        "inputMethod": "jsonString",
+                                        "jsonStringBodyContent": "{{replace(13.log_created; \"__TASK_ID__\"; 36.data.id)}}"
+                                      },
+                                      "metadata": {
+                                        "designer": {
+                                          "x": 4800,
+                                          "y": 1800,
+                                          "name": "Decision log: task created (outside owner)"
+                                        }
+                                      }
+                                    }
+                                  ]
+                                },
+                                {
+                                  "flow": [
+                                    {
+                                      "id": 42,
+                                      "module": "http:MakeRequest",
+                                      "version": 4,
+                                      "parameters": {},
+                                      "mapper": {
+                                        "url": "{{2.result.tasks_url}}/tasks",
+                                        "method": "post",
+                                        "timeout": "40",
+                                        "parseResponse": true,
+                                        "stopOnHttpError": true,
+                                        "allowRedirects": true,
+                                        "shareCookies": false,
+                                        "requestCompressedContent": true,
+                                        "contentType": "json",
+                                        "inputMethod": "jsonString",
+                                        "jsonStringBodyContent": "{{13.task_body}}"
+                                      },
+                                      "metadata": {
+                                        "designer": {
+                                          "x": 4500,
+                                          "y": 2400,
+                                          "name": "Step 7: Create the task, second try (outside owner)"
+                                        }
+                                      },
+                                      "onerror": [
+                                        {
+                                          "id": 37,
+                                          "module": "http:MakeRequest",
+                                          "version": 4,
+                                          "parameters": {},
+                                          "mapper": {
+                                            "url": "{{2.result.table_api_url}}/exception_queue",
+                                            "method": "post",
+                                            "timeout": "40",
+                                            "parseResponse": false,
+                                            "stopOnHttpError": true,
+                                            "allowRedirects": true,
+                                            "shareCookies": false,
+                                            "requestCompressedContent": true,
+                                            "contentType": "json",
+                                            "inputMethod": "jsonString",
+                                            "jsonStringBodyContent": "{{13.task_error}}"
+                                          },
+                                          "metadata": {
+                                            "designer": {
+                                              "x": 4500,
+                                              "y": 2700,
+                                              "name": "Step 9: Exception queue: task system error (create, outside owner)"
+                                            }
+                                          }
+                                        },
+                                        {
+                                          "id": 40,
+                                          "module": "http:MakeRequest",
+                                          "version": 4,
+                                          "parameters": {},
+                                          "mapper": {
+                                            "url": "{{2.result.messaging_url}}/messages",
+                                            "method": "post",
+                                            "timeout": "40",
+                                            "parseResponse": false,
+                                            "stopOnHttpError": true,
+                                            "allowRedirects": true,
+                                            "shareCookies": false,
+                                            "requestCompressedContent": true,
+                                            "contentType": "json",
+                                            "inputMethod": "jsonString",
+                                            "jsonStringBodyContent": "{{13.task_error_message}}"
+                                          },
+                                          "metadata": {
+                                            "designer": {
+                                              "x": 4800,
+                                              "y": 2700,
+                                              "name": "Step 9: Tell the chair (create, outside owner)"
+                                            }
+                                          },
+                                          "onerror": [
+                                            {
+                                              "id": 38,
+                                              "module": "http:MakeRequest",
+                                              "version": 4,
+                                              "parameters": {},
+                                              "mapper": {
+                                                "url": "{{2.result.table_api_url}}/exception_queue",
+                                                "method": "post",
+                                                "timeout": "40",
+                                                "parseResponse": false,
+                                                "stopOnHttpError": true,
+                                                "allowRedirects": true,
+                                                "shareCookies": false,
+                                                "requestCompressedContent": true,
+                                                "contentType": "json",
+                                                "inputMethod": "jsonString",
+                                                "jsonStringBodyContent": "{{13.write_failed}}"
+                                              },
+                                              "metadata": {
+                                                "designer": {
+                                                  "x": 4800,
+                                                  "y": 3000,
+                                                  "name": "Step 9: Tell the chair (create, outside owner): exception queue"
+                                                }
+                                              }
+                                            },
+                                            {
+                                              "id": 39,
+                                              "module": "builtin:Ignore",
+                                              "version": 1,
+                                              "metadata": {
+                                                "designer": {
+                                                  "x": 5100,
+                                                  "y": 3000
+                                                }
+                                              }
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "id": 41,
+                                          "module": "builtin:Ignore",
+                                          "version": 1,
+                                          "metadata": {
+                                            "designer": {
+                                              "x": 5100,
+                                              "y": 2700
+                                            }
+                                          }
+                                        }
+                                      ],
+                                      "filter": {
+                                        "name": "task system error",
+                                        "conditions": [
+                                          [
+                                            {
+                                              "a": "{{36.statusCode}}",
+                                              "b": "300",
+                                              "o": "number:greaterorequal"
+                                            }
+                                          ]
+                                        ]
+                                      }
+                                    },
+                                    {
+                                      "id": 53,
+                                      "module": "http:MakeRequest",
+                                      "version": 4,
+                                      "parameters": {},
+                                      "mapper": {
+                                        "url": "{{2.result.actions_url}}/items/{{13.item_q}}",
+                                        "method": "patch",
+                                        "timeout": "40",
+                                        "parseResponse": false,
+                                        "stopOnHttpError": true,
+                                        "allowRedirects": true,
+                                        "shareCookies": false,
+                                        "requestCompressedContent": true,
+                                        "contentType": "json",
+                                        "inputMethod": "jsonString",
+                                        "jsonStringBodyContent": "{{replace(13.created_body; \"__TASK_ID__\"; 42.data.id)}}"
+                                      },
+                                      "metadata": {
+                                        "designer": {
+                                          "x": 4800,
+                                          "y": 2400,
+                                          "name": "Step 8: Write task ID back (outside owner, second try)"
+                                        }
+                                      },
+                                      "onerror": [
+                                        {
+                                          "id": 51,
+                                          "module": "http:MakeRequest",
+                                          "version": 4,
+                                          "parameters": {},
+                                          "mapper": {
+                                            "url": "{{2.result.table_api_url}}/exception_queue",
+                                            "method": "post",
+                                            "timeout": "40",
+                                            "parseResponse": false,
+                                            "stopOnHttpError": true,
+                                            "allowRedirects": true,
+                                            "shareCookies": false,
+                                            "requestCompressedContent": true,
+                                            "contentType": "json",
+                                            "inputMethod": "jsonString",
+                                            "jsonStringBodyContent": "{{13.write_failed}}"
+                                          },
+                                          "metadata": {
+                                            "designer": {
+                                              "x": 4800,
+                                              "y": 2700,
+                                              "name": "Step 8: Write task ID back (outside owner, second try): exception queue"
+                                            }
+                                          }
+                                        },
+                                        {
+                                          "id": 52,
+                                          "module": "builtin:Ignore",
+                                          "version": 1,
+                                          "metadata": {
+                                            "designer": {
+                                              "x": 5100,
+                                              "y": 2700
+                                            }
+                                          }
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "id": 54,
+                                      "module": "http:MakeRequest",
+                                      "version": 4,
+                                      "parameters": {},
+                                      "mapper": {
+                                        "url": "{{2.result.table_api_url}}/decision_log",
+                                        "method": "post",
+                                        "timeout": "40",
+                                        "parseResponse": false,
+                                        "stopOnHttpError": true,
+                                        "allowRedirects": true,
+                                        "shareCookies": false,
+                                        "requestCompressedContent": true,
+                                        "contentType": "json",
+                                        "inputMethod": "jsonString",
+                                        "jsonStringBodyContent": "{{replace(13.log_created; \"__TASK_ID__\"; 42.data.id)}}"
+                                      },
+                                      "metadata": {
+                                        "designer": {
+                                          "x": 5100,
+                                          "y": 2400,
+                                          "name": "Decision log: task created (outside owner, second try)"
+                                        }
+                                      }
+                                    }
+                                  ]
+                                }
+                              ],
+                              "metadata": {
+                                "designer": {
+                                  "x": 4200,
+                                  "y": 1800,
+                                  "name": "Created? (outside owner)"
+                                }
+                              }
+                            }
+                          ]
+                        }
+                      ],
+                      "metadata": {
+                        "designer": {
+                          "x": 3600,
+                          "y": 1200,
+                          "name": "Task found? (outside owner)"
+                        }
+                      }
+                    }
+                  ]
+                },
+                {
+                  "flow": [
+                    {
+                      "id": 62,
+                      "module": "http:MakeRequest",
+                      "version": 4,
+                      "parameters": {},
+                      "mapper": {
+                        "url": "{{2.result.tasks_url}}/tasks",
+                        "method": "get",
+                        "timeout": "40",
+                        "parseResponse": true,
+                        "stopOnHttpError": true,
+                        "allowRedirects": true,
+                        "shareCookies": false,
+                        "requestCompressedContent": true,
+                        "queryParameters": [
+                          {
+                            "name": "_wrap",
+                            "value": "1"
+                          },
+                          {
+                            "name": "item_id",
+                            "value": "{{13.item_id}}"
+                          }
+                        ]
+                      },
+                      "metadata": {
+                        "designer": {
+                          "x": 3000,
+                          "y": 3300,
+                          "name": "Step 6: Search tasks for the item ID (staff owner)"
+                        }
+                      },
+                      "onerror": [
+                        {
+                          "id": 57,
+                          "module": "http:MakeRequest",
+                          "version": 4,
+                          "parameters": {},
+                          "mapper": {
+                            "url": "{{2.result.table_api_url}}/exception_queue",
+                            "method": "post",
+                            "timeout": "40",
+                            "parseResponse": false,
+                            "stopOnHttpError": true,
+                            "allowRedirects": true,
+                            "shareCookies": false,
+                            "requestCompressedContent": true,
+                            "contentType": "json",
+                            "inputMethod": "jsonString",
+                            "jsonStringBodyContent": "{{13.task_error}}"
+                          },
+                          "metadata": {
+                            "designer": {
+                              "x": 3000,
+                              "y": 3600,
+                              "name": "Step 9: Exception queue: task system error (search, staff owner)"
+                            }
+                          }
+                        },
+                        {
+                          "id": 60,
+                          "module": "http:MakeRequest",
+                          "version": 4,
+                          "parameters": {},
+                          "mapper": {
+                            "url": "{{2.result.messaging_url}}/messages",
+                            "method": "post",
+                            "timeout": "40",
+                            "parseResponse": false,
+                            "stopOnHttpError": true,
+                            "allowRedirects": true,
+                            "shareCookies": false,
+                            "requestCompressedContent": true,
+                            "contentType": "json",
+                            "inputMethod": "jsonString",
+                            "jsonStringBodyContent": "{{13.task_error_message}}"
+                          },
+                          "metadata": {
+                            "designer": {
+                              "x": 3300,
+                              "y": 3600,
+                              "name": "Step 9: Tell the chair (search, staff owner)"
+                            }
+                          },
+                          "onerror": [
+                            {
+                              "id": 58,
+                              "module": "http:MakeRequest",
+                              "version": 4,
+                              "parameters": {},
+                              "mapper": {
+                                "url": "{{2.result.table_api_url}}/exception_queue",
+                                "method": "post",
+                                "timeout": "40",
+                                "parseResponse": false,
+                                "stopOnHttpError": true,
+                                "allowRedirects": true,
+                                "shareCookies": false,
+                                "requestCompressedContent": true,
+                                "contentType": "json",
+                                "inputMethod": "jsonString",
+                                "jsonStringBodyContent": "{{13.write_failed}}"
+                              },
+                              "metadata": {
+                                "designer": {
+                                  "x": 3300,
+                                  "y": 3900,
+                                  "name": "Step 9: Tell the chair (search, staff owner): exception queue"
+                                }
+                              }
+                            },
+                            {
+                              "id": 59,
+                              "module": "builtin:Ignore",
+                              "version": 1,
+                              "metadata": {
+                                "designer": {
+                                  "x": 3600,
+                                  "y": 3900
+                                }
+                              }
+                            }
+                          ]
+                        },
+                        {
+                          "id": 61,
+                          "module": "builtin:Ignore",
+                          "version": 1,
+                          "metadata": {
+                            "designer": {
+                              "x": 3600,
+                              "y": 3600
+                            }
+                          }
+                        }
+                      ],
+                      "filter": {
+                        "name": "route is task",
+                        "conditions": [
+                          [
+                            {
+                              "a": "{{13.route}}",
+                              "b": "task",
+                              "o": "text:equal"
+                            }
+                          ]
+                        ]
+                      }
+                    },
+                    {
+                      "id": 83,
+                      "module": "builtin:BasicRouter",
+                      "version": 1,
+                      "mapper": null,
+                      "routes": [
+                        {
+                          "flow": [
+                            {
+                              "id": 72,
+                              "module": "http:MakeRequest",
+                              "version": 4,
+                              "parameters": {},
+                              "mapper": {
+                                "url": "{{2.result.actions_url}}/items/{{13.item_q}}",
+                                "method": "patch",
+                                "timeout": "40",
+                                "parseResponse": false,
+                                "stopOnHttpError": true,
+                                "allowRedirects": true,
+                                "shareCookies": false,
+                                "requestCompressedContent": true,
+                                "contentType": "json",
+                                "inputMethod": "jsonString",
+                                "jsonStringBodyContent": "{{replace(13.found_body; \"__TASK_ID__\"; 62.data.items[1].id)}}"
+                              },
+                              "metadata": {
+                                "designer": {
+                                  "x": 3600,
+                                  "y": 3300,
+                                  "name": "Step 6: Write the found task ID back (staff owner)"
+                                }
+                              },
+                              "onerror": [
+                                {
+                                  "id": 70,
+                                  "module": "http:MakeRequest",
+                                  "version": 4,
+                                  "parameters": {},
+                                  "mapper": {
+                                    "url": "{{2.result.table_api_url}}/exception_queue",
+                                    "method": "post",
+                                    "timeout": "40",
+                                    "parseResponse": false,
+                                    "stopOnHttpError": true,
+                                    "allowRedirects": true,
+                                    "shareCookies": false,
+                                    "requestCompressedContent": true,
+                                    "contentType": "json",
+                                    "inputMethod": "jsonString",
+                                    "jsonStringBodyContent": "{{13.write_failed}}"
+                                  },
+                                  "metadata": {
+                                    "designer": {
+                                      "x": 3600,
+                                      "y": 3600,
+                                      "name": "Step 6: Write the found task ID back (staff owner): exception queue"
+                                    }
+                                  }
+                                },
+                                {
+                                  "id": 71,
+                                  "module": "builtin:Ignore",
+                                  "version": 1,
+                                  "metadata": {
+                                    "designer": {
+                                      "x": 3900,
+                                      "y": 3600
+                                    }
+                                  }
+                                }
+                              ],
+                              "filter": {
+                                "name": "task found",
+                                "conditions": [
+                                  [
+                                    {
+                                      "a": "{{length(62.data.items)}}",
+                                      "b": "0",
+                                      "o": "number:greater"
+                                    }
+                                  ]
+                                ]
+                              }
+                            },
+                            {
+                              "id": 73,
+                              "module": "http:MakeRequest",
+                              "version": 4,
+                              "parameters": {},
+                              "mapper": {
+                                "url": "{{2.result.table_api_url}}/decision_log",
+                                "method": "post",
+                                "timeout": "40",
+                                "parseResponse": false,
+                                "stopOnHttpError": true,
+                                "allowRedirects": true,
+                                "shareCookies": false,
+                                "requestCompressedContent": true,
+                                "contentType": "json",
+                                "inputMethod": "jsonString",
+                                "jsonStringBodyContent": "{{replace(13.log_found; \"__TASK_ID__\"; 62.data.items[1].id)}}"
+                              },
+                              "metadata": {
+                                "designer": {
+                                  "x": 3900,
+                                  "y": 3300,
+                                  "name": "Decision log: task found (staff owner)"
+                                }
+                              }
+                            }
+                          ]
+                        },
+                        {
+                          "flow": [
+                            {
+                              "id": 63,
+                              "module": "http:MakeRequest",
+                              "version": 4,
+                              "parameters": {},
+                              "mapper": {
+                                "url": "{{2.result.tasks_url}}/tasks",
+                                "method": "post",
+                                "timeout": "40",
+                                "parseResponse": true,
+                                "stopOnHttpError": false,
+                                "allowRedirects": true,
+                                "shareCookies": false,
+                                "requestCompressedContent": true,
+                                "contentType": "json",
+                                "inputMethod": "jsonString",
+                                "jsonStringBodyContent": "{{13.task_body}}"
+                              },
+                              "metadata": {
+                                "designer": {
+                                  "x": 3600,
+                                  "y": 3900,
+                                  "name": "Step 7: Create the task (staff owner)"
+                                }
+                              },
+                              "filter": {
+                                "name": "no task",
+                                "conditions": [
+                                  [
+                                    {
+                                      "a": "{{length(62.data.items)}}",
+                                      "b": "0",
+                                      "o": "number:equal"
+                                    }
+                                  ]
+                                ]
+                              }
+                            },
+                            {
+                              "id": 82,
+                              "module": "builtin:BasicRouter",
+                              "version": 1,
+                              "mapper": null,
+                              "routes": [
+                                {
+                                  "flow": [
+                                    {
+                                      "id": 76,
+                                      "module": "http:MakeRequest",
+                                      "version": 4,
+                                      "parameters": {},
+                                      "mapper": {
+                                        "url": "{{2.result.actions_url}}/items/{{13.item_q}}",
+                                        "method": "patch",
+                                        "timeout": "40",
+                                        "parseResponse": false,
+                                        "stopOnHttpError": true,
+                                        "allowRedirects": true,
+                                        "shareCookies": false,
+                                        "requestCompressedContent": true,
+                                        "contentType": "json",
+                                        "inputMethod": "jsonString",
+                                        "jsonStringBodyContent": "{{replace(13.created_body; \"__TASK_ID__\"; 63.data.id)}}"
+                                      },
+                                      "metadata": {
+                                        "designer": {
+                                          "x": 4200,
+                                          "y": 3900,
+                                          "name": "Step 8: Write task ID back (staff owner)"
+                                        }
+                                      },
+                                      "onerror": [
+                                        {
+                                          "id": 74,
+                                          "module": "http:MakeRequest",
+                                          "version": 4,
+                                          "parameters": {},
+                                          "mapper": {
+                                            "url": "{{2.result.table_api_url}}/exception_queue",
+                                            "method": "post",
+                                            "timeout": "40",
+                                            "parseResponse": false,
+                                            "stopOnHttpError": true,
+                                            "allowRedirects": true,
+                                            "shareCookies": false,
+                                            "requestCompressedContent": true,
+                                            "contentType": "json",
+                                            "inputMethod": "jsonString",
+                                            "jsonStringBodyContent": "{{13.write_failed}}"
+                                          },
+                                          "metadata": {
+                                            "designer": {
+                                              "x": 4200,
+                                              "y": 4200,
+                                              "name": "Step 8: Write task ID back (staff owner): exception queue"
+                                            }
+                                          }
+                                        },
+                                        {
+                                          "id": 75,
+                                          "module": "builtin:Ignore",
+                                          "version": 1,
+                                          "metadata": {
+                                            "designer": {
+                                              "x": 4500,
+                                              "y": 4200
+                                            }
+                                          }
+                                        }
+                                      ],
+                                      "filter": {
+                                        "name": "created",
+                                        "conditions": [
+                                          [
+                                            {
+                                              "a": "{{63.statusCode}}",
+                                              "b": "300",
+                                              "o": "number:less"
+                                            }
+                                          ]
+                                        ]
+                                      }
+                                    },
+                                    {
+                                      "id": 77,
+                                      "module": "http:MakeRequest",
+                                      "version": 4,
+                                      "parameters": {},
+                                      "mapper": {
+                                        "url": "{{2.result.table_api_url}}/decision_log",
+                                        "method": "post",
+                                        "timeout": "40",
+                                        "parseResponse": false,
+                                        "stopOnHttpError": true,
+                                        "allowRedirects": true,
+                                        "shareCookies": false,
+                                        "requestCompressedContent": true,
+                                        "contentType": "json",
+                                        "inputMethod": "jsonString",
+                                        "jsonStringBodyContent": "{{replace(13.log_created; \"__TASK_ID__\"; 63.data.id)}}"
+                                      },
+                                      "metadata": {
+                                        "designer": {
+                                          "x": 4500,
+                                          "y": 3900,
+                                          "name": "Decision log: task created (staff owner)"
+                                        }
+                                      }
+                                    }
+                                  ]
+                                },
+                                {
+                                  "flow": [
+                                    {
+                                      "id": 69,
+                                      "module": "http:MakeRequest",
+                                      "version": 4,
+                                      "parameters": {},
+                                      "mapper": {
+                                        "url": "{{2.result.tasks_url}}/tasks",
+                                        "method": "post",
+                                        "timeout": "40",
+                                        "parseResponse": true,
+                                        "stopOnHttpError": true,
+                                        "allowRedirects": true,
+                                        "shareCookies": false,
+                                        "requestCompressedContent": true,
+                                        "contentType": "json",
+                                        "inputMethod": "jsonString",
+                                        "jsonStringBodyContent": "{{13.task_body}}"
+                                      },
+                                      "metadata": {
+                                        "designer": {
+                                          "x": 4200,
+                                          "y": 4500,
+                                          "name": "Step 7: Create the task, second try (staff owner)"
+                                        }
+                                      },
+                                      "onerror": [
+                                        {
+                                          "id": 64,
+                                          "module": "http:MakeRequest",
+                                          "version": 4,
+                                          "parameters": {},
+                                          "mapper": {
+                                            "url": "{{2.result.table_api_url}}/exception_queue",
+                                            "method": "post",
+                                            "timeout": "40",
+                                            "parseResponse": false,
+                                            "stopOnHttpError": true,
+                                            "allowRedirects": true,
+                                            "shareCookies": false,
+                                            "requestCompressedContent": true,
+                                            "contentType": "json",
+                                            "inputMethod": "jsonString",
+                                            "jsonStringBodyContent": "{{13.task_error}}"
+                                          },
+                                          "metadata": {
+                                            "designer": {
+                                              "x": 4200,
+                                              "y": 4800,
+                                              "name": "Step 9: Exception queue: task system error (create, staff owner)"
+                                            }
+                                          }
+                                        },
+                                        {
+                                          "id": 67,
+                                          "module": "http:MakeRequest",
+                                          "version": 4,
+                                          "parameters": {},
+                                          "mapper": {
+                                            "url": "{{2.result.messaging_url}}/messages",
+                                            "method": "post",
+                                            "timeout": "40",
+                                            "parseResponse": false,
+                                            "stopOnHttpError": true,
+                                            "allowRedirects": true,
+                                            "shareCookies": false,
+                                            "requestCompressedContent": true,
+                                            "contentType": "json",
+                                            "inputMethod": "jsonString",
+                                            "jsonStringBodyContent": "{{13.task_error_message}}"
+                                          },
+                                          "metadata": {
+                                            "designer": {
+                                              "x": 4500,
+                                              "y": 4800,
+                                              "name": "Step 9: Tell the chair (create, staff owner)"
+                                            }
+                                          },
+                                          "onerror": [
+                                            {
+                                              "id": 65,
+                                              "module": "http:MakeRequest",
+                                              "version": 4,
+                                              "parameters": {},
+                                              "mapper": {
+                                                "url": "{{2.result.table_api_url}}/exception_queue",
+                                                "method": "post",
+                                                "timeout": "40",
+                                                "parseResponse": false,
+                                                "stopOnHttpError": true,
+                                                "allowRedirects": true,
+                                                "shareCookies": false,
+                                                "requestCompressedContent": true,
+                                                "contentType": "json",
+                                                "inputMethod": "jsonString",
+                                                "jsonStringBodyContent": "{{13.write_failed}}"
+                                              },
+                                              "metadata": {
+                                                "designer": {
+                                                  "x": 4500,
+                                                  "y": 5100,
+                                                  "name": "Step 9: Tell the chair (create, staff owner): exception queue"
+                                                }
+                                              }
+                                            },
+                                            {
+                                              "id": 66,
+                                              "module": "builtin:Ignore",
+                                              "version": 1,
+                                              "metadata": {
+                                                "designer": {
+                                                  "x": 4800,
+                                                  "y": 5100
+                                                }
+                                              }
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "id": 68,
+                                          "module": "builtin:Ignore",
+                                          "version": 1,
+                                          "metadata": {
+                                            "designer": {
+                                              "x": 4800,
+                                              "y": 4800
+                                            }
+                                          }
+                                        }
+                                      ],
+                                      "filter": {
+                                        "name": "task system error",
+                                        "conditions": [
+                                          [
+                                            {
+                                              "a": "{{63.statusCode}}",
+                                              "b": "300",
+                                              "o": "number:greaterorequal"
+                                            }
+                                          ]
+                                        ]
+                                      }
+                                    },
+                                    {
+                                      "id": 80,
+                                      "module": "http:MakeRequest",
+                                      "version": 4,
+                                      "parameters": {},
+                                      "mapper": {
+                                        "url": "{{2.result.actions_url}}/items/{{13.item_q}}",
+                                        "method": "patch",
+                                        "timeout": "40",
+                                        "parseResponse": false,
+                                        "stopOnHttpError": true,
+                                        "allowRedirects": true,
+                                        "shareCookies": false,
+                                        "requestCompressedContent": true,
+                                        "contentType": "json",
+                                        "inputMethod": "jsonString",
+                                        "jsonStringBodyContent": "{{replace(13.created_body; \"__TASK_ID__\"; 69.data.id)}}"
+                                      },
+                                      "metadata": {
+                                        "designer": {
+                                          "x": 4500,
+                                          "y": 4500,
+                                          "name": "Step 8: Write task ID back (staff owner, second try)"
+                                        }
+                                      },
+                                      "onerror": [
+                                        {
+                                          "id": 78,
+                                          "module": "http:MakeRequest",
+                                          "version": 4,
+                                          "parameters": {},
+                                          "mapper": {
+                                            "url": "{{2.result.table_api_url}}/exception_queue",
+                                            "method": "post",
+                                            "timeout": "40",
+                                            "parseResponse": false,
+                                            "stopOnHttpError": true,
+                                            "allowRedirects": true,
+                                            "shareCookies": false,
+                                            "requestCompressedContent": true,
+                                            "contentType": "json",
+                                            "inputMethod": "jsonString",
+                                            "jsonStringBodyContent": "{{13.write_failed}}"
+                                          },
+                                          "metadata": {
+                                            "designer": {
+                                              "x": 4500,
+                                              "y": 4800,
+                                              "name": "Step 8: Write task ID back (staff owner, second try): exception queue"
+                                            }
+                                          }
+                                        },
+                                        {
+                                          "id": 79,
+                                          "module": "builtin:Ignore",
+                                          "version": 1,
+                                          "metadata": {
+                                            "designer": {
+                                              "x": 4800,
+                                              "y": 4800
+                                            }
+                                          }
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "id": 81,
+                                      "module": "http:MakeRequest",
+                                      "version": 4,
+                                      "parameters": {},
+                                      "mapper": {
+                                        "url": "{{2.result.table_api_url}}/decision_log",
+                                        "method": "post",
+                                        "timeout": "40",
+                                        "parseResponse": false,
+                                        "stopOnHttpError": true,
+                                        "allowRedirects": true,
+                                        "shareCookies": false,
+                                        "requestCompressedContent": true,
+                                        "contentType": "json",
+                                        "inputMethod": "jsonString",
+                                        "jsonStringBodyContent": "{{replace(13.log_created; \"__TASK_ID__\"; 69.data.id)}}"
+                                      },
+                                      "metadata": {
+                                        "designer": {
+                                          "x": 4800,
+                                          "y": 4500,
+                                          "name": "Decision log: task created (staff owner, second try)"
+                                        }
+                                      }
+                                    }
+                                  ]
+                                }
+                              ],
+                              "metadata": {
+                                "designer": {
+                                  "x": 3900,
+                                  "y": 3900,
+                                  "name": "Created? (staff owner)"
+                                }
+                              }
+                            }
+                          ]
+                        }
+                      ],
+                      "metadata": {
+                        "designer": {
+                          "x": 3300,
+                          "y": 3300,
+                          "name": "Task found? (staff owner)"
+                        }
+                      }
+                    }
+                  ]
+                }
+              ],
+              "metadata": {
+                "designer": {
+                  "x": 2700,
+                  "y": 0,
+                  "name": "Route"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "flow": [
+            {
+              "id": 86,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.actions_url}}/items",
+                "method": "get",
+                "timeout": "40",
+                "parseResponse": true,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "queryParameters": [
+                  {
+                    "name": "_wrap",
+                    "value": "1"
+                  },
+                  {
+                    "name": "occurrence_id",
+                    "value": "{{1.occurrence_id}}"
+                  }
+                ]
+              },
+              "metadata": {
+                "designer": {
+                  "x": 2400,
+                  "y": 5400,
+                  "name": "Step 8: Read the list again"
+                }
+              },
+              "onerror": [
+                {
+                  "id": 85,
+                  "module": "builtin:Break",
+                  "version": 1,
+                  "parameters": {},
+                  "mapper": {
+                    "count": "3",
+                    "retry": true,
+                    "interval": "1"
+                  },
+                  "metadata": {
+                    "designer": {
+                      "x": 2400,
+                      "y": 5700
+                    }
+                  }
+                }
+              ],
+              "filter": {
+                "name": "the list was verified by its chair or backup",
+                "conditions": [
+                  [
+                    {
+                      "a": "{{length(12.result.items)}}",
+                      "b": "0",
+                      "o": "number:greater"
+                    },
+                    {
+                      "a": "{{12.result.items[1].route}}",
+                      "b": "refuse",
+                      "o": "text:notequal"
+                    }
+                  ]
+                ]
+              }
+            },
+            {
+              "id": 87,
+              "module": "code:ExecuteCode",
+              "version": 1,
+              "parameters": {},
+              "mapper": {
+                "language": "javascript",
+                "inputFormat": "editor",
+                "dependencies": [],
+                "codeEditorJavascript": "// Adapter: the rule below is the same JavaScript as the recipe's n8n build.\n// $('Step name') answers from this step's inputs: each is that step's output in this scenario.\nconst SOURCES = {\"Steps 2 to 5: Rules\": \"in0_Steps2to5Rules\", \"Step 8: Read the list again\": \"in1_Step8Readthelistagain\"};\nconst LISTS = [\"Steps 2 to 5: Rules\"];\nconst EXECUTED = [];\nconst DATA = {};\nfor (const [node, key] of Object.entries(SOURCES)) {\n  const raw = input[key];\n  let v = raw;\n  if (typeof raw === 'string') { try { v = JSON.parse(raw); } catch (e) { v = raw; } }\n  DATA[node] = LISTS.includes(node) ? (v || []).map(i => (i && i.json !== undefined ? i : { json: i })) : [{ json: v }];\n}\nconst $ = (node) => {\n  const ran = node in DATA || EXECUTED.includes(node);\n  const list = () => { if (!(node in DATA)) throw new Error(`step ${node} has no data in this scenario`); return DATA[node]; };\n  return { isExecuted: ran, first: () => list()[0], last: () => list()[list().length - 1], all: () => list(),\n           get item() { return list()[0]; } };\n};\nconst INPUT = \"Step 8: Read the list again\";\nconst $input = { all: () => $(INPUT).all(), first: () => $(INPUT).first(), last: () => $(INPUT).last(), get item() { return $(INPUT).first(); } };\nconst $execution = { id: input.run_id };\n// The n8n build's inputs for this step: each created task and its rules item, in the list's order.\nconst __rules = DATA['Steps 2 to 5: Rules'].map(i => i.json);\nconst __created = (DATA['Step 8: Read the list again'][0].json.items || [])\n  .filter(it => it.task_id && it.verified_at === (__rules[0] || {}).stamp)\n  .map(it => ({ item: it, rule: __rules.find(r => r.item_id === it.id) })).filter(c => c.rule);\nDATA['Step 7: Create the task'] = __created.map(c => ({ json: { id: c.item.task_id } }));\nDATA['Steps 2 to 5: Rules'] = __created.map(c => ({ json: c.rule }));\nconst BODIES = (out) => ({\"message\": JSON.stringify({ to: [out.to], subject: out.count + ' new task(s) from ' + out.series, text: out.text })});\nconst one = (r) => (Array.isArray(r) ? r : [r]).filter(Boolean).map(i => (i.json !== undefined ? i.json : i));\nconst $json = INPUT && INPUT in DATA ? $input.first().json : {};\nconst __rule = () => {\nconst __outer = $;\n{\nconst $ = (node) => Object.assign(__outer(node), { itemMatching: (i) => __outer(node).all()[i] });\nconst $input = { all: () => $('Step 7: Create the task').all() };\n// Step 8: one message to each owner, listing all of their new tasks.\nconst groups = {};\n$input.all().forEach((_, i) => {\n  const r = $('Steps 2 to 5: Rules').itemMatching(i).json;\n  const task = $('Step 7: Create the task').itemMatching(i).json;\n  (groups[r.task_email] = groups[r.task_email] || { to: r.task_email, series: r.series, lines: [], first: i })\n    .lines.push(`- ${r.title}, due ${r.due_date} (task ${task.id}; source ${r.source_link})`);\n});\nreturn Object.values(groups).map(g => ({ json: { to: g.to, series: g.series, count: g.lines.length, text: g.lines.join('\\n') }, pairedItem: { item: g.first } }));\n}\n};\nreturn { items: one(__rule()).map(o => Object.assign({}, o, BODIES(o))) };\n",
+                "input": [
+                  {
+                    "name": "in0_Steps2to5Rules",
+                    "value": "{{12.result.items}}"
+                  },
+                  {
+                    "name": "in1_Step8Readthelistagain",
+                    "value": "{{86.data}}"
+                  },
+                  {
+                    "name": "run_id",
+                    "value": "{{var.scenario.executionId}}"
+                  }
+                ]
+              },
+              "metadata": {
+                "designer": {
+                  "x": 2700,
+                  "y": 5400,
+                  "name": "Step 8: One message per owner"
+                }
+              }
+            },
+            {
+              "id": 88,
+              "module": "builtin:BasicFeeder",
+              "version": 1,
+              "parameters": {},
+              "mapper": {
+                "array": "{{87.result.items}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 3000,
+                  "y": 5400,
+                  "name": "Each owner"
+                }
+              }
+            },
+            {
+              "id": 91,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.messaging_url}}/messages",
+                "method": "post",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{88.message}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 3300,
+                  "y": 5400,
+                  "name": "Step 8: Tell each owner"
+                }
+              },
+              "onerror": [
+                {
+                  "id": 89,
+                  "module": "http:MakeRequest",
+                  "version": 4,
+                  "parameters": {},
+                  "mapper": {
+                    "url": "{{2.result.table_api_url}}/exception_queue",
+                    "method": "post",
+                    "timeout": "40",
+                    "parseResponse": false,
+                    "stopOnHttpError": true,
+                    "allowRedirects": true,
+                    "shareCookies": false,
+                    "requestCompressedContent": true,
+                    "contentType": "json",
+                    "inputMethod": "jsonString",
+                    "jsonStringBodyContent": "{{12.result.items[1].write_failed}}"
+                  },
+                  "metadata": {
+                    "designer": {
+                      "x": 3300,
+                      "y": 5700,
+                      "name": "Exception queue: write failed (owner message)"
+                    }
+                  }
+                },
+                {
+                  "id": 90,
+                  "module": "builtin:Ignore",
+                  "version": 1,
+                  "metadata": {
+                    "designer": {
+                      "x": 3600,
+                      "y": 5700
+                    }
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "designer": {
+          "x": 2100,
+          "y": 0,
+          "name": "Items, then owners"
+        }
+      }
+    }
+  ],
+  "metadata": {
+    "instant": true,
+    "version": 1,
+    "designer": {
+      "orphans": []
+    },
+    "scenario": {
+      "dlq": true,
+      "slots": null,
+      "dataloss": false,
+      "maxErrors": 3,
+      "autoCommit": true,
+      "roundtrips": 1,
+      "sequential": true,
+      "confidential": false,
+      "freshVariables": false,
+      "autoCommitTriggerLast": true
+    }
+  }
+}

@@ -12,7 +12,7 @@ It never moves a date, reassigns or closes a task, or reminds twice for one date
 |---|---|---|
 | Tool-neutral | `build-spec.md` | Available |
 | n8n | [`n8n/workflow.json`](n8n/workflow.json) | Available: golden set passed on n8n 2.42.7, 2026-10-19 ([report](n8n/test-report.md)) |
-| Make | `make/blueprint.json` | Not yet available |
+| Make | [`make/blueprint.json`](make/blueprint.json) and [`make/friday.blueprint.json`](make/friday.blueprint.json) and [`make/morning.blueprint.json`](make/morning.blueprint.json) | Available: golden set passed on Make (Core plan), 2026-10-25 ([report](make/test-report.md)) |
 | Power Automate | `power-automate/` | Not yet available |
 | Zapier | `zapier.md` | Not yet available |
 

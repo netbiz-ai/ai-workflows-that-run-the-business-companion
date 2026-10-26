@@ -3,6 +3,9 @@
 
     python3 tools/make/golden_make.py R11.2            build, test, write report
     python3 tools/make/golden_make.py R11.2 --build    only write recipes/R11.2/make/*.json
+    python3 tools/make/golden_make.py R11.2 --case Normal --case Edge
+                                                       run only these cases (to debug for fewer
+                                                       credits); never writes the report
 
 The golden set is the recipe's n8n one (recipes/<ID>/n8n/tests.json): the same seeds,
 triggers and expectations, checked against the same mock systems and tables. Make runs
@@ -14,11 +17,15 @@ stack's public test route. Environment:
     TABLE_API_URL      the key log, decision log and exception queue over PostgREST
                        (default MOCKS_PUBLIC_URL + /db)
     MAKE_PLAN (default Core)  the plan the report is stamped with (Make has no versions)
+    MAKE_ADOPT_SCENARIOS  existing scenario IDs to take over as test slots (see slots())
+    MAKE_ORG_ID  MAKE_MIN_CREDITS (default 1500): refuse to start below this many credits left
     MOCKS_URL, PG_CONTAINER as for tools/n8n/golden.py (the runner's own view)
 
 What is committed (make/*.json) is the builder's output with the reader's defaults in
 each Config step and no webhook chosen. What is tested is the same blueprint with two
 changes only: Config points at the mock systems, and the webhook step has a test hook.
+Every run loads its blueprints into a few kept test slots (see slots()), first the reader's
+copy as the import check and then the test copy, because Make limits scenario creation.
 A schedule scenario is run on demand, which is what its schedule would do at 07:00.
 The report lists the date, every case's result and the Make credits each case used.
 """
@@ -60,6 +67,9 @@ def make(method: str, path: str, body=None):
                 return json.loads(raw) if raw else {}
         except urllib.error.HTTPError as e:
             raw = e.read().decode()
+            if e.code == 429 and "IM011" in raw:  # the creation limit: waiting seconds will not lift it
+                raise RuntimeError(f"Make {method} {path} -> 429 IM011: Make's limit on creating scenarios is reached; "
+                                   "try again later (the window is not documented)") from None
             if e.code == 429 and attempt < 5:
                 time.sleep(15 * (attempt + 1))
                 continue
@@ -97,9 +107,9 @@ def set_config(bp: dict, values: dict) -> None:
 
 
 def public(v):
-    """{mocks} -> the mocks as Make reaches them."""
+    """{mocks}, and the stack-internal mocks address some golden sets spell out, -> the mocks as Make reaches them."""
     if isinstance(v, str):
-        return v.replace("{mocks}", MOCKS_PUBLIC)
+        return v.replace("{mocks}", MOCKS_PUBLIC).replace(golden.MOCKS_IN, MOCKS_PUBLIC)
     if isinstance(v, list):
         return [public(x) for x in v]
     if isinstance(v, dict):
@@ -107,29 +117,55 @@ def public(v):
     return v
 
 
-def create(bp: dict, scheduling: dict) -> int:
-    r = make("POST", "/scenarios?confirmed=true",
-             {"teamId": team(), "blueprint": json.dumps(bp), "scheduling": json.dumps(scheduling)})
-    return r["scenario"]["id"]
+SLOTS = int(os.environ.get("MAKE_TEST_SLOTS", "5"))  # the most scenarios one recipe has (R7.3, R15.3)
 
 
-def remove_old(names: set[str]) -> None:
-    for s in make("GET", f"/scenarios?teamId={team()}&pg[limit]=200").get("scenarios", []):
-        if s["name"] in names:
-            if s.get("isActive"):
-                make("POST", f"/scenarios/{s['id']}/stop")
-            make("DELETE", f"/scenarios/{s['id']}")
-    for h in make("GET", f"/hooks?teamId={team()}&pg[limit]=200").get("hooks", []):
-        if h["name"] in names:
-            make("DELETE", f"/hooks/{h['id']}?confirmed=true")
+def slots(n: int) -> list[tuple[int, str, dict]]:
+    """n test slots: (scenario id, slot name, webhook) named "[companion test slot k]", kept in the team.
+    Make limits how many scenarios a team may create over time, so every golden-set run loads its
+    blueprints into the same few slots (stopped when idle) instead of creating scenarios; the whole
+    Make phase creates SLOTS scenarios and webhooks once."""
+    if n > SLOTS:
+        raise SystemExit(f"this recipe has {n} scenarios; raise MAKE_TEST_SLOTS (now {SLOTS})")
+    have, offset = {}, 0
+    while True:
+        page = make("GET", f"/scenarios?teamId={team()}&pg[limit]=100&pg[offset]={offset}").get("scenarios", [])
+        have.update({x["name"]: x for x in page})
+        if len(page) < 100:
+            break
+        offset += 100
+    hooks = {h["name"]: h for h in make("GET", f"/hooks?teamId={team()}&pg[limit]=200").get("hooks", [])}
+    # MAKE_ADOPT_SCENARIOS: IDs of existing scenarios to take over as missing slots (renamed on first load),
+    # for when Make's creation limit is reached.
+    adopt = [int(x) for x in os.environ.get("MAKE_ADOPT_SCENARIOS", "").split(",") if x.strip()]
+    by_id = {x["id"]: x for x in have.values()}
+    out = []
+    for k in range(1, n + 1):
+        name = f"[companion test slot {k}]"
+        hook = hooks.get(name) or make("POST", "/hooks", {"name": name, "teamId": team(), "typeName": "gateway-webhook",
+                                                         "method": False, "headers": False, "stringify": False})["hook"]
+        sc = have.get(name)
+        while not sc and adopt:
+            sc = by_id.get(adopt.pop(0))
+        if sc and sc.get("isActive"):
+            make("POST", f"/scenarios/{sc['id']}/stop")
+        if not sc:
+            stub = {"name": name, "flow": [], "metadata": {"instant": False, "version": 1, "designer": {"orphans": []},
+                                                          "scenario": {"dlq": True, "slots": None, "dataloss": False, "maxErrors": 3,
+                                                                       "autoCommit": True, "roundtrips": 1, "sequential": False,
+                                                                       "confidential": False, "freshVariables": False,
+                                                                       "autoCommitTriggerLast": True}}}
+            sc = make("POST", "/scenarios?confirmed=true", {"teamId": team(), "blueprint": json.dumps(stub),
+                                                            "scheduling": json.dumps({"type": "on-demand"})})["scenario"]
+        out.append((sc["id"], name, hook))
+    return out
 
 
-def import_check(bp: dict, scheduling: dict) -> None:
-    """The reader's copy, no webhook chosen, must import into Make as is."""
-    b = copy.deepcopy(bp)
-    b["name"] = f"[import check] {bp['name']}"
-    remove_old({b["name"]})
-    make("DELETE", f"/scenarios/{create(b, scheduling)}")
+def load(sid: int, slot_name: str, bp: dict, scheduling: dict) -> None:
+    """Replace a slot's blueprint; Make validates it as an import would. The blueprint keeps the
+    slot's name, so the slot is found again on the next run."""
+    bp = dict(bp, name=slot_name)
+    make("PATCH", f"/scenarios/{sid}?confirmed=true", {"blueprint": json.dumps(bp), "scheduling": json.dumps(scheduling)})
 
 
 def ended(sid: int) -> list[dict]:
@@ -137,50 +173,79 @@ def ended(sid: int) -> list[dict]:
     return [entry for entry in logs if entry.get("eventType") == "EXECUTION_END"]
 
 
-def wait_runs(sids: list[int], before: set, expected: int, timeout: float = 180) -> list[dict]:
+def credits_left() -> float | None:
+    org = os.environ.get("MAKE_ORG_ID")
+    if not org:
+        return None
+    o = make("GET", f"/organizations/{org}")["organization"]
+    return float(o["license"]["operations"]) - float(o.get("operations") or 0)
+
+
+def retrying(sids: list[int], since: str) -> bool:
+    """A run stopped at a Retry handler waits in Incomplete executions until Make resumes it."""
+    for sid in sids:
+        for d in make("GET", f"/dlqs?scenarioId={sid}").get("dlqs", []):
+            if d["created"] >= since and not d.get("resolved") and (d.get("isBeingReprocessed") or d.get("attempts", 0) <= 3):
+                return True
+    return False
+
+
+def wait_runs(sids: list[int], before: set, expected: int, since: str, timeout: float = 180) -> list[dict]:
+    """Wait for the case's runs to end, then for any Retry handler to finish (up to 3 retries a minute apart)."""
     deadline = time.time() + timeout
-    while time.time() < deadline:
+    while True:
         time.sleep(POLL)
         runs = [e for sid in sids for e in ended(sid) if e["id"] not in before]
         if len(runs) >= expected:
-            return runs
-    raise RuntimeError(f"timed out waiting for {expected} Make run(s)")
+            break
+        if time.time() > deadline:
+            inactive = [sid for sid in sids if not make("GET", f"/scenarios/{sid}")["scenario"].get("isActive")]
+            raise RuntimeError(f"timed out waiting for {expected} Make run(s)" + (f"; Make switched off {inactive}" if inactive else ""))
+    deadline = time.time() + 300
+    while retrying(sids, since) and time.time() < deadline:
+        time.sleep(15)
+    return [e for sid in sids for e in ended(sid) if e["id"] not in before]
 
 
-def deploy(builds, tests: dict) -> tuple[dict, list[int], list[int]]:
-    """Create the test scenarios. Returns (trigger key -> how to fire it, scenario ids, hook ids)."""
+def ensure_active(sids: list[int]) -> list[int]:
+    """Make switches a webhook scenario off after one error (book Chapter 16); start it again for the next case."""
+    off = [sid for sid in sids if not make("GET", f"/scenarios/{sid}")["scenario"].get("isActive")]
+    for sid in off:
+        make("POST", f"/scenarios/{sid}/start")
+    return off
+
+
+def deploy(builds, tests: dict) -> tuple[dict, list[int]]:
+    """Load the test copies into the test slots and start them. Returns (trigger key -> how to fire it, scenario ids)."""
     cfg = public(tests.get("config", {}))
     cfg.update(stop_flag_url=f"{MOCKS_PUBLIC}/control/stop_flags/{tests['_rid']}", table_api_url=TABLE_API)
-    names = {f"[test] {s.name}" for _, s in builds}
-    remove_old(names)
-    fire, sids, hooks = {}, [], []
-    for _, s in builds:
+    fire, sids = {}, []
+    for (sid, slot, hook), (_, s) in zip(slots(len(builds)), builds):
+        # Import check first: the reader's copy, no webhook chosen, must load into Make as is.
+        reader = copy.deepcopy(s.blueprint())
+        load(sid, slot, reader, {"type": "on-demand"})
         bp = copy.deepcopy(s.blueprint())
-        bp["name"] = f"[test] {s.name}"
         set_config(bp, cfg)
         if s.trigger == "webhook":
-            h = make("POST", "/hooks", {"name": bp["name"], "teamId": team(), "typeName": "gateway-webhook",
-                                        "method": False, "headers": False, "stringify": False})["hook"]
-            hooks.append(h["id"])
-            bp["flow"][0]["parameters"]["hook"] = h["id"]
-            sid = create(bp, {"type": "immediately"})
-            fire[s.test_key] = ("webhook", h["url"], sid)
+            bp["flow"][0]["parameters"]["hook"] = hook["id"]
+            load(sid, slot, bp, {"type": "immediately"})
+            fire[s.test_key] = ("webhook", hook["url"], sid)
         else:
-            sid = create(bp, {"type": "on-demand"})
+            load(sid, slot, bp, {"type": "on-demand"})
             fire[s.test_key] = ("run", sid, sid)
         make("POST", f"/scenarios/{sid}/start")
         sids.append(sid)
-    return fire, sids, hooks
+    return fire, sids
 
 
-def run(rid: str, build_only: bool = False) -> int:
+def run(rid: str, build_only: bool = False, only: list[str] | None = None) -> int:
     import fcntl
     lock = open("/tmp/companion-golden.lock", "w")
     fcntl.flock(lock, fcntl.LOCK_EX)  # one golden-set run at a time: they share the mocks and tables
-    return _run(rid, build_only)
+    return _run(rid, build_only, only or [])
 
 
-def _run(rid: str, build_only: bool) -> int:
+def _run(rid: str, build_only: bool, only: list[str]) -> int:
     folder = ROOT / "recipes" / rid / "make"
     folder.mkdir(parents=True, exist_ok=True)
     builds = load_build(rid)
@@ -191,8 +256,11 @@ def _run(rid: str, build_only: bool) -> int:
         return 0
     if not MOCKS_PUBLIC:
         raise SystemExit("set MOCKS_PUBLIC_URL to the mocks' public test route")
-    for _, s in builds:
-        import_check(s.blueprint(), {"type": "immediately" if s.trigger == "webhook" else "on-demand"})
+    left = credits_left()
+    if left is not None:
+        print(f"Make credits left: {left:g}")
+        if left < float(os.environ.get("MAKE_MIN_CREDITS", "1500")):
+            raise SystemExit(f"only {left:g} Make credits left; not starting (MAKE_MIN_CREDITS)")
     tests = golden.dates(json.loads((ROOT / "recipes" / rid / "n8n" / "tests.json").read_text()))
     tests["_rid"] = rid
     stop = {"control": {"stop_flags": {rid: {"id": rid, "stopped": False}}}}
@@ -204,7 +272,12 @@ def _run(rid: str, build_only: bool) -> int:
         "trigger": [t for t in first["trigger"] if "sql" not in t][:1],
         "expect": [{"writes": 0}, {"sql": "select count(*) from key_log", "equals": "0"},
                    {"sql": "select count(*) from decision_log", "equals": "0"}]})
-    fire, sids, hooks = deploy(builds, tests)
+    if only:
+        missing = set(only) - {c["case"] for c in tests["cases"]}
+        if missing:
+            raise SystemExit(f"no such case: {sorted(missing)}")
+        tests["cases"] = [c for c in tests["cases"] if c["case"] in only]
+    fire, sids = deploy(builds, tests)
     lines, failed = [], 0
     try:
         for case in tests["cases"]:
@@ -219,18 +292,26 @@ def _run(rid: str, build_only: bool) -> int:
             for f in case.get("fail", []):
                 golden.http("POST", f"{golden.MOCKS}/_fail", f)
             before = {e["id"] for sid in sids for e in ended(sid)}
+            since = dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%S")
             for trig in case["trigger"]:
                 if "sql" in trig:
                     golden.sql(trig["sql"])
                     time.sleep(trig.get("pause", 0.3))
                     continue
-                kind, target, _ = fire[trig.get("schedule") or trig.get("webhook")]
+                key = trig.get("schedule") or trig.get("webhook")
+                if key not in fire:
+                    raise SystemExit(f"case {case['case']!r}: no scenario has test_key {key!r} (have {sorted(fire)})")
+                kind, target, _ = fire[key]
                 if kind == "webhook":
                     golden.http("POST", target, trig.get("body", {}), UA)
                 else:
                     make("POST", f"/scenarios/{target}/run", {"responsive": True})
                 time.sleep(trig.get("pause", 0.3))
-            runs = wait_runs(sids, before, sum(1 for t in case["trigger"] if "sql" not in t))
+            try:
+                runs = wait_runs(sids, before, sum(1 for t in case["trigger"] if "sql" not in t), since)
+            except RuntimeError as e:
+                runs = []
+                print(f"      {e}")
             time.sleep(1)
             results = [golden.check(e) for e in case["expect"]]
             if case.get("needs_ai"):
@@ -239,6 +320,11 @@ def _run(rid: str, build_only: bool) -> int:
                 if bad:
                     results.append((False, f"AI call(s) failed with status {bad}, so the model's answer was never tested"))
             errors = [r for r in runs if END.get(r.get("status")) == "error"]
+            switched_off = ensure_active(sids)
+            if switched_off:
+                results.append((False, f"Make switched off scenario(s) {switched_off} after an error"))
+            if not runs:
+                results.append((False, "no Make run ended"))
             credits = sum(r.get("centicredits") or 0 for r in runs) / 100
             ok = all(r[0] for r in results) and (not errors or case.get("allow_error"))
             failed += not ok
@@ -252,9 +338,12 @@ def _run(rid: str, build_only: bool) -> int:
     finally:
         for sid in sids:
             make("POST", f"/scenarios/{sid}/stop")
-            make("DELETE", f"/scenarios/{sid}")
-        for h in hooks:
-            make("DELETE", f"/hooks/{h}?confirmed=true")
+    left = credits_left()
+    if left is not None:
+        print(f"Make credits left: {left:g}")
+    if only:
+        print("partial run (--case): report not written")
+        return 1 if failed else 0
     today = dt.date.today().isoformat()
     total = sum(entry[4] for entry in lines)
     md = [f"# {rid} Make build: golden-set run", "",
@@ -272,4 +361,10 @@ def _run(rid: str, build_only: bool) -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(run(sys.argv[1], "--build" in sys.argv[2:]))
+    import argparse
+    ap = argparse.ArgumentParser()
+    ap.add_argument("recipe")
+    ap.add_argument("--build", action="store_true")
+    ap.add_argument("--case", action="append", default=[])
+    a = ap.parse_args()
+    sys.exit(run(a.recipe, a.build, a.case))
