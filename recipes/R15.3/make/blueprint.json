@@ -1,0 +1,2524 @@
+{
+  "name": "R15.3 Keep consent and unsubscribes in sync across every list",
+  "flow": [
+    {
+      "id": 1,
+      "module": "gateway:CustomWebHook",
+      "version": 1,
+      "parameters": {
+        "hook": null,
+        "maxResults": 1
+      },
+      "mapper": {},
+      "metadata": {
+        "designer": {
+          "x": 0,
+          "y": 0,
+          "name": "Step 1: Unsubscribe"
+        }
+      }
+    },
+    {
+      "id": 2,
+      "module": "code:ExecuteCode",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "language": "javascript",
+        "inputFormat": "editor",
+        "dependencies": [],
+        "codeEditorJavascript": "// Config: edit these values for your company; nothing else in the scenario hard-codes them.\nreturn {\n  \"stop_flag_url\": \"https://<your stop list API>/stop_flags/R15.3\",\n  \"table_api_url\": \"https://<your table API for the key log, decision log and exception queue>\",\n  \"workflow_owner\": \"<your workflow owner>\",\n  \"crm_url\": \"https://<your CRM API>\",\n  \"lists\": [\n    {\n      \"name\": \"<list name>\",\n      \"url\": \"https://<its API>\",\n      \"channel\": \"<the channel it sends>\"\n    }\n  ],\n  \"marketing_channels\": [\n    \"email\",\n    \"<your other marketing channels>\"\n  ],\n  \"send_status_url\": \"https://<your send-status record API>\",\n  \"messaging_url\": \"https://<your messaging API>\",\n  \"consent_owner\": \"<your systems owner>\"\n};",
+        "input": []
+      },
+      "metadata": {
+        "designer": {
+          "x": 300,
+          "y": 0,
+          "name": "Config"
+        }
+      }
+    },
+    {
+      "id": 5,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{2.result.stop_flag_url}}",
+        "method": "get",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true
+      },
+      "metadata": {
+        "designer": {
+          "x": 600,
+          "y": 0,
+          "name": "Stop flag: read"
+        }
+      },
+      "onerror": [
+        {
+          "id": 3,
+          "module": "http:MakeRequest",
+          "version": 4,
+          "parameters": {},
+          "mapper": {
+            "url": "{{2.result.table_api_url}}/exception_queue",
+            "method": "post",
+            "timeout": "40",
+            "parseResponse": false,
+            "stopOnHttpError": true,
+            "allowRedirects": true,
+            "shareCookies": false,
+            "requestCompressedContent": true,
+            "contentType": "json",
+            "inputMethod": "jsonString",
+            "jsonStringBodyContent": "{\"recipe\": \"R15.3\", \"item\": \"run {{var.scenario.executionId}}\", \"reason\": \"stop list unreadable\", \"detail\": \"The stop list could not be read, so the run stopped\", \"owner\": \"{{2.result.workflow_owner}}\"}"
+          },
+          "metadata": {
+            "designer": {
+              "x": 600,
+              "y": 300,
+              "name": "Stop flag: list unreadable"
+            }
+          }
+        },
+        {
+          "id": 4,
+          "module": "builtin:Ignore",
+          "version": 1,
+          "metadata": {
+            "designer": {
+              "x": 900,
+              "y": 300
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "module": "code:ExecuteCode",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "language": "javascript",
+        "inputFormat": "editor",
+        "dependencies": [],
+        "codeEditorJavascript": "// Adapter: the rule below is the same JavaScript as the recipe's n8n build.\n// $('Step name') answers from this step's inputs: each is that step's output in this scenario.\nconst SOURCES = {\"Config\": \"in0_Config\"};\nconst LISTS = [];\nconst EXECUTED = [\"Step 1: Unsubscribe\"];\nconst DATA = {};\nfor (const [node, key] of Object.entries(SOURCES)) {\n  const raw = input[key];\n  let v = raw;\n  if (typeof raw === 'string') { try { v = JSON.parse(raw); } catch (e) { v = raw; } }\n  DATA[node] = LISTS.includes(node) ? (v || []).map(i => (i && i.json !== undefined ? i : { json: i })) : [{ json: v }];\n}\nconst $ = (node) => {\n  const ran = node in DATA || EXECUTED.includes(node);\n  const list = () => { if (!(node in DATA)) throw new Error(`step ${node} has no data in this scenario`); return DATA[node]; };\n  return { isExecuted: ran, first: () => list()[0], last: () => list()[list().length - 1], all: () => list(),\n           get item() { return list()[0]; } };\n};\nconst INPUT = \"Config\";\nconst $input = { all: () => $(INPUT).all(), first: () => $(INPUT).first(), last: () => $(INPUT).last(), get item() { return $(INPUT).first(); } };\nconst $execution = { id: input.run_id };\nDATA[\"Step 1: Unsubscribe\"] = [{ json: { body: { event_id: input.ev_event_id, email: input.ev_email, phone: input.ev_phone, channel: input.ev_channel, occurred_at: input.ev_occurred_at, wording_version: input.ev_wording_version } } }];\nconst BODIES = (out) => ({\"reserve_body\": JSON.stringify({ p_recipe: 'R15.3', p_key: out.event_id }), \"key_q\": encodeURIComponent(out.event_id)});\nconst one = (r) => (Array.isArray(r) ? r : [r]).filter(Boolean).map(i => (i.json !== undefined ? i.json : i));\nconst $json = INPUT && INPUT in DATA ? $input.first().json : {};\nconst __rule = () => {\nconst KINDS = {\"Step 1: Unsubscribe\": \"opt_out\", \"Step 1: Opt-in\": \"opt_in\", \"Step 1: POS sign-up\": \"opt_in\", \"Step 1: Helpdesk opt-out tag\": \"opt_out\"};\n\n// Step 1: one consent event, whichever source sent it.\nfor (const [node, kind] of Object.entries(KINDS)) {\n  if (!$(node).isExecuted) continue;\n  const b = $(node).first().json.body || {};\n  return [{ json: { event_id: String(b.event_id || ''), kind, source: node.replace('Step 1: ', ''),\n    email: b.email || null, phone: b.phone || null, channel: b.channel || null,\n    occurred_at: b.occurred_at || null, wording_version: b.wording_version || null } }];\n}\nreturn [];\n};\nconst out = one(__rule())[0] || {};\nreturn Object.assign({}, out, BODIES(out));\n",
+        "input": [
+          {
+            "name": "in0_Config",
+            "value": "{{2.result}}"
+          },
+          {
+            "name": "run_id",
+            "value": "{{var.scenario.executionId}}"
+          },
+          {
+            "name": "ev_event_id",
+            "value": "{{1.event_id}}"
+          },
+          {
+            "name": "ev_email",
+            "value": "{{1.email}}"
+          },
+          {
+            "name": "ev_phone",
+            "value": "{{1.phone}}"
+          },
+          {
+            "name": "ev_channel",
+            "value": "{{1.channel}}"
+          },
+          {
+            "name": "ev_occurred_at",
+            "value": "{{1.occurred_at}}"
+          },
+          {
+            "name": "ev_wording_version",
+            "value": "{{1.wording_version}}"
+          }
+        ]
+      },
+      "metadata": {
+        "designer": {
+          "x": 900,
+          "y": 0,
+          "name": "Consent event"
+        }
+      },
+      "filter": {
+        "name": "stop flag not set",
+        "conditions": [
+          [
+            {
+              "a": "{{5.data.stopped}}",
+              "b": "true",
+              "o": "text:notequal"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "id": 7,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{2.result.table_api_url}}/rpc/reserve_key",
+        "method": "post",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true,
+        "contentType": "json",
+        "inputMethod": "jsonString",
+        "jsonStringBodyContent": "{{6.result.reserve_body}}"
+      },
+      "metadata": {
+        "designer": {
+          "x": 1200,
+          "y": 0,
+          "name": "Step 2: Reserve key"
+        }
+      }
+    },
+    {
+      "id": 9,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{2.result.crm_url}}/contacts",
+        "method": "get",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true,
+        "queryParameters": [
+          {
+            "name": "_wrap",
+            "value": "1"
+          },
+          {
+            "name": "email",
+            "value": "{{6.result.email}}"
+          }
+        ]
+      },
+      "metadata": {
+        "designer": {
+          "x": 1500,
+          "y": 0,
+          "name": "Read the master by email"
+        }
+      },
+      "onerror": [
+        {
+          "id": 8,
+          "module": "builtin:Break",
+          "version": 1,
+          "parameters": {},
+          "mapper": {
+            "count": "3",
+            "retry": true,
+            "interval": "1"
+          },
+          "metadata": {
+            "designer": {
+              "x": 1500,
+              "y": 300
+            }
+          }
+        }
+      ],
+      "filter": {
+        "name": "new key (not a copy)",
+        "conditions": [
+          [
+            {
+              "a": "{{7.data}}",
+              "b": "true",
+              "o": "text:equal"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "id": 11,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{2.result.crm_url}}/contacts",
+        "method": "get",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true,
+        "queryParameters": [
+          {
+            "name": "_wrap",
+            "value": "1"
+          },
+          {
+            "name": "phone",
+            "value": "{{6.result.phone}}"
+          }
+        ]
+      },
+      "metadata": {
+        "designer": {
+          "x": 1800,
+          "y": 0,
+          "name": "Read the master by phone"
+        }
+      },
+      "onerror": [
+        {
+          "id": 10,
+          "module": "builtin:Break",
+          "version": 1,
+          "parameters": {},
+          "mapper": {
+            "count": "3",
+            "retry": true,
+            "interval": "1"
+          },
+          "metadata": {
+            "designer": {
+              "x": 1800,
+              "y": 300
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 12,
+      "module": "code:ExecuteCode",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "language": "javascript",
+        "inputFormat": "editor",
+        "dependencies": [],
+        "codeEditorJavascript": "// Adapter: the rule below is the same JavaScript as the recipe's n8n build.\n// $('Step name') answers from this step's inputs: each is that step's output in this scenario.\nconst SOURCES = {\"Config\": \"in0_Config\", \"Consent event\": \"in1_Consentevent\", \"Read the master by email\": \"in2_Readthemasterbyemail\", \"Read the master by phone\": \"in3_Readthemasterbyphone\"};\nconst LISTS = [];\nconst EXECUTED = [];\nconst DATA = {};\nfor (const [node, key] of Object.entries(SOURCES)) {\n  const raw = input[key];\n  let v = raw;\n  if (typeof raw === 'string') { try { v = JSON.parse(raw); } catch (e) { v = raw; } }\n  DATA[node] = LISTS.includes(node) ? (v || []).map(i => (i && i.json !== undefined ? i : { json: i })) : [{ json: v }];\n}\nconst $ = (node) => {\n  const ran = node in DATA || EXECUTED.includes(node);\n  const list = () => { if (!(node in DATA)) throw new Error(`step ${node} has no data in this scenario`); return DATA[node]; };\n  return { isExecuted: ran, first: () => list()[0], last: () => list()[list().length - 1], all: () => list(),\n           get item() { return list()[0]; } };\n};\nconst INPUT = \"Read the master by phone\";\nconst $input = { all: () => $(INPUT).all(), first: () => $(INPUT).first(), last: () => $(INPUT).last(), get item() { return $(INPUT).first(); } };\nconst $execution = { id: input.run_id };\nconst BODIES = (out) => ({\"path\": !out.apply ? 'ignored' : out.contact_id !== null ? 'in the master' : 'new to the master', \"contact_q\": encodeURIComponent(out.contact_id || ''), \"master_body\": JSON.stringify({ consent: out.consent }), \"add_body\": JSON.stringify({ email: $('Consent event').first().json.email, phone: $('Consent event').first().json.phone, consent: out.consent }), \"done_body\": JSON.stringify({ status: 'done', result: out.reason }), \"log_body\": JSON.stringify({ recipe: 'R15.3', item: $('Consent event').first().json.event_id, decision: 'master: ' + out.reason, rules: { source: $('Consent event').first().json.source, channels: out.channels } }), \"ignored_done_body\": JSON.stringify({ status: 'done', result: 'ignored: ' + out.reason }), \"ignored_log_body\": JSON.stringify({ recipe: 'R15.3', item: $('Consent event').first().json.event_id, decision: 'ignored: ' + out.reason, rules: { source: $('Consent event').first().json.source, kind: $('Consent event').first().json.kind } }), \"failed_body\": JSON.stringify({ recipe: 'R15.3', item: $('Consent event').first().json.event_id, reason: 'write failed', detail: 'Master consent write failed; no list was changed; apply it by hand, never retried', owner: $('Config').first().json.consent_owner }), \"failed_message\": JSON.stringify({ to: $('Config').first().json.consent_owner, subject: 'Consent event ' + $('Consent event').first().json.event_id + ' not applied', text: 'The master consent write failed; no list was changed.' })});\nconst one = (r) => (Array.isArray(r) ? r : [r]).filter(Boolean).map(i => (i.json !== undefined ? i.json : i));\nconst $json = INPUT && INPUT in DATA ? $input.first().json : {};\nconst __rule = () => {\n// Matched on email or phone, never name.\nconst normEmail = e => String(e || '').trim().toLowerCase();\nconst normPhone = p => String(p || '').replace(/\\D/g, '');\nconst same = (r, ev) => (normEmail(ev.email) && normEmail(r.email) === normEmail(ev.email))\n  || (normPhone(ev.phone) && normPhone(r.phone) === normPhone(ev.phone));\n\n// Steps 3 and 4. An opt-out always applies, to every marketing channel; an opt-in needs its proof\n// and must be newer than any opt-out for its channel. Consent is never inferred from a purchase.\nconst cfg = $('Config').first().json;\nconst ev = $('Consent event').first().json;\nconst found = [...($('Read the master by email').first().json.items || []), ...($('Read the master by phone').first().json.items || [])]\n  .filter(r => same(r, ev));\nconst contact = found[0] || null;\nconst consent = Object.assign({}, (contact && contact.consent) || {});\nconst ignore = reason => [{ json: { apply: false, reason, contact_id: contact ? contact.id : null } }];\n\nif (!ev.email && !ev.phone) return ignore('no email or phone to match on');\nconst stamp = ev.occurred_at && !isNaN(Date.parse(ev.occurred_at)) ? new Date(ev.occurred_at).toISOString() : null;\nlet channels;\nif (ev.kind === 'opt_in') {\n  // Step 3: an opt-in counts only with its wording version and time stamp.\n  if (!ev.wording_version || !stamp) return ignore('opt-in without wording version or time stamp');\n  if (!cfg.marketing_channels.includes(ev.channel)) return ignore('opt-in channel not in scope');\n  // Step 4: order by the event's own time stamp; an opt-in older than an opt-out is ignored.\n  const prior = consent[ev.channel];\n  if (prior && prior.status === 'opted out' && Date.parse(prior.at) > Date.parse(stamp)) return ignore('opt-in older than an opt-out');\n  channels = [ev.channel];\n} else {\n  channels = cfg.marketing_channels;\n}\nconst status = ev.kind === 'opt_out' ? 'opted out' : 'opted in';\nconst at = stamp || new Date().toISOString();\nfor (const ch of channels) {\n  consent[ch] = { status, at, event_id: ev.event_id, source: ev.source };\n  if (ev.kind === 'opt_in') consent[ch].wording_version = ev.wording_version;\n}\n// The person is the event's email or phone, joined with the master record's, so a list holding only one still matches.\nreturn [{ json: { apply: true, status, channels, opt_out: ev.kind === 'opt_out', consent,\n  email: ev.email || (contact && contact.email) || null, phone: ev.phone || (contact && contact.phone) || null,\n  contact_id: contact ? contact.id : null, reason: `${status}: ${channels.join(', ')}` } }];\n};\nconst out = one(__rule())[0] || {};\nreturn Object.assign({}, out, BODIES(out));\n",
+        "input": [
+          {
+            "name": "in0_Config",
+            "value": "{{2.result}}"
+          },
+          {
+            "name": "in1_Consentevent",
+            "value": "{{6.result}}"
+          },
+          {
+            "name": "in2_Readthemasterbyemail",
+            "value": "{{9.data}}"
+          },
+          {
+            "name": "in3_Readthemasterbyphone",
+            "value": "{{11.data}}"
+          },
+          {
+            "name": "run_id",
+            "value": "{{var.scenario.executionId}}"
+          }
+        ]
+      },
+      "metadata": {
+        "designer": {
+          "x": 2100,
+          "y": 0,
+          "name": "Steps 3 and 4: Rules"
+        }
+      }
+    },
+    {
+      "id": 86,
+      "module": "builtin:BasicRouter",
+      "version": 1,
+      "mapper": null,
+      "routes": [
+        {
+          "flow": [
+            {
+              "id": 70,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.table_api_url}}/key_log?recipe=eq.R15.3&key=eq.{{6.result.key_q}}",
+                "method": "patch",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{12.result.ignored_done_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 2700,
+                  "y": 0,
+                  "name": "Mark ignored event done"
+                }
+              },
+              "filter": {
+                "name": "ignored",
+                "conditions": [
+                  [
+                    {
+                      "a": "{{12.result.path}}",
+                      "b": "ignored",
+                      "o": "text:equal"
+                    }
+                  ]
+                ]
+              }
+            },
+            {
+              "id": 71,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.table_api_url}}/decision_log",
+                "method": "post",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{12.result.ignored_log_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 3000,
+                  "y": 0,
+                  "name": "Steps 3 and 4: Decision log"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "flow": [
+            {
+              "id": 76,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.crm_url}}/contacts/{{12.result.contact_q}}",
+                "method": "patch",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{12.result.master_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 2700,
+                  "y": 300,
+                  "name": "Step 5: Write the change to the CRM"
+                }
+              },
+              "onerror": [
+                {
+                  "id": 72,
+                  "module": "http:MakeRequest",
+                  "version": 4,
+                  "parameters": {},
+                  "mapper": {
+                    "url": "{{2.result.table_api_url}}/key_log?recipe=eq.R15.3&key=eq.{{6.result.key_q}}",
+                    "method": "patch",
+                    "timeout": "40",
+                    "parseResponse": false,
+                    "stopOnHttpError": true,
+                    "allowRedirects": true,
+                    "shareCookies": false,
+                    "requestCompressedContent": true,
+                    "contentType": "json",
+                    "inputMethod": "jsonString",
+                    "jsonStringBodyContent": "{\"status\": \"failed\", \"result\": \"master write failed\"}"
+                  },
+                  "metadata": {
+                    "designer": {
+                      "x": 2700,
+                      "y": 600,
+                      "name": "Step 5: Write the change to the CRM: mark key failed"
+                    }
+                  }
+                },
+                {
+                  "id": 73,
+                  "module": "http:MakeRequest",
+                  "version": 4,
+                  "parameters": {},
+                  "mapper": {
+                    "url": "{{2.result.table_api_url}}/exception_queue",
+                    "method": "post",
+                    "timeout": "40",
+                    "parseResponse": false,
+                    "stopOnHttpError": true,
+                    "allowRedirects": true,
+                    "shareCookies": false,
+                    "requestCompressedContent": true,
+                    "contentType": "json",
+                    "inputMethod": "jsonString",
+                    "jsonStringBodyContent": "{{12.result.failed_body}}"
+                  },
+                  "metadata": {
+                    "designer": {
+                      "x": 3000,
+                      "y": 600,
+                      "name": "Step 5: Write the change to the CRM: exception queue"
+                    }
+                  }
+                },
+                {
+                  "id": 74,
+                  "module": "http:MakeRequest",
+                  "version": 4,
+                  "parameters": {},
+                  "mapper": {
+                    "url": "{{2.result.messaging_url}}/messages",
+                    "method": "post",
+                    "timeout": "40",
+                    "parseResponse": false,
+                    "stopOnHttpError": true,
+                    "allowRedirects": true,
+                    "shareCookies": false,
+                    "requestCompressedContent": true,
+                    "contentType": "json",
+                    "inputMethod": "jsonString",
+                    "jsonStringBodyContent": "{{12.result.failed_message}}"
+                  },
+                  "metadata": {
+                    "designer": {
+                      "x": 3300,
+                      "y": 600,
+                      "name": "Step 5: Write the change to the CRM: tell Owen"
+                    }
+                  }
+                },
+                {
+                  "id": 75,
+                  "module": "builtin:Ignore",
+                  "version": 1,
+                  "metadata": {
+                    "designer": {
+                      "x": 3600,
+                      "y": 600
+                    }
+                  }
+                }
+              ],
+              "filter": {
+                "name": "in the master already",
+                "conditions": [
+                  [
+                    {
+                      "a": "{{12.result.path}}",
+                      "b": "in the master",
+                      "o": "text:equal"
+                    }
+                  ]
+                ]
+              }
+            },
+            {
+              "id": 77,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.table_api_url}}/key_log?recipe=eq.R15.3&key=eq.{{6.result.key_q}}",
+                "method": "patch",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{12.result.done_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 3000,
+                  "y": 300,
+                  "name": "Mark key done (in the master)"
+                }
+              }
+            },
+            {
+              "id": 78,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.table_api_url}}/decision_log",
+                "method": "post",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{12.result.log_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 3300,
+                  "y": 300,
+                  "name": "Step 5: Decision log (in the master)"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "flow": [
+            {
+              "id": 83,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.crm_url}}/contacts",
+                "method": "post",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{12.result.add_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 2700,
+                  "y": 900,
+                  "name": "Step 5: Add the person to the CRM"
+                }
+              },
+              "onerror": [
+                {
+                  "id": 79,
+                  "module": "http:MakeRequest",
+                  "version": 4,
+                  "parameters": {},
+                  "mapper": {
+                    "url": "{{2.result.table_api_url}}/key_log?recipe=eq.R15.3&key=eq.{{6.result.key_q}}",
+                    "method": "patch",
+                    "timeout": "40",
+                    "parseResponse": false,
+                    "stopOnHttpError": true,
+                    "allowRedirects": true,
+                    "shareCookies": false,
+                    "requestCompressedContent": true,
+                    "contentType": "json",
+                    "inputMethod": "jsonString",
+                    "jsonStringBodyContent": "{\"status\": \"failed\", \"result\": \"master write failed\"}"
+                  },
+                  "metadata": {
+                    "designer": {
+                      "x": 2700,
+                      "y": 1200,
+                      "name": "Step 5: Add the person to the CRM: mark key failed"
+                    }
+                  }
+                },
+                {
+                  "id": 80,
+                  "module": "http:MakeRequest",
+                  "version": 4,
+                  "parameters": {},
+                  "mapper": {
+                    "url": "{{2.result.table_api_url}}/exception_queue",
+                    "method": "post",
+                    "timeout": "40",
+                    "parseResponse": false,
+                    "stopOnHttpError": true,
+                    "allowRedirects": true,
+                    "shareCookies": false,
+                    "requestCompressedContent": true,
+                    "contentType": "json",
+                    "inputMethod": "jsonString",
+                    "jsonStringBodyContent": "{{12.result.failed_body}}"
+                  },
+                  "metadata": {
+                    "designer": {
+                      "x": 3000,
+                      "y": 1200,
+                      "name": "Step 5: Add the person to the CRM: exception queue"
+                    }
+                  }
+                },
+                {
+                  "id": 81,
+                  "module": "http:MakeRequest",
+                  "version": 4,
+                  "parameters": {},
+                  "mapper": {
+                    "url": "{{2.result.messaging_url}}/messages",
+                    "method": "post",
+                    "timeout": "40",
+                    "parseResponse": false,
+                    "stopOnHttpError": true,
+                    "allowRedirects": true,
+                    "shareCookies": false,
+                    "requestCompressedContent": true,
+                    "contentType": "json",
+                    "inputMethod": "jsonString",
+                    "jsonStringBodyContent": "{{12.result.failed_message}}"
+                  },
+                  "metadata": {
+                    "designer": {
+                      "x": 3300,
+                      "y": 1200,
+                      "name": "Step 5: Add the person to the CRM: tell Owen"
+                    }
+                  }
+                },
+                {
+                  "id": 82,
+                  "module": "builtin:Ignore",
+                  "version": 1,
+                  "metadata": {
+                    "designer": {
+                      "x": 3600,
+                      "y": 1200
+                    }
+                  }
+                }
+              ],
+              "filter": {
+                "name": "new to the master",
+                "conditions": [
+                  [
+                    {
+                      "a": "{{12.result.path}}",
+                      "b": "new to the master",
+                      "o": "text:equal"
+                    }
+                  ]
+                ]
+              }
+            },
+            {
+              "id": 84,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.table_api_url}}/key_log?recipe=eq.R15.3&key=eq.{{6.result.key_q}}",
+                "method": "patch",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{12.result.done_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 3000,
+                  "y": 900,
+                  "name": "Mark key done (added)"
+                }
+              }
+            },
+            {
+              "id": 85,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.table_api_url}}/decision_log",
+                "method": "post",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{12.result.log_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 3300,
+                  "y": 900,
+                  "name": "Step 5: Decision log (added)"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "flow": [
+            {
+              "id": 14,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.table_api_url}}/key_log?recipe=eq.R15.3&status=eq.done&key=eq.{{6.result.key_q}}",
+                "method": "get",
+                "timeout": "40",
+                "parseResponse": true,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true
+              },
+              "metadata": {
+                "designer": {
+                  "x": 2700,
+                  "y": 1500,
+                  "name": "Step 6: Master written?"
+                }
+              },
+              "onerror": [
+                {
+                  "id": 13,
+                  "module": "builtin:Break",
+                  "version": 1,
+                  "parameters": {},
+                  "mapper": {
+                    "count": "3",
+                    "retry": true,
+                    "interval": "1"
+                  },
+                  "metadata": {
+                    "designer": {
+                      "x": 2700,
+                      "y": 1800
+                    }
+                  }
+                }
+              ],
+              "filter": {
+                "name": "applied",
+                "conditions": [
+                  [
+                    {
+                      "a": "{{12.result.path}}",
+                      "b": "ignored",
+                      "o": "text:notequal"
+                    }
+                  ]
+                ]
+              }
+            },
+            {
+              "id": 15,
+              "module": "code:ExecuteCode",
+              "version": 1,
+              "parameters": {},
+              "mapper": {
+                "language": "javascript",
+                "inputFormat": "editor",
+                "dependencies": [],
+                "codeEditorJavascript": "// Adapter: the rule below is the same JavaScript as the recipe's n8n build.\n// $('Step name') answers from this step's inputs: each is that step's output in this scenario.\nconst SOURCES = {\"Config\": \"in0_Config\", \"Steps 3 and 4: Rules\": \"in1_Steps3and4Rules\"};\nconst LISTS = [];\nconst EXECUTED = [];\nconst DATA = {};\nfor (const [node, key] of Object.entries(SOURCES)) {\n  const raw = input[key];\n  let v = raw;\n  if (typeof raw === 'string') { try { v = JSON.parse(raw); } catch (e) { v = raw; } }\n  DATA[node] = LISTS.includes(node) ? (v || []).map(i => (i && i.json !== undefined ? i : { json: i })) : [{ json: v }];\n}\nconst $ = (node) => {\n  const ran = node in DATA || EXECUTED.includes(node);\n  const list = () => { if (!(node in DATA)) throw new Error(`step ${node} has no data in this scenario`); return DATA[node]; };\n  return { isExecuted: ran, first: () => list()[0], last: () => list()[list().length - 1], all: () => list(),\n           get item() { return list()[0]; } };\n};\nconst INPUT = \"Steps 3 and 4: Rules\";\nconst $input = { all: () => $(INPUT).all(), first: () => $(INPUT).first(), last: () => $(INPUT).last(), get item() { return $(INPUT).first(); } };\nconst $execution = { id: input.run_id };\nconst BODIES = (out) => ({\"self\": JSON.stringify(out)});\nconst one = (r) => (Array.isArray(r) ? r : [r]).filter(Boolean).map(i => (i.json !== undefined ? i.json : i));\nconst $json = INPUT && INPUT in DATA ? $input.first().json : {};\nconst __rule = () => {\n// Step 6: every other list in scope; an opt-out reaches every list, an opt-in only its channel's lists.\nconst cfg = $('Config').first().json;\nconst r = $('Steps 3 and 4: Rules').first().json;\nreturn cfg.lists.filter(l => r.opt_out || r.channels.includes(l.channel))\n  .map(l => ({ json: { list: l.name, url: l.url, channel: l.channel, opt_out: r.opt_out }, pairedItem: 0 }));\n};\nreturn { items: one(__rule()).map(o => Object.assign({}, o, BODIES(o))) };\n",
+                "input": [
+                  {
+                    "name": "in0_Config",
+                    "value": "{{2.result}}"
+                  },
+                  {
+                    "name": "in1_Steps3and4Rules",
+                    "value": "{{12.result}}"
+                  },
+                  {
+                    "name": "run_id",
+                    "value": "{{var.scenario.executionId}}"
+                  }
+                ]
+              },
+              "metadata": {
+                "designer": {
+                  "x": 3000,
+                  "y": 1500,
+                  "name": "Step 6: Lists to update"
+                }
+              },
+              "filter": {
+                "name": "master written",
+                "conditions": [
+                  [
+                    {
+                      "a": "{{length(14.data)}}",
+                      "b": "0",
+                      "o": "number:greater"
+                    }
+                  ]
+                ]
+              }
+            },
+            {
+              "id": 16,
+              "module": "builtin:BasicFeeder",
+              "version": 1,
+              "parameters": {},
+              "mapper": {
+                "array": "{{15.result.items}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 3300,
+                  "y": 1500,
+                  "name": "Each list"
+                }
+              }
+            },
+            {
+              "id": 17,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{16.url}}/contacts",
+                "method": "get",
+                "timeout": "40",
+                "parseResponse": true,
+                "stopOnHttpError": false,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "queryParameters": [
+                  {
+                    "name": "_wrap",
+                    "value": "1"
+                  },
+                  {
+                    "name": "email",
+                    "value": "{{12.result.email}}"
+                  }
+                ]
+              },
+              "metadata": {
+                "designer": {
+                  "x": 3600,
+                  "y": 1500,
+                  "name": "Step 6: Find on the list by email"
+                }
+              }
+            },
+            {
+              "id": 18,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{16.url}}/contacts",
+                "method": "get",
+                "timeout": "40",
+                "parseResponse": true,
+                "stopOnHttpError": false,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "queryParameters": [
+                  {
+                    "name": "_wrap",
+                    "value": "1"
+                  },
+                  {
+                    "name": "phone",
+                    "value": "{{12.result.phone}}"
+                  }
+                ]
+              },
+              "metadata": {
+                "designer": {
+                  "x": 3900,
+                  "y": 1500,
+                  "name": "Step 6: Find on the list by phone"
+                }
+              }
+            },
+            {
+              "id": 19,
+              "module": "code:ExecuteCode",
+              "version": 1,
+              "parameters": {},
+              "mapper": {
+                "language": "javascript",
+                "inputFormat": "editor",
+                "dependencies": [],
+                "codeEditorJavascript": "// Two n8n Code nodes in one step: the first when Number(input.email_status) >= 400 || Number(input.phone_status) >= 400, else the second.\nif (Number(input.email_status) >= 400 || Number(input.phone_status) >= 400) return (() => {\n// Adapter: the rule below is the same JavaScript as the recipe's n8n build.\n// $('Step name') answers from this step's inputs: each is that step's output in this scenario.\nconst SOURCES = {\"Step 6: Lists to update\": \"in0_Step6Liststoupdate\", \"Step 6: Find on the list by email\": \"in1_Step6Findonthelistbyemai\", \"Consent event\": \"in2_Consentevent\", \"Steps 3 and 4: Rules\": \"in3_Steps3and4Rules\", \"Config\": \"in4_Config\", \"Find failed\": \"in5_Findfailed\"};\nconst LISTS = [];\nconst EXECUTED = [];\nconst DATA = {};\nfor (const [node, key] of Object.entries(SOURCES)) {\n  const raw = input[key];\n  let v = raw;\n  if (typeof raw === 'string') { try { v = JSON.parse(raw); } catch (e) { v = raw; } }\n  DATA[node] = LISTS.includes(node) ? (v || []).map(i => (i && i.json !== undefined ? i : { json: i })) : [{ json: v }];\n}\nconst $ = (node) => {\n  const ran = node in DATA || EXECUTED.includes(node);\n  const list = () => { if (!(node in DATA)) throw new Error(`step ${node} has no data in this scenario`); return DATA[node]; };\n  return { isExecuted: ran, first: () => list()[0], last: () => list()[list().length - 1], all: () => list(),\n           get item() { return list()[0]; } };\n};\nconst INPUT = \"Find failed\";\nconst $input = { all: () => $(INPUT).all(), first: () => $(INPUT).first(), last: () => $(INPUT).last(), get item() { return $(INPUT).first(); } };\nconst $execution = { id: input.run_id };\nDATA['Find failed'] = [{ json: { error: { message: 'the list answered HTTP ' + input.in5_Findfailed } } }];\nconst BODIES = (out) => ({\"self\": JSON.stringify(out), \"path\": out.problem ? 'did not confirm' : out.record_id === null ? 'not on the list' : 'on the list', \"record_q\": encodeURIComponent(out.record_id || ''), \"list_q\": encodeURIComponent(out.list || ''), \"apply_body\": JSON.stringify({ marketing_opt_out: out.opt_out }), \"suppress_body\": JSON.stringify({ email: $('Steps 3 and 4: Rules').first().json.email, phone: $('Steps 3 and 4: Rules').first().json.phone, event_id: $('Consent event').first().json.event_id, reason: 'marketing opt-out' }), \"pause_body\": JSON.stringify({ status: 'paused', since: new Date().toISOString(), reason: 'opt-out not confirmed: ' + out.problem, event_id: $('Consent event').first().json.event_id }), \"log_body\": JSON.stringify({ recipe: 'R15.3', item: $('Consent event').first().json.event_id, decision: out.list + ': ' + out.outcome, rules: { list: out.list, record: out.record_id, opt_out: out.opt_out } })});\nconst one = (r) => (Array.isArray(r) ? r : [r]).filter(Boolean).map(i => (i.json !== undefined ? i.json : i));\nconst $json = INPUT && INPUT in DATA ? $input.first().json : {};\nconst __rule = () => {\n// Step 7: the list could not be read, so it cannot confirm.\nconst l = $('Step 6: Lists to update').item.json;\nreturn { json: Object.assign({}, l, { record_id: null, problem: 'list unreachable: ' + (($json.error && $json.error.message) || 'no answer') }) };\n};\nreturn { items: one(__rule()).map(o => Object.assign({}, o, BODIES(o))) };\n\n})();\nreturn (() => {\n// Adapter: the rule below is the same JavaScript as the recipe's n8n build.\n// $('Step name') answers from this step's inputs: each is that step's output in this scenario.\nconst SOURCES = {\"Step 6: Lists to update\": \"in0_Step6Liststoupdate\", \"Step 6: Find on the list by email\": \"in1_Step6Findonthelistbyemai\", \"Consent event\": \"in2_Consentevent\", \"Steps 3 and 4: Rules\": \"in3_Steps3and4Rules\", \"Config\": \"in4_Config\", \"Step 6: Find on the list by phone\": \"in5_Step6Findonthelistbyphon\"};\nconst LISTS = [];\nconst EXECUTED = [];\nconst DATA = {};\nfor (const [node, key] of Object.entries(SOURCES)) {\n  const raw = input[key];\n  let v = raw;\n  if (typeof raw === 'string') { try { v = JSON.parse(raw); } catch (e) { v = raw; } }\n  DATA[node] = LISTS.includes(node) ? (v || []).map(i => (i && i.json !== undefined ? i : { json: i })) : [{ json: v }];\n}\nconst $ = (node) => {\n  const ran = node in DATA || EXECUTED.includes(node);\n  const list = () => { if (!(node in DATA)) throw new Error(`step ${node} has no data in this scenario`); return DATA[node]; };\n  return { isExecuted: ran, first: () => list()[0], last: () => list()[list().length - 1], all: () => list(),\n           get item() { return list()[0]; } };\n};\nconst INPUT = \"Step 6: Find on the list by phone\";\nconst $input = { all: () => $(INPUT).all(), first: () => $(INPUT).first(), last: () => $(INPUT).last(), get item() { return $(INPUT).first(); } };\nconst $execution = { id: input.run_id };\nObject.defineProperty(Object.prototype, 'itemMatching', { value: function (i) { return this.all()[i] || this.all()[0]; }, configurable: true });\nconst BODIES = (out) => ({\"self\": JSON.stringify(out), \"path\": out.problem ? 'did not confirm' : out.record_id === null ? 'not on the list' : 'on the list', \"record_q\": encodeURIComponent(out.record_id || ''), \"list_q\": encodeURIComponent(out.list || ''), \"apply_body\": JSON.stringify({ marketing_opt_out: out.opt_out }), \"suppress_body\": JSON.stringify({ email: $('Steps 3 and 4: Rules').first().json.email, phone: $('Steps 3 and 4: Rules').first().json.phone, event_id: $('Consent event').first().json.event_id, reason: 'marketing opt-out' }), \"pause_body\": JSON.stringify({ status: 'paused', since: new Date().toISOString(), reason: 'opt-out not confirmed: ' + out.problem, event_id: $('Consent event').first().json.event_id }), \"log_body\": JSON.stringify({ recipe: 'R15.3', item: $('Consent event').first().json.event_id, decision: out.list + ': ' + out.outcome, rules: { list: out.list, record: out.record_id, opt_out: out.opt_out } })});\nconst one = (r) => (Array.isArray(r) ? r : [r]).filter(Boolean).map(i => (i.json !== undefined ? i.json : i));\nconst $json = INPUT && INPUT in DATA ? $input.first().json : {};\nconst __rule = () => {\n// Matched on email or phone, never name.\nconst normEmail = e => String(e || '').trim().toLowerCase();\nconst normPhone = p => String(p || '').replace(/\\D/g, '');\nconst same = (r, ev) => (normEmail(ev.email) && normEmail(r.email) === normEmail(ev.email))\n  || (normPhone(ev.phone) && normPhone(r.phone) === normPhone(ev.phone));\n\n// Step 6: the person's records on each list, matched on email or phone, never name.\nconst ev = $('Steps 3 and 4: Rules').first().json;\nconst out = [];\n$input.all().forEach((it, i) => {\n  const l = $('Step 6: Lists to update').itemMatching(i).json;\n  const rows = [...($('Step 6: Find on the list by email').itemMatching(i).json.items || []), ...(it.json.items || [])];\n  const seen = new Set();\n  for (const rec of rows) {\n    if (seen.has(rec.id) || !same(rec, ev)) continue;\n    seen.add(rec.id);\n    out.push({ json: Object.assign({}, l, { record_id: rec.id }), pairedItem: i });\n  }\n  if (!seen.size) out.push({ json: Object.assign({}, l, { record_id: null, outcome: 'not on the list' }), pairedItem: i });\n});\nreturn out;\n};\nreturn { items: one(__rule()).map(o => Object.assign({}, o, BODIES(o))) };\n\n})();",
+                "input": [
+                  {
+                    "name": "in0_Step6Liststoupdate",
+                    "value": "{{16.self}}"
+                  },
+                  {
+                    "name": "in1_Step6Findonthelistbyemai",
+                    "value": "{{17.data}}"
+                  },
+                  {
+                    "name": "in2_Consentevent",
+                    "value": "{{6.result}}"
+                  },
+                  {
+                    "name": "in3_Steps3and4Rules",
+                    "value": "{{12.result}}"
+                  },
+                  {
+                    "name": "in4_Config",
+                    "value": "{{2.result}}"
+                  },
+                  {
+                    "name": "in5_Step6Findonthelistbyphon",
+                    "value": "{{18.data}}"
+                  },
+                  {
+                    "name": "run_id",
+                    "value": "{{var.scenario.executionId}}"
+                  },
+                  {
+                    "name": "in5_Findfailed",
+                    "value": "{{17.statusCode}}/{{18.statusCode}}"
+                  },
+                  {
+                    "name": "email_status",
+                    "value": "{{17.statusCode}}"
+                  },
+                  {
+                    "name": "phone_status",
+                    "value": "{{18.statusCode}}"
+                  }
+                ]
+              },
+              "metadata": {
+                "designer": {
+                  "x": 4200,
+                  "y": 1500,
+                  "name": "Step 6: Records to change"
+                }
+              }
+            },
+            {
+              "id": 20,
+              "module": "builtin:BasicFeeder",
+              "version": 1,
+              "parameters": {},
+              "mapper": {
+                "array": "{{19.result.items}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 4500,
+                  "y": 1500,
+                  "name": "Each record"
+                }
+              }
+            },
+            {
+              "id": 69,
+              "module": "builtin:BasicRouter",
+              "version": 1,
+              "mapper": null,
+              "routes": [
+                {
+                  "flow": [
+                    {
+                      "id": 21,
+                      "module": "http:MakeRequest",
+                      "version": 4,
+                      "parameters": {},
+                      "mapper": {
+                        "url": "{{20.url}}/contacts/{{20.record_q}}",
+                        "method": "patch",
+                        "timeout": "40",
+                        "parseResponse": false,
+                        "stopOnHttpError": false,
+                        "allowRedirects": true,
+                        "shareCookies": false,
+                        "requestCompressedContent": true,
+                        "contentType": "json",
+                        "inputMethod": "jsonString",
+                        "jsonStringBodyContent": "{{20.apply_body}}"
+                      },
+                      "metadata": {
+                        "designer": {
+                          "x": 5100,
+                          "y": 1500,
+                          "name": "Step 6: Apply it to the list"
+                        }
+                      },
+                      "filter": {
+                        "name": "on the list",
+                        "conditions": [
+                          [
+                            {
+                              "a": "{{20.path}}",
+                              "b": "on the list",
+                              "o": "text:equal"
+                            }
+                          ]
+                        ]
+                      }
+                    },
+                    {
+                      "id": 22,
+                      "module": "http:MakeRequest",
+                      "version": 4,
+                      "parameters": {},
+                      "mapper": {
+                        "url": "{{20.url}}/contacts/{{20.record_q}}",
+                        "method": "get",
+                        "timeout": "40",
+                        "parseResponse": true,
+                        "stopOnHttpError": false,
+                        "allowRedirects": true,
+                        "shareCookies": false,
+                        "requestCompressedContent": true
+                      },
+                      "metadata": {
+                        "designer": {
+                          "x": 5400,
+                          "y": 1500,
+                          "name": "Step 6: Read it back"
+                        }
+                      }
+                    },
+                    {
+                      "id": 23,
+                      "module": "code:ExecuteCode",
+                      "version": 1,
+                      "parameters": {},
+                      "mapper": {
+                        "language": "javascript",
+                        "inputFormat": "editor",
+                        "dependencies": [],
+                        "codeEditorJavascript": "const ok = Number(input.apply_status) < 400 && Number(input.read_status) < 400;\nconst confirmed = ok ? (() => {\n// Adapter: the rule below is the same JavaScript as the recipe's n8n build.\n// $('Step name') answers from this step's inputs: each is that step's output in this scenario.\nconst SOURCES = {\"Step 6: Records to change\": \"in0_Step6Recordstochange\", \"Consent event\": \"in1_Consentevent\", \"Steps 3 and 4: Rules\": \"in2_Steps3and4Rules\", \"Config\": \"in3_Config\", \"Step 6: Read it back\": \"in4_Step6Readitback\"};\nconst LISTS = [];\nconst EXECUTED = [];\nconst DATA = {};\nfor (const [node, key] of Object.entries(SOURCES)) {\n  const raw = input[key];\n  let v = raw;\n  if (typeof raw === 'string') { try { v = JSON.parse(raw); } catch (e) { v = raw; } }\n  DATA[node] = LISTS.includes(node) ? (v || []).map(i => (i && i.json !== undefined ? i : { json: i })) : [{ json: v }];\n}\nconst $ = (node) => {\n  const ran = node in DATA || EXECUTED.includes(node);\n  const list = () => { if (!(node in DATA)) throw new Error(`step ${node} has no data in this scenario`); return DATA[node]; };\n  return { isExecuted: ran, first: () => list()[0], last: () => list()[list().length - 1], all: () => list(),\n           get item() { return list()[0]; } };\n};\nconst INPUT = \"Step 6: Read it back\";\nconst $input = { all: () => $(INPUT).all(), first: () => $(INPUT).first(), last: () => $(INPUT).last(), get item() { return $(INPUT).first(); } };\nconst $execution = { id: input.run_id };\nconst BODIES = (out) => ({\"self\": JSON.stringify(out), \"path\": out.problem ? 'did not confirm' : out.record_id === null ? 'not on the list' : 'on the list', \"record_q\": encodeURIComponent(out.record_id || ''), \"list_q\": encodeURIComponent(out.list || ''), \"apply_body\": JSON.stringify({ marketing_opt_out: out.opt_out }), \"suppress_body\": JSON.stringify({ email: $('Steps 3 and 4: Rules').first().json.email, phone: $('Steps 3 and 4: Rules').first().json.phone, event_id: $('Consent event').first().json.event_id, reason: 'marketing opt-out' }), \"pause_body\": JSON.stringify({ status: 'paused', since: new Date().toISOString(), reason: 'opt-out not confirmed: ' + out.problem, event_id: $('Consent event').first().json.event_id }), \"log_body\": JSON.stringify({ recipe: 'R15.3', item: $('Consent event').first().json.event_id, decision: out.list + ': ' + out.outcome, rules: { list: out.list, record: out.record_id, opt_out: out.opt_out } })});\nconst one = (r) => (Array.isArray(r) ? r : [r]).filter(Boolean).map(i => (i.json !== undefined ? i.json : i));\nconst $json = INPUT && INPUT in DATA ? $input.first().json : {};\nconst __rule = () => {\n// Step 6: the read-back confirms the change only if the list now holds it.\nconst rec = $('Step 6: Records to change').item.json;\nconst ok = $json.marketing_opt_out === rec.opt_out;\nreturn { json: Object.assign({}, rec, { outcome: ok ? 'confirmed' : 'not confirmed',\n  problem: ok ? null : `read back marketing_opt_out = ${JSON.stringify($json.marketing_opt_out)}` }) };\n};\nconst out = one(__rule())[0] || {};\nreturn Object.assign({}, out, BODIES(out));\n\n})() : null;\nif (confirmed && confirmed.outcome === 'confirmed') return confirmed;\nreturn ((input) => {\n// Adapter: the rule below is the same JavaScript as the recipe's n8n build.\n// $('Step name') answers from this step's inputs: each is that step's output in this scenario.\nconst SOURCES = {\"Step 6: Records to change\": \"in0_Step6Recordstochange\", \"Consent event\": \"in1_Consentevent\", \"Steps 3 and 4: Rules\": \"in2_Steps3and4Rules\", \"Config\": \"in3_Config\", \"Did not confirm\": \"in4_Didnotconfirm\"};\nconst LISTS = [];\nconst EXECUTED = [];\nconst DATA = {};\nfor (const [node, key] of Object.entries(SOURCES)) {\n  const raw = input[key];\n  let v = raw;\n  if (typeof raw === 'string') { try { v = JSON.parse(raw); } catch (e) { v = raw; } }\n  DATA[node] = LISTS.includes(node) ? (v || []).map(i => (i && i.json !== undefined ? i : { json: i })) : [{ json: v }];\n}\nconst $ = (node) => {\n  const ran = node in DATA || EXECUTED.includes(node);\n  const list = () => { if (!(node in DATA)) throw new Error(`step ${node} has no data in this scenario`); return DATA[node]; };\n  return { isExecuted: ran, first: () => list()[0], last: () => list()[list().length - 1], all: () => list(),\n           get item() { return list()[0]; } };\n};\nconst INPUT = \"Did not confirm\";\nconst $input = { all: () => $(INPUT).all(), first: () => $(INPUT).first(), last: () => $(INPUT).last(), get item() { return $(INPUT).first(); } };\nconst $execution = { id: input.run_id };\nconst BODIES = (out) => ({\"self\": JSON.stringify(out), \"path\": out.problem ? 'did not confirm' : out.record_id === null ? 'not on the list' : 'on the list', \"record_q\": encodeURIComponent(out.record_id || ''), \"list_q\": encodeURIComponent(out.list || ''), \"apply_body\": JSON.stringify({ marketing_opt_out: out.opt_out }), \"suppress_body\": JSON.stringify({ email: $('Steps 3 and 4: Rules').first().json.email, phone: $('Steps 3 and 4: Rules').first().json.phone, event_id: $('Consent event').first().json.event_id, reason: 'marketing opt-out' }), \"pause_body\": JSON.stringify({ status: 'paused', since: new Date().toISOString(), reason: 'opt-out not confirmed: ' + out.problem, event_id: $('Consent event').first().json.event_id }), \"log_body\": JSON.stringify({ recipe: 'R15.3', item: $('Consent event').first().json.event_id, decision: out.list + ': ' + out.outcome, rules: { list: out.list, record: out.record_id, opt_out: out.opt_out } })});\nconst one = (r) => (Array.isArray(r) ? r : [r]).filter(Boolean).map(i => (i.json !== undefined ? i.json : i));\nconst $json = INPUT && INPUT in DATA ? $input.first().json : {};\nconst __rule = () => {\n// Step 7: the write failed, the read-back failed, or the read-back differs. Never retried.\nconst rec = $('Step 6: Records to change').item.json;\nconst problem = $json.problem || ('write or read-back failed: ' + (($json.error && $json.error.message) || 'no answer'));\nreturn { json: Object.assign({}, rec, { problem }) };\n};\nconst out = one(__rule())[0] || {};\nreturn Object.assign({}, out, BODIES(out));\n\n})(Object.assign({}, input, { in4_Didnotconfirm: confirmed || { error: { message: 'the list answered HTTP ' + input.apply_status + '/' + input.read_status } } }));",
+                        "input": [
+                          {
+                            "name": "in0_Step6Recordstochange",
+                            "value": "{{20.self}}"
+                          },
+                          {
+                            "name": "in1_Consentevent",
+                            "value": "{{6.result}}"
+                          },
+                          {
+                            "name": "in2_Steps3and4Rules",
+                            "value": "{{12.result}}"
+                          },
+                          {
+                            "name": "in3_Config",
+                            "value": "{{2.result}}"
+                          },
+                          {
+                            "name": "in4_Step6Readitback",
+                            "value": "{{22.data}}"
+                          },
+                          {
+                            "name": "run_id",
+                            "value": "{{var.scenario.executionId}}"
+                          },
+                          {
+                            "name": "in4_Didnotconfirm",
+                            "value": ""
+                          },
+                          {
+                            "name": "apply_status",
+                            "value": "{{21.statusCode}}"
+                          },
+                          {
+                            "name": "read_status",
+                            "value": "{{22.statusCode}}"
+                          }
+                        ]
+                      },
+                      "metadata": {
+                        "designer": {
+                          "x": 5700,
+                          "y": 1500,
+                          "name": "Step 6: Rule: did the list confirm?"
+                        }
+                      }
+                    },
+                    {
+                      "id": 46,
+                      "module": "builtin:BasicRouter",
+                      "version": 1,
+                      "mapper": null,
+                      "routes": [
+                        {
+                          "flow": [
+                            {
+                              "id": 24,
+                              "module": "http:MakeRequest",
+                              "version": 4,
+                              "parameters": {},
+                              "mapper": {
+                                "url": "{{2.result.table_api_url}}/decision_log",
+                                "method": "post",
+                                "timeout": "40",
+                                "parseResponse": false,
+                                "stopOnHttpError": true,
+                                "allowRedirects": true,
+                                "shareCookies": false,
+                                "requestCompressedContent": true,
+                                "contentType": "json",
+                                "inputMethod": "jsonString",
+                                "jsonStringBodyContent": "{{23.result.log_body}}"
+                              },
+                              "metadata": {
+                                "designer": {
+                                  "x": 6300,
+                                  "y": 1500,
+                                  "name": "Step 6: Decision log"
+                                }
+                              },
+                              "filter": {
+                                "name": "confirmed",
+                                "conditions": [
+                                  [
+                                    {
+                                      "a": "{{23.result.outcome}}",
+                                      "b": "confirmed",
+                                      "o": "text:equal"
+                                    }
+                                  ]
+                                ]
+                              }
+                            }
+                          ]
+                        },
+                        {
+                          "flow": [
+                            {
+                              "id": 45,
+                              "module": "builtin:BasicRouter",
+                              "version": 1,
+                              "mapper": null,
+                              "routes": [
+                                {
+                                  "flow": [
+                                    {
+                                      "id": 36,
+                                      "module": "http:MakeRequest",
+                                      "version": 4,
+                                      "parameters": {},
+                                      "mapper": {
+                                        "url": "{{23.result.url}}/suppressions",
+                                        "method": "post",
+                                        "timeout": "40",
+                                        "parseResponse": false,
+                                        "stopOnHttpError": true,
+                                        "allowRedirects": true,
+                                        "shareCookies": false,
+                                        "requestCompressedContent": true,
+                                        "contentType": "json",
+                                        "inputMethod": "jsonString",
+                                        "jsonStringBodyContent": "{{23.result.suppress_body}}"
+                                      },
+                                      "metadata": {
+                                        "designer": {
+                                          "x": 6600,
+                                          "y": 1800,
+                                          "name": "Step 7: Suppress the person on the list (did not confirm)"
+                                        }
+                                      },
+                                      "onerror": [
+                                        {
+                                          "id": 30,
+                                          "module": "http:MakeRequest",
+                                          "version": 4,
+                                          "parameters": {},
+                                          "mapper": {
+                                            "url": "{{2.result.send_status_url}}/lists/{{23.result.list_q}}",
+                                            "method": "put",
+                                            "timeout": "40",
+                                            "parseResponse": false,
+                                            "stopOnHttpError": true,
+                                            "allowRedirects": true,
+                                            "shareCookies": false,
+                                            "requestCompressedContent": true,
+                                            "contentType": "json",
+                                            "inputMethod": "jsonString",
+                                            "jsonStringBodyContent": "{{23.result.pause_body}}"
+                                          },
+                                          "metadata": {
+                                            "designer": {
+                                              "x": 6600,
+                                              "y": 2100,
+                                              "name": "Step 7: Mark the list paused (did not confirm)"
+                                            }
+                                          },
+                                          "onerror": [
+                                            {
+                                              "id": 25,
+                                              "module": "code:ExecuteCode",
+                                              "version": 1,
+                                              "parameters": {},
+                                              "mapper": {
+                                                "language": "javascript",
+                                                "inputFormat": "editor",
+                                                "dependencies": [],
+                                                "codeEditorJavascript": "// Adapter: the rule below is the same JavaScript as the recipe's n8n build.\n// $('Step name') answers from this step's inputs: each is that step's output in this scenario.\nconst SOURCES = {\"Config\": \"in0_Config\", \"Consent event\": \"in1_Consentevent\", \"Step 7: An opt-out?\": \"in2_Step7Anoptout\"};\nconst LISTS = [];\nconst EXECUTED = [];\nconst DATA = {};\nfor (const [node, key] of Object.entries(SOURCES)) {\n  const raw = input[key];\n  let v = raw;\n  if (typeof raw === 'string') { try { v = JSON.parse(raw); } catch (e) { v = raw; } }\n  DATA[node] = LISTS.includes(node) ? (v || []).map(i => (i && i.json !== undefined ? i : { json: i })) : [{ json: v }];\n}\nconst $ = (node) => {\n  const ran = node in DATA || EXECUTED.includes(node);\n  const list = () => { if (!(node in DATA)) throw new Error(`step ${node} has no data in this scenario`); return DATA[node]; };\n  return { isExecuted: ran, first: () => list()[0], last: () => list()[list().length - 1], all: () => list(),\n           get item() { return list()[0]; } };\n};\nconst INPUT = \"Step 7: An opt-out?\";\nconst $input = { all: () => $(INPUT).all(), first: () => $(INPUT).first(), last: () => $(INPUT).last(), get item() { return $(INPUT).first(); } };\nconst $execution = { id: input.run_id };\nconst BODIES = (out) => ({\"exception_body\": JSON.stringify({ recipe: 'R15.3', item: $('Consent event').first().json.event_id, reason: 'list did not confirm', detail: out.list + ': ' + out.problem + '; ' + out.action, owner: $('Config').first().json.consent_owner }), \"message\": JSON.stringify({ to: $('Config').first().json.consent_owner, subject: 'Consent change not confirmed on ' + out.list, text: out.problem + '; ' + out.action }), \"log_body\": JSON.stringify({ recipe: 'R15.3', item: $('Consent event').first().json.event_id, decision: out.list + ': not confirmed; ' + out.action, rules: { list: out.list, record: out.record_id, problem: out.problem } })});\nconst one = (r) => (Array.isArray(r) ? r : [r]).filter(Boolean).map(i => (i.json !== undefined ? i.json : i));\nconst $json = INPUT && INPUT in DATA ? $input.first().json : {};\nconst __rule = () => {\nreturn { json: Object.assign({}, $('Step 7: An opt-out?').item.json, { action: \"suppression and pause both failed; pause the list by hand\" }) };\n};\nconst out = one(__rule())[0] || {};\nreturn Object.assign({}, out, BODIES(out));\n",
+                                                "input": [
+                                                  {
+                                                    "name": "in0_Config",
+                                                    "value": "{{2.result}}"
+                                                  },
+                                                  {
+                                                    "name": "in1_Consentevent",
+                                                    "value": "{{6.result}}"
+                                                  },
+                                                  {
+                                                    "name": "in2_Step7Anoptout",
+                                                    "value": "{{23.result.self}}"
+                                                  },
+                                                  {
+                                                    "name": "run_id",
+                                                    "value": "{{var.scenario.executionId}}"
+                                                  }
+                                                ]
+                                              },
+                                              "metadata": {
+                                                "designer": {
+                                                  "x": 6600,
+                                                  "y": 2400,
+                                                  "name": "Step 7: Pause failed (did not confirm)"
+                                                }
+                                              }
+                                            },
+                                            {
+                                              "id": 26,
+                                              "module": "http:MakeRequest",
+                                              "version": 4,
+                                              "parameters": {},
+                                              "mapper": {
+                                                "url": "{{2.result.table_api_url}}/exception_queue",
+                                                "method": "post",
+                                                "timeout": "40",
+                                                "parseResponse": false,
+                                                "stopOnHttpError": true,
+                                                "allowRedirects": true,
+                                                "shareCookies": false,
+                                                "requestCompressedContent": true,
+                                                "contentType": "json",
+                                                "inputMethod": "jsonString",
+                                                "jsonStringBodyContent": "{{25.result.exception_body}}"
+                                              },
+                                              "metadata": {
+                                                "designer": {
+                                                  "x": 6900,
+                                                  "y": 2400,
+                                                  "name": "Exception queue: list did not confirm (pause failed, did not confirm)"
+                                                }
+                                              }
+                                            },
+                                            {
+                                              "id": 27,
+                                              "module": "http:MakeRequest",
+                                              "version": 4,
+                                              "parameters": {},
+                                              "mapper": {
+                                                "url": "{{2.result.messaging_url}}/messages",
+                                                "method": "post",
+                                                "timeout": "40",
+                                                "parseResponse": false,
+                                                "stopOnHttpError": true,
+                                                "allowRedirects": true,
+                                                "shareCookies": false,
+                                                "requestCompressedContent": true,
+                                                "contentType": "json",
+                                                "inputMethod": "jsonString",
+                                                "jsonStringBodyContent": "{{25.result.message}}"
+                                              },
+                                              "metadata": {
+                                                "designer": {
+                                                  "x": 7200,
+                                                  "y": 2400,
+                                                  "name": "Step 7: Tell Owen (pause failed, did not confirm)"
+                                                }
+                                              }
+                                            },
+                                            {
+                                              "id": 28,
+                                              "module": "http:MakeRequest",
+                                              "version": 4,
+                                              "parameters": {},
+                                              "mapper": {
+                                                "url": "{{2.result.table_api_url}}/decision_log",
+                                                "method": "post",
+                                                "timeout": "40",
+                                                "parseResponse": false,
+                                                "stopOnHttpError": true,
+                                                "allowRedirects": true,
+                                                "shareCookies": false,
+                                                "requestCompressedContent": true,
+                                                "contentType": "json",
+                                                "inputMethod": "jsonString",
+                                                "jsonStringBodyContent": "{{25.result.log_body}}"
+                                              },
+                                              "metadata": {
+                                                "designer": {
+                                                  "x": 7500,
+                                                  "y": 2400,
+                                                  "name": "Step 7: Decision log (pause failed, did not confirm)"
+                                                }
+                                              }
+                                            },
+                                            {
+                                              "id": 29,
+                                              "module": "builtin:Ignore",
+                                              "version": 1,
+                                              "metadata": {
+                                                "designer": {
+                                                  "x": 7800,
+                                                  "y": 2400
+                                                }
+                                              }
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "id": 31,
+                                          "module": "code:ExecuteCode",
+                                          "version": 1,
+                                          "parameters": {},
+                                          "mapper": {
+                                            "language": "javascript",
+                                            "inputFormat": "editor",
+                                            "dependencies": [],
+                                            "codeEditorJavascript": "// Adapter: the rule below is the same JavaScript as the recipe's n8n build.\n// $('Step name') answers from this step's inputs: each is that step's output in this scenario.\nconst SOURCES = {\"Config\": \"in0_Config\", \"Consent event\": \"in1_Consentevent\", \"Step 7: An opt-out?\": \"in2_Step7Anoptout\"};\nconst LISTS = [];\nconst EXECUTED = [];\nconst DATA = {};\nfor (const [node, key] of Object.entries(SOURCES)) {\n  const raw = input[key];\n  let v = raw;\n  if (typeof raw === 'string') { try { v = JSON.parse(raw); } catch (e) { v = raw; } }\n  DATA[node] = LISTS.includes(node) ? (v || []).map(i => (i && i.json !== undefined ? i : { json: i })) : [{ json: v }];\n}\nconst $ = (node) => {\n  const ran = node in DATA || EXECUTED.includes(node);\n  const list = () => { if (!(node in DATA)) throw new Error(`step ${node} has no data in this scenario`); return DATA[node]; };\n  return { isExecuted: ran, first: () => list()[0], last: () => list()[list().length - 1], all: () => list(),\n           get item() { return list()[0]; } };\n};\nconst INPUT = \"Step 7: An opt-out?\";\nconst $input = { all: () => $(INPUT).all(), first: () => $(INPUT).first(), last: () => $(INPUT).last(), get item() { return $(INPUT).first(); } };\nconst $execution = { id: input.run_id };\nconst BODIES = (out) => ({\"exception_body\": JSON.stringify({ recipe: 'R15.3', item: $('Consent event').first().json.event_id, reason: 'list did not confirm', detail: out.list + ': ' + out.problem + '; ' + out.action, owner: $('Config').first().json.consent_owner }), \"message\": JSON.stringify({ to: $('Config').first().json.consent_owner, subject: 'Consent change not confirmed on ' + out.list, text: out.problem + '; ' + out.action }), \"log_body\": JSON.stringify({ recipe: 'R15.3', item: $('Consent event').first().json.event_id, decision: out.list + ': not confirmed; ' + out.action, rules: { list: out.list, record: out.record_id, problem: out.problem } })});\nconst one = (r) => (Array.isArray(r) ? r : [r]).filter(Boolean).map(i => (i.json !== undefined ? i.json : i));\nconst $json = INPUT && INPUT in DATA ? $input.first().json : {};\nconst __rule = () => {\nreturn { json: Object.assign({}, $('Step 7: An opt-out?').item.json, { action: \"list paused\" }) };\n};\nconst out = one(__rule())[0] || {};\nreturn Object.assign({}, out, BODIES(out));\n",
+                                            "input": [
+                                              {
+                                                "name": "in0_Config",
+                                                "value": "{{2.result}}"
+                                              },
+                                              {
+                                                "name": "in1_Consentevent",
+                                                "value": "{{6.result}}"
+                                              },
+                                              {
+                                                "name": "in2_Step7Anoptout",
+                                                "value": "{{23.result.self}}"
+                                              },
+                                              {
+                                                "name": "run_id",
+                                                "value": "{{var.scenario.executionId}}"
+                                              }
+                                            ]
+                                          },
+                                          "metadata": {
+                                            "designer": {
+                                              "x": 6900,
+                                              "y": 2100,
+                                              "name": "Step 7: Paused (did not confirm)"
+                                            }
+                                          }
+                                        },
+                                        {
+                                          "id": 32,
+                                          "module": "http:MakeRequest",
+                                          "version": 4,
+                                          "parameters": {},
+                                          "mapper": {
+                                            "url": "{{2.result.table_api_url}}/exception_queue",
+                                            "method": "post",
+                                            "timeout": "40",
+                                            "parseResponse": false,
+                                            "stopOnHttpError": true,
+                                            "allowRedirects": true,
+                                            "shareCookies": false,
+                                            "requestCompressedContent": true,
+                                            "contentType": "json",
+                                            "inputMethod": "jsonString",
+                                            "jsonStringBodyContent": "{{31.result.exception_body}}"
+                                          },
+                                          "metadata": {
+                                            "designer": {
+                                              "x": 7200,
+                                              "y": 2100,
+                                              "name": "Exception queue: list did not confirm (paused, did not confirm)"
+                                            }
+                                          }
+                                        },
+                                        {
+                                          "id": 33,
+                                          "module": "http:MakeRequest",
+                                          "version": 4,
+                                          "parameters": {},
+                                          "mapper": {
+                                            "url": "{{2.result.messaging_url}}/messages",
+                                            "method": "post",
+                                            "timeout": "40",
+                                            "parseResponse": false,
+                                            "stopOnHttpError": true,
+                                            "allowRedirects": true,
+                                            "shareCookies": false,
+                                            "requestCompressedContent": true,
+                                            "contentType": "json",
+                                            "inputMethod": "jsonString",
+                                            "jsonStringBodyContent": "{{31.result.message}}"
+                                          },
+                                          "metadata": {
+                                            "designer": {
+                                              "x": 7500,
+                                              "y": 2100,
+                                              "name": "Step 7: Tell Owen (paused, did not confirm)"
+                                            }
+                                          }
+                                        },
+                                        {
+                                          "id": 34,
+                                          "module": "http:MakeRequest",
+                                          "version": 4,
+                                          "parameters": {},
+                                          "mapper": {
+                                            "url": "{{2.result.table_api_url}}/decision_log",
+                                            "method": "post",
+                                            "timeout": "40",
+                                            "parseResponse": false,
+                                            "stopOnHttpError": true,
+                                            "allowRedirects": true,
+                                            "shareCookies": false,
+                                            "requestCompressedContent": true,
+                                            "contentType": "json",
+                                            "inputMethod": "jsonString",
+                                            "jsonStringBodyContent": "{{31.result.log_body}}"
+                                          },
+                                          "metadata": {
+                                            "designer": {
+                                              "x": 7800,
+                                              "y": 2100,
+                                              "name": "Step 7: Decision log (paused, did not confirm)"
+                                            }
+                                          }
+                                        },
+                                        {
+                                          "id": 35,
+                                          "module": "builtin:Ignore",
+                                          "version": 1,
+                                          "metadata": {
+                                            "designer": {
+                                              "x": 8100,
+                                              "y": 2100
+                                            }
+                                          }
+                                        }
+                                      ],
+                                      "filter": {
+                                        "name": "an opt-out",
+                                        "conditions": [
+                                          [
+                                            {
+                                              "a": "{{23.result.opt_out}}",
+                                              "b": "true",
+                                              "o": "text:equal"
+                                            }
+                                          ]
+                                        ]
+                                      }
+                                    },
+                                    {
+                                      "id": 37,
+                                      "module": "code:ExecuteCode",
+                                      "version": 1,
+                                      "parameters": {},
+                                      "mapper": {
+                                        "language": "javascript",
+                                        "inputFormat": "editor",
+                                        "dependencies": [],
+                                        "codeEditorJavascript": "// Adapter: the rule below is the same JavaScript as the recipe's n8n build.\n// $('Step name') answers from this step's inputs: each is that step's output in this scenario.\nconst SOURCES = {\"Config\": \"in0_Config\", \"Consent event\": \"in1_Consentevent\", \"Step 7: An opt-out?\": \"in2_Step7Anoptout\"};\nconst LISTS = [];\nconst EXECUTED = [];\nconst DATA = {};\nfor (const [node, key] of Object.entries(SOURCES)) {\n  const raw = input[key];\n  let v = raw;\n  if (typeof raw === 'string') { try { v = JSON.parse(raw); } catch (e) { v = raw; } }\n  DATA[node] = LISTS.includes(node) ? (v || []).map(i => (i && i.json !== undefined ? i : { json: i })) : [{ json: v }];\n}\nconst $ = (node) => {\n  const ran = node in DATA || EXECUTED.includes(node);\n  const list = () => { if (!(node in DATA)) throw new Error(`step ${node} has no data in this scenario`); return DATA[node]; };\n  return { isExecuted: ran, first: () => list()[0], last: () => list()[list().length - 1], all: () => list(),\n           get item() { return list()[0]; } };\n};\nconst INPUT = \"Step 7: An opt-out?\";\nconst $input = { all: () => $(INPUT).all(), first: () => $(INPUT).first(), last: () => $(INPUT).last(), get item() { return $(INPUT).first(); } };\nconst $execution = { id: input.run_id };\nconst BODIES = (out) => ({\"exception_body\": JSON.stringify({ recipe: 'R15.3', item: $('Consent event').first().json.event_id, reason: 'list did not confirm', detail: out.list + ': ' + out.problem + '; ' + out.action, owner: $('Config').first().json.consent_owner }), \"message\": JSON.stringify({ to: $('Config').first().json.consent_owner, subject: 'Consent change not confirmed on ' + out.list, text: out.problem + '; ' + out.action }), \"log_body\": JSON.stringify({ recipe: 'R15.3', item: $('Consent event').first().json.event_id, decision: out.list + ': not confirmed; ' + out.action, rules: { list: out.list, record: out.record_id, problem: out.problem } })});\nconst one = (r) => (Array.isArray(r) ? r : [r]).filter(Boolean).map(i => (i.json !== undefined ? i.json : i));\nconst $json = INPUT && INPUT in DATA ? $input.first().json : {};\nconst __rule = () => {\nreturn { json: Object.assign({}, $('Step 7: An opt-out?').item.json, { action: \"suppressed on the list\" }) };\n};\nconst out = one(__rule())[0] || {};\nreturn Object.assign({}, out, BODIES(out));\n",
+                                        "input": [
+                                          {
+                                            "name": "in0_Config",
+                                            "value": "{{2.result}}"
+                                          },
+                                          {
+                                            "name": "in1_Consentevent",
+                                            "value": "{{6.result}}"
+                                          },
+                                          {
+                                            "name": "in2_Step7Anoptout",
+                                            "value": "{{23.result.self}}"
+                                          },
+                                          {
+                                            "name": "run_id",
+                                            "value": "{{var.scenario.executionId}}"
+                                          }
+                                        ]
+                                      },
+                                      "metadata": {
+                                        "designer": {
+                                          "x": 6900,
+                                          "y": 1800,
+                                          "name": "Step 7: Suppressed (did not confirm)"
+                                        }
+                                      }
+                                    },
+                                    {
+                                      "id": 38,
+                                      "module": "http:MakeRequest",
+                                      "version": 4,
+                                      "parameters": {},
+                                      "mapper": {
+                                        "url": "{{2.result.table_api_url}}/exception_queue",
+                                        "method": "post",
+                                        "timeout": "40",
+                                        "parseResponse": false,
+                                        "stopOnHttpError": true,
+                                        "allowRedirects": true,
+                                        "shareCookies": false,
+                                        "requestCompressedContent": true,
+                                        "contentType": "json",
+                                        "inputMethod": "jsonString",
+                                        "jsonStringBodyContent": "{{37.result.exception_body}}"
+                                      },
+                                      "metadata": {
+                                        "designer": {
+                                          "x": 7200,
+                                          "y": 1800,
+                                          "name": "Exception queue: list did not confirm (suppressed, did not confirm)"
+                                        }
+                                      }
+                                    },
+                                    {
+                                      "id": 39,
+                                      "module": "http:MakeRequest",
+                                      "version": 4,
+                                      "parameters": {},
+                                      "mapper": {
+                                        "url": "{{2.result.messaging_url}}/messages",
+                                        "method": "post",
+                                        "timeout": "40",
+                                        "parseResponse": false,
+                                        "stopOnHttpError": true,
+                                        "allowRedirects": true,
+                                        "shareCookies": false,
+                                        "requestCompressedContent": true,
+                                        "contentType": "json",
+                                        "inputMethod": "jsonString",
+                                        "jsonStringBodyContent": "{{37.result.message}}"
+                                      },
+                                      "metadata": {
+                                        "designer": {
+                                          "x": 7500,
+                                          "y": 1800,
+                                          "name": "Step 7: Tell Owen (suppressed, did not confirm)"
+                                        }
+                                      }
+                                    },
+                                    {
+                                      "id": 40,
+                                      "module": "http:MakeRequest",
+                                      "version": 4,
+                                      "parameters": {},
+                                      "mapper": {
+                                        "url": "{{2.result.table_api_url}}/decision_log",
+                                        "method": "post",
+                                        "timeout": "40",
+                                        "parseResponse": false,
+                                        "stopOnHttpError": true,
+                                        "allowRedirects": true,
+                                        "shareCookies": false,
+                                        "requestCompressedContent": true,
+                                        "contentType": "json",
+                                        "inputMethod": "jsonString",
+                                        "jsonStringBodyContent": "{{37.result.log_body}}"
+                                      },
+                                      "metadata": {
+                                        "designer": {
+                                          "x": 7800,
+                                          "y": 1800,
+                                          "name": "Step 7: Decision log (suppressed, did not confirm)"
+                                        }
+                                      }
+                                    }
+                                  ]
+                                },
+                                {
+                                  "flow": [
+                                    {
+                                      "id": 41,
+                                      "module": "code:ExecuteCode",
+                                      "version": 1,
+                                      "parameters": {},
+                                      "mapper": {
+                                        "language": "javascript",
+                                        "inputFormat": "editor",
+                                        "dependencies": [],
+                                        "codeEditorJavascript": "// Adapter: the rule below is the same JavaScript as the recipe's n8n build.\n// $('Step name') answers from this step's inputs: each is that step's output in this scenario.\nconst SOURCES = {\"Config\": \"in0_Config\", \"Consent event\": \"in1_Consentevent\", \"Step 7: An opt-out?\": \"in2_Step7Anoptout\"};\nconst LISTS = [];\nconst EXECUTED = [];\nconst DATA = {};\nfor (const [node, key] of Object.entries(SOURCES)) {\n  const raw = input[key];\n  let v = raw;\n  if (typeof raw === 'string') { try { v = JSON.parse(raw); } catch (e) { v = raw; } }\n  DATA[node] = LISTS.includes(node) ? (v || []).map(i => (i && i.json !== undefined ? i : { json: i })) : [{ json: v }];\n}\nconst $ = (node) => {\n  const ran = node in DATA || EXECUTED.includes(node);\n  const list = () => { if (!(node in DATA)) throw new Error(`step ${node} has no data in this scenario`); return DATA[node]; };\n  return { isExecuted: ran, first: () => list()[0], last: () => list()[list().length - 1], all: () => list(),\n           get item() { return list()[0]; } };\n};\nconst INPUT = \"Step 7: An opt-out?\";\nconst $input = { all: () => $(INPUT).all(), first: () => $(INPUT).first(), last: () => $(INPUT).last(), get item() { return $(INPUT).first(); } };\nconst $execution = { id: input.run_id };\nconst BODIES = (out) => ({\"exception_body\": JSON.stringify({ recipe: 'R15.3', item: $('Consent event').first().json.event_id, reason: 'list did not confirm', detail: out.list + ': ' + out.problem + '; ' + out.action, owner: $('Config').first().json.consent_owner }), \"message\": JSON.stringify({ to: $('Config').first().json.consent_owner, subject: 'Consent change not confirmed on ' + out.list, text: out.problem + '; ' + out.action }), \"log_body\": JSON.stringify({ recipe: 'R15.3', item: $('Consent event').first().json.event_id, decision: out.list + ': not confirmed; ' + out.action, rules: { list: out.list, record: out.record_id, problem: out.problem } })});\nconst one = (r) => (Array.isArray(r) ? r : [r]).filter(Boolean).map(i => (i.json !== undefined ? i.json : i));\nconst $json = INPUT && INPUT in DATA ? $input.first().json : {};\nconst __rule = () => {\nreturn { json: Object.assign({}, $('Step 7: An opt-out?').item.json, { action: \"opt-in not on this list yet; the nightly check corrects it\" }) };\n};\nconst out = one(__rule())[0] || {};\nreturn Object.assign({}, out, BODIES(out));\n",
+                                        "input": [
+                                          {
+                                            "name": "in0_Config",
+                                            "value": "{{2.result}}"
+                                          },
+                                          {
+                                            "name": "in1_Consentevent",
+                                            "value": "{{6.result}}"
+                                          },
+                                          {
+                                            "name": "in2_Step7Anoptout",
+                                            "value": "{{23.result.self}}"
+                                          },
+                                          {
+                                            "name": "run_id",
+                                            "value": "{{var.scenario.executionId}}"
+                                          }
+                                        ]
+                                      },
+                                      "metadata": {
+                                        "designer": {
+                                          "x": 6600,
+                                          "y": 2700,
+                                          "name": "Step 7: Opt-in not confirmed (did not confirm)"
+                                        }
+                                      },
+                                      "filter": {
+                                        "name": "an opt-in",
+                                        "conditions": [
+                                          [
+                                            {
+                                              "a": "{{23.result.opt_out}}",
+                                              "b": "true",
+                                              "o": "text:notequal"
+                                            }
+                                          ]
+                                        ]
+                                      }
+                                    },
+                                    {
+                                      "id": 42,
+                                      "module": "http:MakeRequest",
+                                      "version": 4,
+                                      "parameters": {},
+                                      "mapper": {
+                                        "url": "{{2.result.table_api_url}}/exception_queue",
+                                        "method": "post",
+                                        "timeout": "40",
+                                        "parseResponse": false,
+                                        "stopOnHttpError": true,
+                                        "allowRedirects": true,
+                                        "shareCookies": false,
+                                        "requestCompressedContent": true,
+                                        "contentType": "json",
+                                        "inputMethod": "jsonString",
+                                        "jsonStringBodyContent": "{{41.result.exception_body}}"
+                                      },
+                                      "metadata": {
+                                        "designer": {
+                                          "x": 6900,
+                                          "y": 2700,
+                                          "name": "Exception queue: list did not confirm (opt-in not confirmed, did not confirm)"
+                                        }
+                                      }
+                                    },
+                                    {
+                                      "id": 43,
+                                      "module": "http:MakeRequest",
+                                      "version": 4,
+                                      "parameters": {},
+                                      "mapper": {
+                                        "url": "{{2.result.messaging_url}}/messages",
+                                        "method": "post",
+                                        "timeout": "40",
+                                        "parseResponse": false,
+                                        "stopOnHttpError": true,
+                                        "allowRedirects": true,
+                                        "shareCookies": false,
+                                        "requestCompressedContent": true,
+                                        "contentType": "json",
+                                        "inputMethod": "jsonString",
+                                        "jsonStringBodyContent": "{{41.result.message}}"
+                                      },
+                                      "metadata": {
+                                        "designer": {
+                                          "x": 7200,
+                                          "y": 2700,
+                                          "name": "Step 7: Tell Owen (opt-in not confirmed, did not confirm)"
+                                        }
+                                      }
+                                    },
+                                    {
+                                      "id": 44,
+                                      "module": "http:MakeRequest",
+                                      "version": 4,
+                                      "parameters": {},
+                                      "mapper": {
+                                        "url": "{{2.result.table_api_url}}/decision_log",
+                                        "method": "post",
+                                        "timeout": "40",
+                                        "parseResponse": false,
+                                        "stopOnHttpError": true,
+                                        "allowRedirects": true,
+                                        "shareCookies": false,
+                                        "requestCompressedContent": true,
+                                        "contentType": "json",
+                                        "inputMethod": "jsonString",
+                                        "jsonStringBodyContent": "{{41.result.log_body}}"
+                                      },
+                                      "metadata": {
+                                        "designer": {
+                                          "x": 7500,
+                                          "y": 2700,
+                                          "name": "Step 7: Decision log (opt-in not confirmed, did not confirm)"
+                                        }
+                                      }
+                                    }
+                                  ]
+                                }
+                              ],
+                              "metadata": {
+                                "designer": {
+                                  "x": 6300,
+                                  "y": 1800,
+                                  "name": "Step 7: An opt-out? (did not confirm)"
+                                }
+                              },
+                              "filter": {
+                                "name": "not confirmed",
+                                "conditions": [
+                                  [
+                                    {
+                                      "a": "{{23.result.outcome}}",
+                                      "b": "confirmed",
+                                      "o": "text:notequal"
+                                    }
+                                  ]
+                                ]
+                              }
+                            }
+                          ]
+                        }
+                      ],
+                      "metadata": {
+                        "designer": {
+                          "x": 6000,
+                          "y": 1500,
+                          "name": "Confirmed?"
+                        }
+                      }
+                    }
+                  ]
+                },
+                {
+                  "flow": [
+                    {
+                      "id": 47,
+                      "module": "http:MakeRequest",
+                      "version": 4,
+                      "parameters": {},
+                      "mapper": {
+                        "url": "{{2.result.table_api_url}}/decision_log",
+                        "method": "post",
+                        "timeout": "40",
+                        "parseResponse": false,
+                        "stopOnHttpError": true,
+                        "allowRedirects": true,
+                        "shareCookies": false,
+                        "requestCompressedContent": true,
+                        "contentType": "json",
+                        "inputMethod": "jsonString",
+                        "jsonStringBodyContent": "{{20.log_body}}"
+                      },
+                      "metadata": {
+                        "designer": {
+                          "x": 5100,
+                          "y": 3000,
+                          "name": "Step 6: Decision log (not on the list)"
+                        }
+                      },
+                      "filter": {
+                        "name": "not on the list",
+                        "conditions": [
+                          [
+                            {
+                              "a": "{{20.path}}",
+                              "b": "not on the list",
+                              "o": "text:equal"
+                            }
+                          ]
+                        ]
+                      }
+                    }
+                  ]
+                },
+                {
+                  "flow": [
+                    {
+                      "id": 68,
+                      "module": "builtin:BasicRouter",
+                      "version": 1,
+                      "mapper": null,
+                      "routes": [
+                        {
+                          "flow": [
+                            {
+                              "id": 59,
+                              "module": "http:MakeRequest",
+                              "version": 4,
+                              "parameters": {},
+                              "mapper": {
+                                "url": "{{20.url}}/suppressions",
+                                "method": "post",
+                                "timeout": "40",
+                                "parseResponse": false,
+                                "stopOnHttpError": true,
+                                "allowRedirects": true,
+                                "shareCookies": false,
+                                "requestCompressedContent": true,
+                                "contentType": "json",
+                                "inputMethod": "jsonString",
+                                "jsonStringBodyContent": "{{20.suppress_body}}"
+                              },
+                              "metadata": {
+                                "designer": {
+                                  "x": 5400,
+                                  "y": 3300,
+                                  "name": "Step 7: Suppress the person on the list (list unreachable)"
+                                }
+                              },
+                              "onerror": [
+                                {
+                                  "id": 53,
+                                  "module": "http:MakeRequest",
+                                  "version": 4,
+                                  "parameters": {},
+                                  "mapper": {
+                                    "url": "{{2.result.send_status_url}}/lists/{{20.list_q}}",
+                                    "method": "put",
+                                    "timeout": "40",
+                                    "parseResponse": false,
+                                    "stopOnHttpError": true,
+                                    "allowRedirects": true,
+                                    "shareCookies": false,
+                                    "requestCompressedContent": true,
+                                    "contentType": "json",
+                                    "inputMethod": "jsonString",
+                                    "jsonStringBodyContent": "{{20.pause_body}}"
+                                  },
+                                  "metadata": {
+                                    "designer": {
+                                      "x": 5400,
+                                      "y": 3600,
+                                      "name": "Step 7: Mark the list paused (list unreachable)"
+                                    }
+                                  },
+                                  "onerror": [
+                                    {
+                                      "id": 48,
+                                      "module": "code:ExecuteCode",
+                                      "version": 1,
+                                      "parameters": {},
+                                      "mapper": {
+                                        "language": "javascript",
+                                        "inputFormat": "editor",
+                                        "dependencies": [],
+                                        "codeEditorJavascript": "// Adapter: the rule below is the same JavaScript as the recipe's n8n build.\n// $('Step name') answers from this step's inputs: each is that step's output in this scenario.\nconst SOURCES = {\"Config\": \"in0_Config\", \"Consent event\": \"in1_Consentevent\", \"Step 7: An opt-out?\": \"in2_Step7Anoptout\"};\nconst LISTS = [];\nconst EXECUTED = [];\nconst DATA = {};\nfor (const [node, key] of Object.entries(SOURCES)) {\n  const raw = input[key];\n  let v = raw;\n  if (typeof raw === 'string') { try { v = JSON.parse(raw); } catch (e) { v = raw; } }\n  DATA[node] = LISTS.includes(node) ? (v || []).map(i => (i && i.json !== undefined ? i : { json: i })) : [{ json: v }];\n}\nconst $ = (node) => {\n  const ran = node in DATA || EXECUTED.includes(node);\n  const list = () => { if (!(node in DATA)) throw new Error(`step ${node} has no data in this scenario`); return DATA[node]; };\n  return { isExecuted: ran, first: () => list()[0], last: () => list()[list().length - 1], all: () => list(),\n           get item() { return list()[0]; } };\n};\nconst INPUT = \"Step 7: An opt-out?\";\nconst $input = { all: () => $(INPUT).all(), first: () => $(INPUT).first(), last: () => $(INPUT).last(), get item() { return $(INPUT).first(); } };\nconst $execution = { id: input.run_id };\nconst BODIES = (out) => ({\"exception_body\": JSON.stringify({ recipe: 'R15.3', item: $('Consent event').first().json.event_id, reason: 'list did not confirm', detail: out.list + ': ' + out.problem + '; ' + out.action, owner: $('Config').first().json.consent_owner }), \"message\": JSON.stringify({ to: $('Config').first().json.consent_owner, subject: 'Consent change not confirmed on ' + out.list, text: out.problem + '; ' + out.action }), \"log_body\": JSON.stringify({ recipe: 'R15.3', item: $('Consent event').first().json.event_id, decision: out.list + ': not confirmed; ' + out.action, rules: { list: out.list, record: out.record_id, problem: out.problem } })});\nconst one = (r) => (Array.isArray(r) ? r : [r]).filter(Boolean).map(i => (i.json !== undefined ? i.json : i));\nconst $json = INPUT && INPUT in DATA ? $input.first().json : {};\nconst __rule = () => {\nreturn { json: Object.assign({}, $('Step 7: An opt-out?').item.json, { action: \"suppression and pause both failed; pause the list by hand\" }) };\n};\nconst out = one(__rule())[0] || {};\nreturn Object.assign({}, out, BODIES(out));\n",
+                                        "input": [
+                                          {
+                                            "name": "in0_Config",
+                                            "value": "{{2.result}}"
+                                          },
+                                          {
+                                            "name": "in1_Consentevent",
+                                            "value": "{{6.result}}"
+                                          },
+                                          {
+                                            "name": "in2_Step7Anoptout",
+                                            "value": "{{20.self}}"
+                                          },
+                                          {
+                                            "name": "run_id",
+                                            "value": "{{var.scenario.executionId}}"
+                                          }
+                                        ]
+                                      },
+                                      "metadata": {
+                                        "designer": {
+                                          "x": 5400,
+                                          "y": 3900,
+                                          "name": "Step 7: Pause failed (list unreachable)"
+                                        }
+                                      }
+                                    },
+                                    {
+                                      "id": 49,
+                                      "module": "http:MakeRequest",
+                                      "version": 4,
+                                      "parameters": {},
+                                      "mapper": {
+                                        "url": "{{2.result.table_api_url}}/exception_queue",
+                                        "method": "post",
+                                        "timeout": "40",
+                                        "parseResponse": false,
+                                        "stopOnHttpError": true,
+                                        "allowRedirects": true,
+                                        "shareCookies": false,
+                                        "requestCompressedContent": true,
+                                        "contentType": "json",
+                                        "inputMethod": "jsonString",
+                                        "jsonStringBodyContent": "{{48.result.exception_body}}"
+                                      },
+                                      "metadata": {
+                                        "designer": {
+                                          "x": 5700,
+                                          "y": 3900,
+                                          "name": "Exception queue: list did not confirm (pause failed, list unreachable)"
+                                        }
+                                      }
+                                    },
+                                    {
+                                      "id": 50,
+                                      "module": "http:MakeRequest",
+                                      "version": 4,
+                                      "parameters": {},
+                                      "mapper": {
+                                        "url": "{{2.result.messaging_url}}/messages",
+                                        "method": "post",
+                                        "timeout": "40",
+                                        "parseResponse": false,
+                                        "stopOnHttpError": true,
+                                        "allowRedirects": true,
+                                        "shareCookies": false,
+                                        "requestCompressedContent": true,
+                                        "contentType": "json",
+                                        "inputMethod": "jsonString",
+                                        "jsonStringBodyContent": "{{48.result.message}}"
+                                      },
+                                      "metadata": {
+                                        "designer": {
+                                          "x": 6000,
+                                          "y": 3900,
+                                          "name": "Step 7: Tell Owen (pause failed, list unreachable)"
+                                        }
+                                      }
+                                    },
+                                    {
+                                      "id": 51,
+                                      "module": "http:MakeRequest",
+                                      "version": 4,
+                                      "parameters": {},
+                                      "mapper": {
+                                        "url": "{{2.result.table_api_url}}/decision_log",
+                                        "method": "post",
+                                        "timeout": "40",
+                                        "parseResponse": false,
+                                        "stopOnHttpError": true,
+                                        "allowRedirects": true,
+                                        "shareCookies": false,
+                                        "requestCompressedContent": true,
+                                        "contentType": "json",
+                                        "inputMethod": "jsonString",
+                                        "jsonStringBodyContent": "{{48.result.log_body}}"
+                                      },
+                                      "metadata": {
+                                        "designer": {
+                                          "x": 6300,
+                                          "y": 3900,
+                                          "name": "Step 7: Decision log (pause failed, list unreachable)"
+                                        }
+                                      }
+                                    },
+                                    {
+                                      "id": 52,
+                                      "module": "builtin:Ignore",
+                                      "version": 1,
+                                      "metadata": {
+                                        "designer": {
+                                          "x": 6600,
+                                          "y": 3900
+                                        }
+                                      }
+                                    }
+                                  ]
+                                },
+                                {
+                                  "id": 54,
+                                  "module": "code:ExecuteCode",
+                                  "version": 1,
+                                  "parameters": {},
+                                  "mapper": {
+                                    "language": "javascript",
+                                    "inputFormat": "editor",
+                                    "dependencies": [],
+                                    "codeEditorJavascript": "// Adapter: the rule below is the same JavaScript as the recipe's n8n build.\n// $('Step name') answers from this step's inputs: each is that step's output in this scenario.\nconst SOURCES = {\"Config\": \"in0_Config\", \"Consent event\": \"in1_Consentevent\", \"Step 7: An opt-out?\": \"in2_Step7Anoptout\"};\nconst LISTS = [];\nconst EXECUTED = [];\nconst DATA = {};\nfor (const [node, key] of Object.entries(SOURCES)) {\n  const raw = input[key];\n  let v = raw;\n  if (typeof raw === 'string') { try { v = JSON.parse(raw); } catch (e) { v = raw; } }\n  DATA[node] = LISTS.includes(node) ? (v || []).map(i => (i && i.json !== undefined ? i : { json: i })) : [{ json: v }];\n}\nconst $ = (node) => {\n  const ran = node in DATA || EXECUTED.includes(node);\n  const list = () => { if (!(node in DATA)) throw new Error(`step ${node} has no data in this scenario`); return DATA[node]; };\n  return { isExecuted: ran, first: () => list()[0], last: () => list()[list().length - 1], all: () => list(),\n           get item() { return list()[0]; } };\n};\nconst INPUT = \"Step 7: An opt-out?\";\nconst $input = { all: () => $(INPUT).all(), first: () => $(INPUT).first(), last: () => $(INPUT).last(), get item() { return $(INPUT).first(); } };\nconst $execution = { id: input.run_id };\nconst BODIES = (out) => ({\"exception_body\": JSON.stringify({ recipe: 'R15.3', item: $('Consent event').first().json.event_id, reason: 'list did not confirm', detail: out.list + ': ' + out.problem + '; ' + out.action, owner: $('Config').first().json.consent_owner }), \"message\": JSON.stringify({ to: $('Config').first().json.consent_owner, subject: 'Consent change not confirmed on ' + out.list, text: out.problem + '; ' + out.action }), \"log_body\": JSON.stringify({ recipe: 'R15.3', item: $('Consent event').first().json.event_id, decision: out.list + ': not confirmed; ' + out.action, rules: { list: out.list, record: out.record_id, problem: out.problem } })});\nconst one = (r) => (Array.isArray(r) ? r : [r]).filter(Boolean).map(i => (i.json !== undefined ? i.json : i));\nconst $json = INPUT && INPUT in DATA ? $input.first().json : {};\nconst __rule = () => {\nreturn { json: Object.assign({}, $('Step 7: An opt-out?').item.json, { action: \"list paused\" }) };\n};\nconst out = one(__rule())[0] || {};\nreturn Object.assign({}, out, BODIES(out));\n",
+                                    "input": [
+                                      {
+                                        "name": "in0_Config",
+                                        "value": "{{2.result}}"
+                                      },
+                                      {
+                                        "name": "in1_Consentevent",
+                                        "value": "{{6.result}}"
+                                      },
+                                      {
+                                        "name": "in2_Step7Anoptout",
+                                        "value": "{{20.self}}"
+                                      },
+                                      {
+                                        "name": "run_id",
+                                        "value": "{{var.scenario.executionId}}"
+                                      }
+                                    ]
+                                  },
+                                  "metadata": {
+                                    "designer": {
+                                      "x": 5700,
+                                      "y": 3600,
+                                      "name": "Step 7: Paused (list unreachable)"
+                                    }
+                                  }
+                                },
+                                {
+                                  "id": 55,
+                                  "module": "http:MakeRequest",
+                                  "version": 4,
+                                  "parameters": {},
+                                  "mapper": {
+                                    "url": "{{2.result.table_api_url}}/exception_queue",
+                                    "method": "post",
+                                    "timeout": "40",
+                                    "parseResponse": false,
+                                    "stopOnHttpError": true,
+                                    "allowRedirects": true,
+                                    "shareCookies": false,
+                                    "requestCompressedContent": true,
+                                    "contentType": "json",
+                                    "inputMethod": "jsonString",
+                                    "jsonStringBodyContent": "{{54.result.exception_body}}"
+                                  },
+                                  "metadata": {
+                                    "designer": {
+                                      "x": 6000,
+                                      "y": 3600,
+                                      "name": "Exception queue: list did not confirm (paused, list unreachable)"
+                                    }
+                                  }
+                                },
+                                {
+                                  "id": 56,
+                                  "module": "http:MakeRequest",
+                                  "version": 4,
+                                  "parameters": {},
+                                  "mapper": {
+                                    "url": "{{2.result.messaging_url}}/messages",
+                                    "method": "post",
+                                    "timeout": "40",
+                                    "parseResponse": false,
+                                    "stopOnHttpError": true,
+                                    "allowRedirects": true,
+                                    "shareCookies": false,
+                                    "requestCompressedContent": true,
+                                    "contentType": "json",
+                                    "inputMethod": "jsonString",
+                                    "jsonStringBodyContent": "{{54.result.message}}"
+                                  },
+                                  "metadata": {
+                                    "designer": {
+                                      "x": 6300,
+                                      "y": 3600,
+                                      "name": "Step 7: Tell Owen (paused, list unreachable)"
+                                    }
+                                  }
+                                },
+                                {
+                                  "id": 57,
+                                  "module": "http:MakeRequest",
+                                  "version": 4,
+                                  "parameters": {},
+                                  "mapper": {
+                                    "url": "{{2.result.table_api_url}}/decision_log",
+                                    "method": "post",
+                                    "timeout": "40",
+                                    "parseResponse": false,
+                                    "stopOnHttpError": true,
+                                    "allowRedirects": true,
+                                    "shareCookies": false,
+                                    "requestCompressedContent": true,
+                                    "contentType": "json",
+                                    "inputMethod": "jsonString",
+                                    "jsonStringBodyContent": "{{54.result.log_body}}"
+                                  },
+                                  "metadata": {
+                                    "designer": {
+                                      "x": 6600,
+                                      "y": 3600,
+                                      "name": "Step 7: Decision log (paused, list unreachable)"
+                                    }
+                                  }
+                                },
+                                {
+                                  "id": 58,
+                                  "module": "builtin:Ignore",
+                                  "version": 1,
+                                  "metadata": {
+                                    "designer": {
+                                      "x": 6900,
+                                      "y": 3600
+                                    }
+                                  }
+                                }
+                              ],
+                              "filter": {
+                                "name": "an opt-out",
+                                "conditions": [
+                                  [
+                                    {
+                                      "a": "{{20.opt_out}}",
+                                      "b": "true",
+                                      "o": "text:equal"
+                                    }
+                                  ]
+                                ]
+                              }
+                            },
+                            {
+                              "id": 60,
+                              "module": "code:ExecuteCode",
+                              "version": 1,
+                              "parameters": {},
+                              "mapper": {
+                                "language": "javascript",
+                                "inputFormat": "editor",
+                                "dependencies": [],
+                                "codeEditorJavascript": "// Adapter: the rule below is the same JavaScript as the recipe's n8n build.\n// $('Step name') answers from this step's inputs: each is that step's output in this scenario.\nconst SOURCES = {\"Config\": \"in0_Config\", \"Consent event\": \"in1_Consentevent\", \"Step 7: An opt-out?\": \"in2_Step7Anoptout\"};\nconst LISTS = [];\nconst EXECUTED = [];\nconst DATA = {};\nfor (const [node, key] of Object.entries(SOURCES)) {\n  const raw = input[key];\n  let v = raw;\n  if (typeof raw === 'string') { try { v = JSON.parse(raw); } catch (e) { v = raw; } }\n  DATA[node] = LISTS.includes(node) ? (v || []).map(i => (i && i.json !== undefined ? i : { json: i })) : [{ json: v }];\n}\nconst $ = (node) => {\n  const ran = node in DATA || EXECUTED.includes(node);\n  const list = () => { if (!(node in DATA)) throw new Error(`step ${node} has no data in this scenario`); return DATA[node]; };\n  return { isExecuted: ran, first: () => list()[0], last: () => list()[list().length - 1], all: () => list(),\n           get item() { return list()[0]; } };\n};\nconst INPUT = \"Step 7: An opt-out?\";\nconst $input = { all: () => $(INPUT).all(), first: () => $(INPUT).first(), last: () => $(INPUT).last(), get item() { return $(INPUT).first(); } };\nconst $execution = { id: input.run_id };\nconst BODIES = (out) => ({\"exception_body\": JSON.stringify({ recipe: 'R15.3', item: $('Consent event').first().json.event_id, reason: 'list did not confirm', detail: out.list + ': ' + out.problem + '; ' + out.action, owner: $('Config').first().json.consent_owner }), \"message\": JSON.stringify({ to: $('Config').first().json.consent_owner, subject: 'Consent change not confirmed on ' + out.list, text: out.problem + '; ' + out.action }), \"log_body\": JSON.stringify({ recipe: 'R15.3', item: $('Consent event').first().json.event_id, decision: out.list + ': not confirmed; ' + out.action, rules: { list: out.list, record: out.record_id, problem: out.problem } })});\nconst one = (r) => (Array.isArray(r) ? r : [r]).filter(Boolean).map(i => (i.json !== undefined ? i.json : i));\nconst $json = INPUT && INPUT in DATA ? $input.first().json : {};\nconst __rule = () => {\nreturn { json: Object.assign({}, $('Step 7: An opt-out?').item.json, { action: \"suppressed on the list\" }) };\n};\nconst out = one(__rule())[0] || {};\nreturn Object.assign({}, out, BODIES(out));\n",
+                                "input": [
+                                  {
+                                    "name": "in0_Config",
+                                    "value": "{{2.result}}"
+                                  },
+                                  {
+                                    "name": "in1_Consentevent",
+                                    "value": "{{6.result}}"
+                                  },
+                                  {
+                                    "name": "in2_Step7Anoptout",
+                                    "value": "{{20.self}}"
+                                  },
+                                  {
+                                    "name": "run_id",
+                                    "value": "{{var.scenario.executionId}}"
+                                  }
+                                ]
+                              },
+                              "metadata": {
+                                "designer": {
+                                  "x": 5700,
+                                  "y": 3300,
+                                  "name": "Step 7: Suppressed (list unreachable)"
+                                }
+                              }
+                            },
+                            {
+                              "id": 61,
+                              "module": "http:MakeRequest",
+                              "version": 4,
+                              "parameters": {},
+                              "mapper": {
+                                "url": "{{2.result.table_api_url}}/exception_queue",
+                                "method": "post",
+                                "timeout": "40",
+                                "parseResponse": false,
+                                "stopOnHttpError": true,
+                                "allowRedirects": true,
+                                "shareCookies": false,
+                                "requestCompressedContent": true,
+                                "contentType": "json",
+                                "inputMethod": "jsonString",
+                                "jsonStringBodyContent": "{{60.result.exception_body}}"
+                              },
+                              "metadata": {
+                                "designer": {
+                                  "x": 6000,
+                                  "y": 3300,
+                                  "name": "Exception queue: list did not confirm (suppressed, list unreachable)"
+                                }
+                              }
+                            },
+                            {
+                              "id": 62,
+                              "module": "http:MakeRequest",
+                              "version": 4,
+                              "parameters": {},
+                              "mapper": {
+                                "url": "{{2.result.messaging_url}}/messages",
+                                "method": "post",
+                                "timeout": "40",
+                                "parseResponse": false,
+                                "stopOnHttpError": true,
+                                "allowRedirects": true,
+                                "shareCookies": false,
+                                "requestCompressedContent": true,
+                                "contentType": "json",
+                                "inputMethod": "jsonString",
+                                "jsonStringBodyContent": "{{60.result.message}}"
+                              },
+                              "metadata": {
+                                "designer": {
+                                  "x": 6300,
+                                  "y": 3300,
+                                  "name": "Step 7: Tell Owen (suppressed, list unreachable)"
+                                }
+                              }
+                            },
+                            {
+                              "id": 63,
+                              "module": "http:MakeRequest",
+                              "version": 4,
+                              "parameters": {},
+                              "mapper": {
+                                "url": "{{2.result.table_api_url}}/decision_log",
+                                "method": "post",
+                                "timeout": "40",
+                                "parseResponse": false,
+                                "stopOnHttpError": true,
+                                "allowRedirects": true,
+                                "shareCookies": false,
+                                "requestCompressedContent": true,
+                                "contentType": "json",
+                                "inputMethod": "jsonString",
+                                "jsonStringBodyContent": "{{60.result.log_body}}"
+                              },
+                              "metadata": {
+                                "designer": {
+                                  "x": 6600,
+                                  "y": 3300,
+                                  "name": "Step 7: Decision log (suppressed, list unreachable)"
+                                }
+                              }
+                            }
+                          ]
+                        },
+                        {
+                          "flow": [
+                            {
+                              "id": 64,
+                              "module": "code:ExecuteCode",
+                              "version": 1,
+                              "parameters": {},
+                              "mapper": {
+                                "language": "javascript",
+                                "inputFormat": "editor",
+                                "dependencies": [],
+                                "codeEditorJavascript": "// Adapter: the rule below is the same JavaScript as the recipe's n8n build.\n// $('Step name') answers from this step's inputs: each is that step's output in this scenario.\nconst SOURCES = {\"Config\": \"in0_Config\", \"Consent event\": \"in1_Consentevent\", \"Step 7: An opt-out?\": \"in2_Step7Anoptout\"};\nconst LISTS = [];\nconst EXECUTED = [];\nconst DATA = {};\nfor (const [node, key] of Object.entries(SOURCES)) {\n  const raw = input[key];\n  let v = raw;\n  if (typeof raw === 'string') { try { v = JSON.parse(raw); } catch (e) { v = raw; } }\n  DATA[node] = LISTS.includes(node) ? (v || []).map(i => (i && i.json !== undefined ? i : { json: i })) : [{ json: v }];\n}\nconst $ = (node) => {\n  const ran = node in DATA || EXECUTED.includes(node);\n  const list = () => { if (!(node in DATA)) throw new Error(`step ${node} has no data in this scenario`); return DATA[node]; };\n  return { isExecuted: ran, first: () => list()[0], last: () => list()[list().length - 1], all: () => list(),\n           get item() { return list()[0]; } };\n};\nconst INPUT = \"Step 7: An opt-out?\";\nconst $input = { all: () => $(INPUT).all(), first: () => $(INPUT).first(), last: () => $(INPUT).last(), get item() { return $(INPUT).first(); } };\nconst $execution = { id: input.run_id };\nconst BODIES = (out) => ({\"exception_body\": JSON.stringify({ recipe: 'R15.3', item: $('Consent event').first().json.event_id, reason: 'list did not confirm', detail: out.list + ': ' + out.problem + '; ' + out.action, owner: $('Config').first().json.consent_owner }), \"message\": JSON.stringify({ to: $('Config').first().json.consent_owner, subject: 'Consent change not confirmed on ' + out.list, text: out.problem + '; ' + out.action }), \"log_body\": JSON.stringify({ recipe: 'R15.3', item: $('Consent event').first().json.event_id, decision: out.list + ': not confirmed; ' + out.action, rules: { list: out.list, record: out.record_id, problem: out.problem } })});\nconst one = (r) => (Array.isArray(r) ? r : [r]).filter(Boolean).map(i => (i.json !== undefined ? i.json : i));\nconst $json = INPUT && INPUT in DATA ? $input.first().json : {};\nconst __rule = () => {\nreturn { json: Object.assign({}, $('Step 7: An opt-out?').item.json, { action: \"opt-in not on this list yet; the nightly check corrects it\" }) };\n};\nconst out = one(__rule())[0] || {};\nreturn Object.assign({}, out, BODIES(out));\n",
+                                "input": [
+                                  {
+                                    "name": "in0_Config",
+                                    "value": "{{2.result}}"
+                                  },
+                                  {
+                                    "name": "in1_Consentevent",
+                                    "value": "{{6.result}}"
+                                  },
+                                  {
+                                    "name": "in2_Step7Anoptout",
+                                    "value": "{{20.self}}"
+                                  },
+                                  {
+                                    "name": "run_id",
+                                    "value": "{{var.scenario.executionId}}"
+                                  }
+                                ]
+                              },
+                              "metadata": {
+                                "designer": {
+                                  "x": 5400,
+                                  "y": 4200,
+                                  "name": "Step 7: Opt-in not confirmed (list unreachable)"
+                                }
+                              },
+                              "filter": {
+                                "name": "an opt-in",
+                                "conditions": [
+                                  [
+                                    {
+                                      "a": "{{20.opt_out}}",
+                                      "b": "true",
+                                      "o": "text:notequal"
+                                    }
+                                  ]
+                                ]
+                              }
+                            },
+                            {
+                              "id": 65,
+                              "module": "http:MakeRequest",
+                              "version": 4,
+                              "parameters": {},
+                              "mapper": {
+                                "url": "{{2.result.table_api_url}}/exception_queue",
+                                "method": "post",
+                                "timeout": "40",
+                                "parseResponse": false,
+                                "stopOnHttpError": true,
+                                "allowRedirects": true,
+                                "shareCookies": false,
+                                "requestCompressedContent": true,
+                                "contentType": "json",
+                                "inputMethod": "jsonString",
+                                "jsonStringBodyContent": "{{64.result.exception_body}}"
+                              },
+                              "metadata": {
+                                "designer": {
+                                  "x": 5700,
+                                  "y": 4200,
+                                  "name": "Exception queue: list did not confirm (opt-in not confirmed, list unreachable)"
+                                }
+                              }
+                            },
+                            {
+                              "id": 66,
+                              "module": "http:MakeRequest",
+                              "version": 4,
+                              "parameters": {},
+                              "mapper": {
+                                "url": "{{2.result.messaging_url}}/messages",
+                                "method": "post",
+                                "timeout": "40",
+                                "parseResponse": false,
+                                "stopOnHttpError": true,
+                                "allowRedirects": true,
+                                "shareCookies": false,
+                                "requestCompressedContent": true,
+                                "contentType": "json",
+                                "inputMethod": "jsonString",
+                                "jsonStringBodyContent": "{{64.result.message}}"
+                              },
+                              "metadata": {
+                                "designer": {
+                                  "x": 6000,
+                                  "y": 4200,
+                                  "name": "Step 7: Tell Owen (opt-in not confirmed, list unreachable)"
+                                }
+                              }
+                            },
+                            {
+                              "id": 67,
+                              "module": "http:MakeRequest",
+                              "version": 4,
+                              "parameters": {},
+                              "mapper": {
+                                "url": "{{2.result.table_api_url}}/decision_log",
+                                "method": "post",
+                                "timeout": "40",
+                                "parseResponse": false,
+                                "stopOnHttpError": true,
+                                "allowRedirects": true,
+                                "shareCookies": false,
+                                "requestCompressedContent": true,
+                                "contentType": "json",
+                                "inputMethod": "jsonString",
+                                "jsonStringBodyContent": "{{64.result.log_body}}"
+                              },
+                              "metadata": {
+                                "designer": {
+                                  "x": 6300,
+                                  "y": 4200,
+                                  "name": "Step 7: Decision log (opt-in not confirmed, list unreachable)"
+                                }
+                              }
+                            }
+                          ]
+                        }
+                      ],
+                      "metadata": {
+                        "designer": {
+                          "x": 5100,
+                          "y": 3300,
+                          "name": "Step 7: An opt-out? (list unreachable)"
+                        }
+                      },
+                      "filter": {
+                        "name": "did not confirm",
+                        "conditions": [
+                          [
+                            {
+                              "a": "{{20.path}}",
+                              "b": "did not confirm",
+                              "o": "text:equal"
+                            }
+                          ]
+                        ]
+                      }
+                    }
+                  ]
+                }
+              ],
+              "metadata": {
+                "designer": {
+                  "x": 4800,
+                  "y": 1500,
+                  "name": "On the list?"
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "designer": {
+          "x": 2400,
+          "y": 0,
+          "name": "Apply it?"
+        }
+      }
+    }
+  ],
+  "metadata": {
+    "instant": true,
+    "version": 1,
+    "designer": {
+      "orphans": []
+    },
+    "scenario": {
+      "dlq": true,
+      "slots": null,
+      "dataloss": false,
+      "maxErrors": 3,
+      "autoCommit": true,
+      "roundtrips": 1,
+      "sequential": false,
+      "confidential": false,
+      "freshVariables": false,
+      "autoCommitTriggerLast": true
+    }
+  }
+}

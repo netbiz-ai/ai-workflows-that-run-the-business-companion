@@ -1,0 +1,541 @@
+{
+  "name": "R15.3 Keep consent in sync: nightly correction",
+  "flow": [
+    {
+      "id": 1,
+      "module": "code:ExecuteCode",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "language": "javascript",
+        "inputFormat": "editor",
+        "dependencies": [],
+        "codeEditorJavascript": "// Config: edit these values for your company; nothing else in the scenario hard-codes them.\n// Schedule: set this scenario to run every day at 02:00; Make keeps the schedule outside the blueprint.\nreturn {\n  \"stop_flag_url\": \"https://<your stop list API>/stop_flags/R15.3\",\n  \"table_api_url\": \"https://<your table API for the key log, decision log and exception queue>\",\n  \"workflow_owner\": \"<your workflow owner>\",\n  \"crm_url\": \"https://<your CRM API>\",\n  \"lists\": [\n    {\n      \"name\": \"<list name>\",\n      \"url\": \"https://<its API>\",\n      \"channel\": \"<the channel it sends>\"\n    }\n  ],\n  \"marketing_channels\": [\n    \"email\",\n    \"<your other marketing channels>\"\n  ],\n  \"send_status_url\": \"https://<your send-status record API>\",\n  \"messaging_url\": \"https://<your messaging API>\",\n  \"consent_owner\": \"<your systems owner>\"\n};",
+        "input": []
+      },
+      "metadata": {
+        "designer": {
+          "x": 0,
+          "y": 0,
+          "name": "Config"
+        }
+      }
+    },
+    {
+      "id": 4,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{1.result.stop_flag_url}}",
+        "method": "get",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true
+      },
+      "metadata": {
+        "designer": {
+          "x": 300,
+          "y": 0,
+          "name": "Stop flag: read"
+        }
+      },
+      "onerror": [
+        {
+          "id": 2,
+          "module": "http:MakeRequest",
+          "version": 4,
+          "parameters": {},
+          "mapper": {
+            "url": "{{1.result.table_api_url}}/exception_queue",
+            "method": "post",
+            "timeout": "40",
+            "parseResponse": false,
+            "stopOnHttpError": true,
+            "allowRedirects": true,
+            "shareCookies": false,
+            "requestCompressedContent": true,
+            "contentType": "json",
+            "inputMethod": "jsonString",
+            "jsonStringBodyContent": "{\"recipe\": \"R15.3\", \"item\": \"run {{var.scenario.executionId}}\", \"reason\": \"stop list unreadable\", \"detail\": \"The stop list could not be read, so the run stopped\", \"owner\": \"{{1.result.workflow_owner}}\"}"
+          },
+          "metadata": {
+            "designer": {
+              "x": 300,
+              "y": 300,
+              "name": "Stop flag: list unreadable"
+            }
+          }
+        },
+        {
+          "id": 3,
+          "module": "builtin:Ignore",
+          "version": 1,
+          "metadata": {
+            "designer": {
+              "x": 600,
+              "y": 300
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{1.result.crm_url}}/contacts",
+        "method": "get",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true,
+        "queryParameters": [
+          {
+            "name": "_wrap",
+            "value": "1"
+          }
+        ]
+      },
+      "metadata": {
+        "designer": {
+          "x": 600,
+          "y": 0,
+          "name": "Step 8: Read the master"
+        }
+      },
+      "onerror": [
+        {
+          "id": 5,
+          "module": "builtin:Break",
+          "version": 1,
+          "parameters": {},
+          "mapper": {
+            "count": "3",
+            "retry": true,
+            "interval": "1"
+          },
+          "metadata": {
+            "designer": {
+              "x": 600,
+              "y": 300
+            }
+          }
+        }
+      ],
+      "filter": {
+        "name": "stop flag not set",
+        "conditions": [
+          [
+            {
+              "a": "{{4.data.stopped}}",
+              "b": "true",
+              "o": "text:notequal"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "id": 7,
+      "module": "code:ExecuteCode",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "language": "javascript",
+        "inputFormat": "editor",
+        "dependencies": [],
+        "codeEditorJavascript": "// Adapter: the rule below is the same JavaScript as the recipe's n8n build.\n// $('Step name') answers from this step's inputs: each is that step's output in this scenario.\nconst SOURCES = {\"Config\": \"in0_Config\"};\nconst LISTS = [];\nconst EXECUTED = [];\nconst DATA = {};\nfor (const [node, key] of Object.entries(SOURCES)) {\n  const raw = input[key];\n  let v = raw;\n  if (typeof raw === 'string') { try { v = JSON.parse(raw); } catch (e) { v = raw; } }\n  DATA[node] = LISTS.includes(node) ? (v || []).map(i => (i && i.json !== undefined ? i : { json: i })) : [{ json: v }];\n}\nconst $ = (node) => {\n  const ran = node in DATA || EXECUTED.includes(node);\n  const list = () => { if (!(node in DATA)) throw new Error(`step ${node} has no data in this scenario`); return DATA[node]; };\n  return { isExecuted: ran, first: () => list()[0], last: () => list()[list().length - 1], all: () => list(),\n           get item() { return list()[0]; } };\n};\nconst INPUT = \"Config\";\nconst $input = { all: () => $(INPUT).all(), first: () => $(INPUT).first(), last: () => $(INPUT).last(), get item() { return $(INPUT).first(); } };\nconst $execution = { id: input.run_id };\nconst BODIES = (out) => ({\"self\": JSON.stringify(out)});\nconst one = (r) => (Array.isArray(r) ? r : [r]).filter(Boolean).map(i => (i.json !== undefined ? i.json : i));\nconst $json = INPUT && INPUT in DATA ? $input.first().json : {};\nconst __rule = () => {\n// Step 8: every list, checked against the master each night.\nconst cfg = $('Config').first().json;\nreturn cfg.lists.map(l => ({ json: { list: l.name, url: l.url, channel: l.channel }, pairedItem: 0 }));\n};\nreturn { items: one(__rule()).map(o => Object.assign({}, o, BODIES(o))) };\n",
+        "input": [
+          {
+            "name": "in0_Config",
+            "value": "{{1.result}}"
+          },
+          {
+            "name": "run_id",
+            "value": "{{var.scenario.executionId}}"
+          }
+        ]
+      },
+      "metadata": {
+        "designer": {
+          "x": 900,
+          "y": 0,
+          "name": "Step 8: Lists to check"
+        }
+      }
+    },
+    {
+      "id": 8,
+      "module": "builtin:BasicFeeder",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "array": "{{7.result.items}}"
+      },
+      "metadata": {
+        "designer": {
+          "x": 1200,
+          "y": 0,
+          "name": "Each list"
+        }
+      }
+    },
+    {
+      "id": 13,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{8.url}}/contacts",
+        "method": "get",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true,
+        "queryParameters": [
+          {
+            "name": "_wrap",
+            "value": "1"
+          }
+        ]
+      },
+      "metadata": {
+        "designer": {
+          "x": 1500,
+          "y": 0,
+          "name": "Step 8: Read the list"
+        }
+      },
+      "onerror": [
+        {
+          "id": 9,
+          "module": "code:ExecuteCode",
+          "version": 1,
+          "parameters": {},
+          "mapper": {
+            "language": "javascript",
+            "inputFormat": "editor",
+            "dependencies": [],
+            "codeEditorJavascript": "// Adapter: the rule below is the same JavaScript as the recipe's n8n build.\n// $('Step name') answers from this step's inputs: each is that step's output in this scenario.\nconst SOURCES = {\"Config\": \"in0_Config\", \"Step 8: Lists to check\": \"in1_Step8Liststocheck\"};\nconst LISTS = [];\nconst EXECUTED = [];\nconst DATA = {};\nfor (const [node, key] of Object.entries(SOURCES)) {\n  const raw = input[key];\n  let v = raw;\n  if (typeof raw === 'string') { try { v = JSON.parse(raw); } catch (e) { v = raw; } }\n  DATA[node] = LISTS.includes(node) ? (v || []).map(i => (i && i.json !== undefined ? i : { json: i })) : [{ json: v }];\n}\nconst $ = (node) => {\n  const ran = node in DATA || EXECUTED.includes(node);\n  const list = () => { if (!(node in DATA)) throw new Error(`step ${node} has no data in this scenario`); return DATA[node]; };\n  return { isExecuted: ran, first: () => list()[0], last: () => list()[list().length - 1], all: () => list(),\n           get item() { return list()[0]; } };\n};\nconst INPUT = \"Step 8: Lists to check\";\nconst $input = { all: () => $(INPUT).all(), first: () => $(INPUT).first(), last: () => $(INPUT).last(), get item() { return $(INPUT).first(); } };\nconst $execution = { id: input.run_id };\nconst BODIES = (out) => ({\"exception_body\": JSON.stringify({ recipe: 'R15.3', item: out.list, reason: 'nightly check failed', detail: out.problem + '; the list stays held until it is fixed', owner: $('Config').first().json.consent_owner }), \"message\": JSON.stringify({ to: $('Config').first().json.consent_owner, subject: 'Nightly consent check: ' + out.list, text: out.problem })});\nconst one = (r) => (Array.isArray(r) ? r : [r]).filter(Boolean).map(i => (i.json !== undefined ? i.json : i));\nconst $json = INPUT && INPUT in DATA ? $input.first().json : {};\nconst __rule = () => {\nconst l = $('Step 8: Lists to check').item.json;\nreturn { json: { list: l.list, problem: 'nightly read failed: ' + (($json.error && $json.error.message) || 'no answer') } };\n};\nconst out = one(__rule())[0] || {};\nreturn Object.assign({}, out, BODIES(out));\n",
+            "input": [
+              {
+                "name": "in0_Config",
+                "value": "{{1.result}}"
+              },
+              {
+                "name": "in1_Step8Liststocheck",
+                "value": "{{8.self}}"
+              },
+              {
+                "name": "run_id",
+                "value": "{{var.scenario.executionId}}"
+              }
+            ]
+          },
+          "metadata": {
+            "designer": {
+              "x": 1500,
+              "y": 300,
+              "name": "Step 8: List still failing"
+            }
+          }
+        },
+        {
+          "id": 10,
+          "module": "http:MakeRequest",
+          "version": 4,
+          "parameters": {},
+          "mapper": {
+            "url": "{{1.result.table_api_url}}/exception_queue",
+            "method": "post",
+            "timeout": "40",
+            "parseResponse": false,
+            "stopOnHttpError": true,
+            "allowRedirects": true,
+            "shareCookies": false,
+            "requestCompressedContent": true,
+            "contentType": "json",
+            "inputMethod": "jsonString",
+            "jsonStringBodyContent": "{{9.result.exception_body}}"
+          },
+          "metadata": {
+            "designer": {
+              "x": 1800,
+              "y": 300,
+              "name": "Exception queue: list held (read failed)"
+            }
+          }
+        },
+        {
+          "id": 11,
+          "module": "http:MakeRequest",
+          "version": 4,
+          "parameters": {},
+          "mapper": {
+            "url": "{{1.result.messaging_url}}/messages",
+            "method": "post",
+            "timeout": "40",
+            "parseResponse": false,
+            "stopOnHttpError": true,
+            "allowRedirects": true,
+            "shareCookies": false,
+            "requestCompressedContent": true,
+            "contentType": "json",
+            "inputMethod": "jsonString",
+            "jsonStringBodyContent": "{{9.result.message}}"
+          },
+          "metadata": {
+            "designer": {
+              "x": 2100,
+              "y": 300,
+              "name": "Step 8: Tell Owen (read failed)"
+            }
+          }
+        },
+        {
+          "id": 12,
+          "module": "builtin:Ignore",
+          "version": 1,
+          "metadata": {
+            "designer": {
+              "x": 2400,
+              "y": 300
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 14,
+      "module": "code:ExecuteCode",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "language": "javascript",
+        "inputFormat": "editor",
+        "dependencies": [],
+        "codeEditorJavascript": "// Adapter: the rule below is the same JavaScript as the recipe's n8n build.\n// $('Step name') answers from this step's inputs: each is that step's output in this scenario.\nconst SOURCES = {\"Step 8: Read the master\": \"in0_Step8Readthemaster\", \"Step 8: Lists to check\": \"in1_Step8Liststocheck\", \"Step 8: Read the list\": \"in2_Step8Readthelist\"};\nconst LISTS = [];\nconst EXECUTED = [];\nconst DATA = {};\nfor (const [node, key] of Object.entries(SOURCES)) {\n  const raw = input[key];\n  let v = raw;\n  if (typeof raw === 'string') { try { v = JSON.parse(raw); } catch (e) { v = raw; } }\n  DATA[node] = LISTS.includes(node) ? (v || []).map(i => (i && i.json !== undefined ? i : { json: i })) : [{ json: v }];\n}\nconst $ = (node) => {\n  const ran = node in DATA || EXECUTED.includes(node);\n  const list = () => { if (!(node in DATA)) throw new Error(`step ${node} has no data in this scenario`); return DATA[node]; };\n  return { isExecuted: ran, first: () => list()[0], last: () => list()[list().length - 1], all: () => list(),\n           get item() { return list()[0]; } };\n};\nconst INPUT = \"Step 8: Read the list\";\nconst $input = { all: () => $(INPUT).all(), first: () => $(INPUT).first(), last: () => $(INPUT).last(), get item() { return $(INPUT).first(); } };\nconst $execution = { id: input.run_id };\nObject.defineProperty(Object.prototype, 'itemMatching', { value: function (i) { return this.all()[i] || this.all()[0]; }, configurable: true });\nconst BODIES = (out) => ({\"self\": JSON.stringify(out), \"record_q\": encodeURIComponent(out.record_id), \"correct_body\": JSON.stringify({ marketing_opt_out: out.opt_out }), \"log_body\": JSON.stringify({ recipe: 'R15.3', item: out.list + ':' + out.record_id, decision: 'nightly: ' + out.list + ' corrected to the master', rules: { list: out.list, contact: out.contact_id, opt_out: out.opt_out } })});\nconst one = (r) => (Array.isArray(r) ? r : [r]).filter(Boolean).map(i => (i.json !== undefined ? i.json : i));\nconst $json = INPUT && INPUT in DATA ? $input.first().json : {};\nconst __rule = () => {\n// Matched on email or phone, never name.\nconst normEmail = e => String(e || '').trim().toLowerCase();\nconst normPhone = p => String(p || '').replace(/\\D/g, '');\nconst same = (r, ev) => (normEmail(ev.email) && normEmail(r.email) === normEmail(ev.email))\n  || (normPhone(ev.phone) && normPhone(r.phone) === normPhone(ev.phone));\n\n// Step 8: a list record that differs from the master's recorded consent for the list's channel.\nconst master = $('Step 8: Read the master').first().json.items || [];\nconst out = [];\n$input.all().forEach((it, i) => {\n  const l = $('Step 8: Lists to check').itemMatching(i).json;\n  for (const rec of it.json.items || []) {\n    const m = master.find(c => same(rec, c));\n    const c = m && m.consent && m.consent[l.channel];\n    if (!c || !['opted out', 'opted in'].includes(c.status)) continue;  // no recorded consent: left as is\n    const want = c.status === 'opted out';\n    if (rec.marketing_opt_out !== want) {\n      out.push({ json: Object.assign({}, l, { record_id: rec.id, contact_id: m.id, opt_out: want }), pairedItem: i });\n    }\n  }\n});\nreturn out;\n};\nreturn { items: one(__rule()).map(o => Object.assign({}, o, BODIES(o))) };\n",
+        "input": [
+          {
+            "name": "in0_Step8Readthemaster",
+            "value": "{{6.data}}"
+          },
+          {
+            "name": "in1_Step8Liststocheck",
+            "value": "{{8.self}}"
+          },
+          {
+            "name": "in2_Step8Readthelist",
+            "value": "{{13.data}}"
+          },
+          {
+            "name": "run_id",
+            "value": "{{var.scenario.executionId}}"
+          }
+        ]
+      },
+      "metadata": {
+        "designer": {
+          "x": 1800,
+          "y": 0,
+          "name": "Step 8: Rule: records that differ"
+        }
+      }
+    },
+    {
+      "id": 15,
+      "module": "builtin:BasicFeeder",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "array": "{{14.result.items}}"
+      },
+      "metadata": {
+        "designer": {
+          "x": 2100,
+          "y": 0,
+          "name": "Each record that differs"
+        }
+      }
+    },
+    {
+      "id": 20,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{15.url}}/contacts/{{15.record_q}}",
+        "method": "patch",
+        "timeout": "40",
+        "parseResponse": false,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true,
+        "contentType": "json",
+        "inputMethod": "jsonString",
+        "jsonStringBodyContent": "{{15.correct_body}}"
+      },
+      "metadata": {
+        "designer": {
+          "x": 2400,
+          "y": 0,
+          "name": "Step 8: Correct the list"
+        }
+      },
+      "onerror": [
+        {
+          "id": 16,
+          "module": "code:ExecuteCode",
+          "version": 1,
+          "parameters": {},
+          "mapper": {
+            "language": "javascript",
+            "inputFormat": "editor",
+            "dependencies": [],
+            "codeEditorJavascript": "// Adapter: the rule below is the same JavaScript as the recipe's n8n build.\n// $('Step name') answers from this step's inputs: each is that step's output in this scenario.\nconst SOURCES = {\"Config\": \"in0_Config\", \"Step 8: Rule: records that differ\": \"in1_Step8Rulerecordsthatdiff\"};\nconst LISTS = [];\nconst EXECUTED = [];\nconst DATA = {};\nfor (const [node, key] of Object.entries(SOURCES)) {\n  const raw = input[key];\n  let v = raw;\n  if (typeof raw === 'string') { try { v = JSON.parse(raw); } catch (e) { v = raw; } }\n  DATA[node] = LISTS.includes(node) ? (v || []).map(i => (i && i.json !== undefined ? i : { json: i })) : [{ json: v }];\n}\nconst $ = (node) => {\n  const ran = node in DATA || EXECUTED.includes(node);\n  const list = () => { if (!(node in DATA)) throw new Error(`step ${node} has no data in this scenario`); return DATA[node]; };\n  return { isExecuted: ran, first: () => list()[0], last: () => list()[list().length - 1], all: () => list(),\n           get item() { return list()[0]; } };\n};\nconst INPUT = \"Step 8: Rule: records that differ\";\nconst $input = { all: () => $(INPUT).all(), first: () => $(INPUT).first(), last: () => $(INPUT).last(), get item() { return $(INPUT).first(); } };\nconst $execution = { id: input.run_id };\nconst BODIES = (out) => ({\"exception_body\": JSON.stringify({ recipe: 'R15.3', item: out.list, reason: 'nightly check failed', detail: out.problem + '; the list stays held until it is fixed', owner: $('Config').first().json.consent_owner }), \"message\": JSON.stringify({ to: $('Config').first().json.consent_owner, subject: 'Nightly consent check: ' + out.list, text: out.problem })});\nconst one = (r) => (Array.isArray(r) ? r : [r]).filter(Boolean).map(i => (i.json !== undefined ? i.json : i));\nconst $json = INPUT && INPUT in DATA ? $input.first().json : {};\nconst __rule = () => {\nconst d = $('Step 8: Rule: records that differ').item.json;\nreturn { json: { list: d.list, problem: 'nightly correction of ' + d.record_id + ' failed' } };\n};\nconst out = one(__rule())[0] || {};\nreturn Object.assign({}, out, BODIES(out));\n",
+            "input": [
+              {
+                "name": "in0_Config",
+                "value": "{{1.result}}"
+              },
+              {
+                "name": "in1_Step8Rulerecordsthatdiff",
+                "value": "{{15.self}}"
+              },
+              {
+                "name": "run_id",
+                "value": "{{var.scenario.executionId}}"
+              }
+            ]
+          },
+          "metadata": {
+            "designer": {
+              "x": 2400,
+              "y": 300,
+              "name": "Step 8: Correction failed"
+            }
+          }
+        },
+        {
+          "id": 17,
+          "module": "http:MakeRequest",
+          "version": 4,
+          "parameters": {},
+          "mapper": {
+            "url": "{{1.result.table_api_url}}/exception_queue",
+            "method": "post",
+            "timeout": "40",
+            "parseResponse": false,
+            "stopOnHttpError": true,
+            "allowRedirects": true,
+            "shareCookies": false,
+            "requestCompressedContent": true,
+            "contentType": "json",
+            "inputMethod": "jsonString",
+            "jsonStringBodyContent": "{{16.result.exception_body}}"
+          },
+          "metadata": {
+            "designer": {
+              "x": 2700,
+              "y": 300,
+              "name": "Exception queue: list held (correction failed)"
+            }
+          }
+        },
+        {
+          "id": 18,
+          "module": "http:MakeRequest",
+          "version": 4,
+          "parameters": {},
+          "mapper": {
+            "url": "{{1.result.messaging_url}}/messages",
+            "method": "post",
+            "timeout": "40",
+            "parseResponse": false,
+            "stopOnHttpError": true,
+            "allowRedirects": true,
+            "shareCookies": false,
+            "requestCompressedContent": true,
+            "contentType": "json",
+            "inputMethod": "jsonString",
+            "jsonStringBodyContent": "{{16.result.message}}"
+          },
+          "metadata": {
+            "designer": {
+              "x": 3000,
+              "y": 300,
+              "name": "Step 8: Tell Owen (correction failed)"
+            }
+          }
+        },
+        {
+          "id": 19,
+          "module": "builtin:Ignore",
+          "version": 1,
+          "metadata": {
+            "designer": {
+              "x": 3300,
+              "y": 300
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 21,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{1.result.table_api_url}}/decision_log",
+        "method": "post",
+        "timeout": "40",
+        "parseResponse": false,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true,
+        "contentType": "json",
+        "inputMethod": "jsonString",
+        "jsonStringBodyContent": "{{15.log_body}}"
+      },
+      "metadata": {
+        "designer": {
+          "x": 2700,
+          "y": 0,
+          "name": "Step 8: Decision log"
+        }
+      }
+    }
+  ],
+  "metadata": {
+    "instant": false,
+    "version": 1,
+    "designer": {
+      "orphans": []
+    },
+    "scenario": {
+      "dlq": true,
+      "slots": null,
+      "dataloss": false,
+      "maxErrors": 3,
+      "autoCommit": true,
+      "roundtrips": 1,
+      "sequential": false,
+      "confidential": false,
+      "freshVariables": false,
+      "autoCommitTriggerLast": true
+    }
+  }
+}

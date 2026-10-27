@@ -1,0 +1,1583 @@
+{
+  "name": "R13.2 Flag stale documents: weekly check",
+  "flow": [
+    {
+      "id": 1,
+      "module": "code:ExecuteCode",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "language": "javascript",
+        "inputFormat": "editor",
+        "dependencies": [],
+        "codeEditorJavascript": "// Config: edit these values for your company; nothing else in the scenario hard-codes them.\n// Schedule: set this scenario to run every Monday at 06:00; Make keeps the schedule outside the blueprint.\nreturn {\n  \"stop_flag_url\": \"https://<your stop list API>/stop_flags/R13.2\",\n  \"table_api_url\": \"https://<your table API for the key log, decision log and exception queue>\",\n  \"workflow_owner\": \"<your workflow owner>\",\n  \"register_url\": \"https://<your source register API>\",\n  \"directory_url\": \"https://<your directory API>\",\n  \"documents_url\": \"https://<your document home API>\",\n  \"index_url\": \"https://<your answer index API>\",\n  \"messaging_url\": \"https://<your messaging API>\",\n  \"due_within_days\": 14,\n  \"expiry_after_review_days\": 30,\n  \"inactive_statuses\": [\n    \"withdrawn\",\n    \"retired\"\n  ],\n  \"archive_folder\": \"<your archive no bought assistant can open>\",\n  \"owner_form_url\": \"https://<your owner form>\",\n  \"register_admin\": \"<your register admin, who edits owners and dates>\"\n};",
+        "input": []
+      },
+      "metadata": {
+        "designer": {
+          "x": 0,
+          "y": 0,
+          "name": "Config"
+        }
+      }
+    },
+    {
+      "id": 4,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{1.result.stop_flag_url}}",
+        "method": "get",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true
+      },
+      "metadata": {
+        "designer": {
+          "x": 300,
+          "y": 0,
+          "name": "Stop flag: read"
+        }
+      },
+      "onerror": [
+        {
+          "id": 2,
+          "module": "http:MakeRequest",
+          "version": 4,
+          "parameters": {},
+          "mapper": {
+            "url": "{{1.result.table_api_url}}/exception_queue",
+            "method": "post",
+            "timeout": "40",
+            "parseResponse": false,
+            "stopOnHttpError": true,
+            "allowRedirects": true,
+            "shareCookies": false,
+            "requestCompressedContent": true,
+            "contentType": "json",
+            "inputMethod": "jsonString",
+            "jsonStringBodyContent": "{\"recipe\": \"R13.2\", \"item\": \"run {{var.scenario.executionId}}\", \"reason\": \"stop list unreadable\", \"detail\": \"The stop list could not be read, so the run stopped\", \"owner\": \"{{1.result.workflow_owner}}\"}"
+          },
+          "metadata": {
+            "designer": {
+              "x": 300,
+              "y": 300,
+              "name": "Stop flag: list unreadable"
+            }
+          }
+        },
+        {
+          "id": 3,
+          "module": "builtin:Ignore",
+          "version": 1,
+          "metadata": {
+            "designer": {
+              "x": 600,
+              "y": 300
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{1.result.register_url}}/sources",
+        "method": "get",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true,
+        "queryParameters": [
+          {
+            "name": "_wrap",
+            "value": "1"
+          }
+        ]
+      },
+      "metadata": {
+        "designer": {
+          "x": 600,
+          "y": 0,
+          "name": "Step 2: Read the register"
+        }
+      },
+      "onerror": [
+        {
+          "id": 5,
+          "module": "builtin:Break",
+          "version": 1,
+          "parameters": {},
+          "mapper": {
+            "count": "3",
+            "retry": true,
+            "interval": "1"
+          },
+          "metadata": {
+            "designer": {
+              "x": 600,
+              "y": 300
+            }
+          }
+        }
+      ],
+      "filter": {
+        "name": "stop flag not set",
+        "conditions": [
+          [
+            {
+              "a": "{{4.data.stopped}}",
+              "b": "true",
+              "o": "text:notequal"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "id": 8,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{1.result.directory_url}}/users",
+        "method": "get",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true,
+        "queryParameters": [
+          {
+            "name": "_wrap",
+            "value": "1"
+          }
+        ]
+      },
+      "metadata": {
+        "designer": {
+          "x": 900,
+          "y": 0,
+          "name": "Read the directory"
+        }
+      },
+      "onerror": [
+        {
+          "id": 7,
+          "module": "builtin:Break",
+          "version": 1,
+          "parameters": {},
+          "mapper": {
+            "count": "3",
+            "retry": true,
+            "interval": "1"
+          },
+          "metadata": {
+            "designer": {
+              "x": 900,
+              "y": 300
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{1.result.documents_url}}/files",
+        "method": "get",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true,
+        "queryParameters": [
+          {
+            "name": "_wrap",
+            "value": "1"
+          }
+        ]
+      },
+      "metadata": {
+        "designer": {
+          "x": 1200,
+          "y": 0,
+          "name": "Step 10: Read sharing"
+        }
+      },
+      "onerror": [
+        {
+          "id": 9,
+          "module": "builtin:Break",
+          "version": 1,
+          "parameters": {},
+          "mapper": {
+            "count": "3",
+            "retry": true,
+            "interval": "1"
+          },
+          "metadata": {
+            "designer": {
+              "x": 1200,
+              "y": 300
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 12,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{1.result.index_url}}/sources",
+        "method": "get",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true,
+        "queryParameters": [
+          {
+            "name": "_wrap",
+            "value": "1"
+          }
+        ]
+      },
+      "metadata": {
+        "designer": {
+          "x": 1500,
+          "y": 0,
+          "name": "Step 10: Read the index"
+        }
+      },
+      "onerror": [
+        {
+          "id": 11,
+          "module": "builtin:Break",
+          "version": 1,
+          "parameters": {},
+          "mapper": {
+            "count": "3",
+            "retry": true,
+            "interval": "1"
+          },
+          "metadata": {
+            "designer": {
+              "x": 1500,
+              "y": 300
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 13,
+      "module": "code:ExecuteCode",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "language": "javascript",
+        "inputFormat": "editor",
+        "dependencies": [],
+        "codeEditorJavascript": "// Adapter: the rule below is the same JavaScript as the recipe's n8n build.\n// $('Step name') answers from this step's inputs: each is that step's output in this scenario.\nconst SOURCES = {\"Config\": \"in0_Config\", \"Step 2: Read the register\": \"in1_Step2Readtheregister\", \"Read the directory\": \"in2_Readthedirectory\", \"Step 10: Read sharing\": \"in3_Step10Readsharing\", \"Step 10: Read the index\": \"in4_Step10Readtheindex\"};\nconst LISTS = [];\nconst EXECUTED = [];\nconst DATA = {};\nfor (const [node, key] of Object.entries(SOURCES)) {\n  const raw = input[key];\n  let v = raw;\n  if (typeof raw === 'string') { try { v = JSON.parse(raw); } catch (e) { v = raw; } }\n  DATA[node] = LISTS.includes(node) ? (v || []).map(i => (i && i.json !== undefined ? i : { json: i })) : [{ json: v }];\n}\nconst $ = (node) => {\n  const ran = node in DATA || EXECUTED.includes(node);\n  const list = () => { if (!(node in DATA)) throw new Error(`step ${node} has no data in this scenario`); return DATA[node]; };\n  return { isExecuted: ran, first: () => list()[0], last: () => list()[list().length - 1], all: () => list(),\n           get item() { return list()[0]; } };\n};\nconst INPUT = \"Step 10: Read the index\";\nconst $input = { all: () => $(INPUT).all(), first: () => $(INPUT).first(), last: () => $(INPUT).last(), get item() { return $(INPUT).first(); } };\nconst $execution = { id: input.run_id };\n// Each action's request bodies, the same fields the n8n build's steps write.\nconst actionBodies = (a) => {\n  const cfg = $('Config').first().json;\n  const admin = cfg.register_admin, form = cfg.owner_form_url;\n  return Object.assign({}, a, {\n    key_q: encodeURIComponent(a.key), source_q: encodeURIComponent(a.source), file_q: encodeURIComponent(a.file_id || ''),\n    reserve_body: JSON.stringify({ p_recipe: 'R13.2', p_key: a.key }),\n    withdrawn_body: JSON.stringify({ status: 'withdrawn', withdrawn_reason: a.reason }),\n    withdraw_message: JSON.stringify({ to: admin, subject: 'Source withdrawn: ' + (a.title || a.source),\n      text: a.title + ' has ' + a.reason + ', so it is withdrawn and answers nothing until it has an owner and dates.' }),\n    reassign_exception: JSON.stringify({ recipe: 'R13.2', item: a.source, reason: 'owner left',\n      detail: a.title + ': ' + a.reason + ' (' + a.owner + ')', owner: admin }),\n    reassign_message: JSON.stringify({ to: admin, subject: 'Reassign the owner: ' + a.title,\n      text: a.title + ': ' + a.reason + ' (' + a.owner + '). Name a new owner in the register.' }),\n    remind_message: JSON.stringify({ to: a.recipient, subject: 'Review due: ' + a.title,\n      text: a.title + ' is due for review on ' + a.review_date + '. It is withdrawn from answers on ' + a.pull_date +\n            ' unless you renew, replace or retire it: ' + form }),\n    archive_body: JSON.stringify({ folder: cfg.archive_folder }),\n    expired_message: JSON.stringify({ to: a.recipient, cc: admin, subject: 'Withdrawn: ' + a.title,\n      text: a.title + ' passed its expiry date (' + a.pull_date + ') and is withdrawn and archived. Renew, replace or retire it: ' + form }),\n    mismatch_exception: JSON.stringify({ recipe: 'R13.2', item: a.source, reason: 'register mismatch', detail: a.title + ': ' + a.reason, owner: admin }),\n    mismatch_message: JSON.stringify({ to: admin, subject: 'Register mismatch: ' + a.title, text: a.title + ': ' + a.reason }),\n    done_body: JSON.stringify({ status: 'done', result: a.action }),\n    log_body: JSON.stringify({ recipe: 'R13.2', item: a.source, decision: a.action,\n      rules: { reason: a.reason, week_key: a.key, recipient: a.recipient || null, pull_date: a.pull_date || null } }),\n    failed_body: JSON.stringify({ recipe: 'R13.2', item: a.source, reason: 'write failed',\n      detail: 'Step ' + a.action + ' failed part way; check the source, never retried', owner: admin }),\n  });\n};\nconst BODIES = (out) => ({\"weekly_log_body\": JSON.stringify({ recipe: 'R13.2', item: 'week ' + out.week, decision: 'weekly check', rules: { sources_checked: out.checked, actions: out.actions.map(a => a.source + ': ' + a.action) } }), \"split\": out.actions.map(actionBodies)});\nconst one = (r) => (Array.isArray(r) ? r : [r]).filter(Boolean).map(i => (i.json !== undefined ? i.json : i));\nconst $json = INPUT && INPUT in DATA ? $input.first().json : {};\nconst __rule = () => {\n// Steps 2, 4 to 7 and 10 of the book's R13.2, in order. One action per source and need;\n// the duplicate key (step 3) is source, week and action, so one source can need two actions.\nconst cfg = $('Config').first().json;\nconst rows = $('Step 2: Read the register').first().json.items || [];\nconst users = Object.fromEntries(($('Read the directory').first().json.items || []).map(u => [String(u.id).toLowerCase(), u]));\nconst files = Object.fromEntries(($('Step 10: Read sharing').first().json.items || []).map(f => [String(f.id), f]));\nconst indexed = Object.fromEntries(($('Step 10: Read the index').first().json.items || []).map(s => [String(s.id), s]));\n\nconst DAY = 86400000;\nconst iso = d => d.toISOString().slice(0, 10);\nconst day = s => new Date(String(s).slice(0, 10) + 'T00:00:00Z');\nconst today = day(new Date().toISOString());\n// ISO week, such as 2026-W43: the \"week\" in the duplicate key.\nconst t = new Date(today); t.setUTCDate(t.getUTCDate() + 3 - ((t.getUTCDay() + 6) % 7));\nconst w1 = new Date(Date.UTC(t.getUTCFullYear(), 0, 4));\nconst week = `${t.getUTCFullYear()}-W${String(1 + Math.round(((t - w1) / DAY - 3 + ((w1.getUTCDay() + 6) % 7)) / 7)).padStart(2, '0')}`;\nconst dueBy = new Date(today.getTime() + cfg.due_within_days * DAY);\nconst major = v => parseInt(String(v), 10);\nconst sameSet = (a, b) => { const x = [...new Set((a || []).map(String))].sort(), y = [...new Set((b || []).map(String))].sort(); return x.join('|') === y.join('|'); };\n\nconst actions = [];\nlet checked = 0;\nfor (const r of rows) {\n  if (cfg.inactive_statuses.includes(r.status)) continue;  // already withdrawn or retired: the owner decides (step 8)\n  checked++;\n  const base = { source: String(r.id), title: r.title, owner: r.owner || null, file_id: r.file_id || null };\n  const add = (action, extra) => actions.push(Object.assign({}, base, { action, key: `${r.id}:${week}:${action}` }, extra));\n\n  // Step 4: no owner or review date means withdrawn, with the register admin alerted.\n  if (!r.owner || !r.review_date) { add('withdraw_missing', { reason: !r.owner ? 'no owner' : 'no review date' }); continue; }\n\n  const pull = r.expiry_date ? day(r.expiry_date) : new Date(day(r.review_date).getTime() + cfg.expiry_after_review_days * DAY);\n  const expired = pull < today;\n  // Step 5: a departed owner goes to the register admin to reassign; one on vacation, to the delegate.\n  const u = users[String(r.owner).toLowerCase()];\n  const departed = !u || u.active === false;\n  const recipient = departed ? cfg.register_admin : (u.on_leave ? (r.delegate || cfg.register_admin) : r.owner);\n  if (departed) add('reassign', { reason: u ? 'owner has left' : 'owner not in the directory' });\n\n  if (expired) {\n    // Step 7: past expiry: withdraw, archive, tell the owner (or who stands in) and the register admin.\n    add('withdraw_expired', { recipient, pull_date: iso(pull), reason: 'past expiry' });\n    continue;\n  }\n  // Step 6: due within the window, or past review: remind the owner with the pull date.\n  if (!departed && day(r.review_date) <= dueBy) {\n    add('remind', { recipient, review_date: iso(day(r.review_date)), pull_date: iso(pull),\n                    reason: day(r.review_date) < today ? 'past review' : 'review due' });\n  }\n  // Step 10: stored audience against live sharing, and register version against the index.\n  if (r.status === 'current') {\n    const f = files[String(r.file_id)], ix = indexed[String(r.id)];\n    const problems = [];\n    if (!f || !sameSet(r.audience, f.shared_with)) problems.push('audience differs from sharing');\n    if (!ix || major(ix.version) !== major(r.version)) problems.push(`register version ${r.version}, index ${ix ? ix.version : 'missing'}`);\n    if (problems.length) add('mismatch', { reason: problems.join('; ') });\n  }\n}\nreturn [{ json: { week, checked, actions } }];\n};\nconst out = one(__rule())[0] || {};\nreturn Object.assign({}, out, BODIES(out));\n",
+        "input": [
+          {
+            "name": "in0_Config",
+            "value": "{{1.result}}"
+          },
+          {
+            "name": "in1_Step2Readtheregister",
+            "value": "{{6.data}}"
+          },
+          {
+            "name": "in2_Readthedirectory",
+            "value": "{{8.data}}"
+          },
+          {
+            "name": "in3_Step10Readsharing",
+            "value": "{{10.data}}"
+          },
+          {
+            "name": "in4_Step10Readtheindex",
+            "value": "{{12.data}}"
+          },
+          {
+            "name": "run_id",
+            "value": "{{var.scenario.executionId}}"
+          }
+        ]
+      },
+      "metadata": {
+        "designer": {
+          "x": 1800,
+          "y": 0,
+          "name": "Rules: steps 2, 4 to 7 and 10"
+        }
+      }
+    },
+    {
+      "id": 14,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{1.result.table_api_url}}/decision_log",
+        "method": "post",
+        "timeout": "40",
+        "parseResponse": false,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true,
+        "contentType": "json",
+        "inputMethod": "jsonString",
+        "jsonStringBodyContent": "{{13.result.weekly_log_body}}"
+      },
+      "metadata": {
+        "designer": {
+          "x": 2100,
+          "y": 0,
+          "name": "Step 11: Log the weekly check"
+        }
+      }
+    },
+    {
+      "id": 15,
+      "module": "builtin:BasicFeeder",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "array": "{{13.result.split}}"
+      },
+      "metadata": {
+        "designer": {
+          "x": 2400,
+          "y": 0,
+          "name": "Split the actions"
+        }
+      }
+    },
+    {
+      "id": 16,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{1.result.table_api_url}}/rpc/reserve_key",
+        "method": "post",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true,
+        "contentType": "json",
+        "inputMethod": "jsonString",
+        "jsonStringBodyContent": "{{15.reserve_body}}"
+      },
+      "metadata": {
+        "designer": {
+          "x": 2700,
+          "y": 0,
+          "name": "Step 3: Reserve key"
+        }
+      }
+    },
+    {
+      "id": 61,
+      "module": "builtin:BasicRouter",
+      "version": 1,
+      "mapper": null,
+      "routes": [
+        {
+          "flow": [
+            {
+              "id": 20,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{1.result.register_url}}/sources/{{15.source_q}}",
+                "method": "patch",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{15.withdrawn_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 3300,
+                  "y": 0,
+                  "name": "Step 4: Set withdrawn"
+                }
+              },
+              "onerror": [
+                {
+                  "id": 17,
+                  "module": "http:MakeRequest",
+                  "version": 4,
+                  "parameters": {},
+                  "mapper": {
+                    "url": "{{1.result.table_api_url}}/key_log?recipe=eq.R13.2&key=eq.{{15.key_q}}",
+                    "method": "patch",
+                    "timeout": "40",
+                    "parseResponse": false,
+                    "stopOnHttpError": true,
+                    "allowRedirects": true,
+                    "shareCookies": false,
+                    "requestCompressedContent": true,
+                    "contentType": "json",
+                    "inputMethod": "jsonString",
+                    "jsonStringBodyContent": "{\"status\": \"failed\", \"result\": \"write failed\"}"
+                  },
+                  "metadata": {
+                    "designer": {
+                      "x": 3300,
+                      "y": 300,
+                      "name": "Step 4: Set withdrawn: mark key failed"
+                    }
+                  }
+                },
+                {
+                  "id": 18,
+                  "module": "http:MakeRequest",
+                  "version": 4,
+                  "parameters": {},
+                  "mapper": {
+                    "url": "{{1.result.table_api_url}}/exception_queue",
+                    "method": "post",
+                    "timeout": "40",
+                    "parseResponse": false,
+                    "stopOnHttpError": true,
+                    "allowRedirects": true,
+                    "shareCookies": false,
+                    "requestCompressedContent": true,
+                    "contentType": "json",
+                    "inputMethod": "jsonString",
+                    "jsonStringBodyContent": "{{15.failed_body}}"
+                  },
+                  "metadata": {
+                    "designer": {
+                      "x": 3600,
+                      "y": 300,
+                      "name": "Step 4: Set withdrawn: exception queue"
+                    }
+                  }
+                },
+                {
+                  "id": 19,
+                  "module": "builtin:Ignore",
+                  "version": 1,
+                  "metadata": {
+                    "designer": {
+                      "x": 3900,
+                      "y": 300
+                    }
+                  }
+                }
+              ],
+              "filter": {
+                "name": "new key, action is withdraw_missing",
+                "conditions": [
+                  [
+                    {
+                      "a": "{{16.data}}",
+                      "b": "true",
+                      "o": "text:equal"
+                    },
+                    {
+                      "a": "{{15.action}}",
+                      "b": "withdraw_missing",
+                      "o": "text:equal"
+                    }
+                  ]
+                ]
+              }
+            },
+            {
+              "id": 24,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{1.result.messaging_url}}/messages",
+                "method": "post",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{15.withdraw_message}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 3600,
+                  "y": 0,
+                  "name": "Step 4: Alert the register admin"
+                }
+              },
+              "onerror": [
+                {
+                  "id": 21,
+                  "module": "http:MakeRequest",
+                  "version": 4,
+                  "parameters": {},
+                  "mapper": {
+                    "url": "{{1.result.table_api_url}}/key_log?recipe=eq.R13.2&key=eq.{{15.key_q}}",
+                    "method": "patch",
+                    "timeout": "40",
+                    "parseResponse": false,
+                    "stopOnHttpError": true,
+                    "allowRedirects": true,
+                    "shareCookies": false,
+                    "requestCompressedContent": true,
+                    "contentType": "json",
+                    "inputMethod": "jsonString",
+                    "jsonStringBodyContent": "{\"status\": \"failed\", \"result\": \"write failed\"}"
+                  },
+                  "metadata": {
+                    "designer": {
+                      "x": 3600,
+                      "y": 300,
+                      "name": "Step 4: Alert the register admin: mark key failed"
+                    }
+                  }
+                },
+                {
+                  "id": 22,
+                  "module": "http:MakeRequest",
+                  "version": 4,
+                  "parameters": {},
+                  "mapper": {
+                    "url": "{{1.result.table_api_url}}/exception_queue",
+                    "method": "post",
+                    "timeout": "40",
+                    "parseResponse": false,
+                    "stopOnHttpError": true,
+                    "allowRedirects": true,
+                    "shareCookies": false,
+                    "requestCompressedContent": true,
+                    "contentType": "json",
+                    "inputMethod": "jsonString",
+                    "jsonStringBodyContent": "{{15.failed_body}}"
+                  },
+                  "metadata": {
+                    "designer": {
+                      "x": 3900,
+                      "y": 300,
+                      "name": "Step 4: Alert the register admin: exception queue"
+                    }
+                  }
+                },
+                {
+                  "id": 23,
+                  "module": "builtin:Ignore",
+                  "version": 1,
+                  "metadata": {
+                    "designer": {
+                      "x": 4200,
+                      "y": 300
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "id": 25,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{1.result.table_api_url}}/key_log?recipe=eq.R13.2&key=eq.{{15.key_q}}",
+                "method": "patch",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{15.done_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 3900,
+                  "y": 0,
+                  "name": "Mark key done (withdrawn, missing)"
+                }
+              }
+            },
+            {
+              "id": 26,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{1.result.table_api_url}}/decision_log",
+                "method": "post",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{15.log_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 4200,
+                  "y": 0,
+                  "name": "Step 11: Decision log (withdrawn, missing)"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "flow": [
+            {
+              "id": 27,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{1.result.table_api_url}}/exception_queue",
+                "method": "post",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{15.reassign_exception}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 3300,
+                  "y": 600,
+                  "name": "Step 5: Exception queue: reassign the owner"
+                }
+              },
+              "filter": {
+                "name": "new key, action is reassign",
+                "conditions": [
+                  [
+                    {
+                      "a": "{{16.data}}",
+                      "b": "true",
+                      "o": "text:equal"
+                    },
+                    {
+                      "a": "{{15.action}}",
+                      "b": "reassign",
+                      "o": "text:equal"
+                    }
+                  ]
+                ]
+              }
+            },
+            {
+              "id": 31,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{1.result.messaging_url}}/messages",
+                "method": "post",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{15.reassign_message}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 3600,
+                  "y": 600,
+                  "name": "Step 5: Tell the register admin to reassign"
+                }
+              },
+              "onerror": [
+                {
+                  "id": 28,
+                  "module": "http:MakeRequest",
+                  "version": 4,
+                  "parameters": {},
+                  "mapper": {
+                    "url": "{{1.result.table_api_url}}/key_log?recipe=eq.R13.2&key=eq.{{15.key_q}}",
+                    "method": "patch",
+                    "timeout": "40",
+                    "parseResponse": false,
+                    "stopOnHttpError": true,
+                    "allowRedirects": true,
+                    "shareCookies": false,
+                    "requestCompressedContent": true,
+                    "contentType": "json",
+                    "inputMethod": "jsonString",
+                    "jsonStringBodyContent": "{\"status\": \"failed\", \"result\": \"write failed\"}"
+                  },
+                  "metadata": {
+                    "designer": {
+                      "x": 3600,
+                      "y": 900,
+                      "name": "Step 5: Tell the register admin to reassign: mark key failed"
+                    }
+                  }
+                },
+                {
+                  "id": 29,
+                  "module": "http:MakeRequest",
+                  "version": 4,
+                  "parameters": {},
+                  "mapper": {
+                    "url": "{{1.result.table_api_url}}/exception_queue",
+                    "method": "post",
+                    "timeout": "40",
+                    "parseResponse": false,
+                    "stopOnHttpError": true,
+                    "allowRedirects": true,
+                    "shareCookies": false,
+                    "requestCompressedContent": true,
+                    "contentType": "json",
+                    "inputMethod": "jsonString",
+                    "jsonStringBodyContent": "{{15.failed_body}}"
+                  },
+                  "metadata": {
+                    "designer": {
+                      "x": 3900,
+                      "y": 900,
+                      "name": "Step 5: Tell the register admin to reassign: exception queue"
+                    }
+                  }
+                },
+                {
+                  "id": 30,
+                  "module": "builtin:Ignore",
+                  "version": 1,
+                  "metadata": {
+                    "designer": {
+                      "x": 4200,
+                      "y": 900
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "id": 32,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{1.result.table_api_url}}/key_log?recipe=eq.R13.2&key=eq.{{15.key_q}}",
+                "method": "patch",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{15.done_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 3900,
+                  "y": 600,
+                  "name": "Mark key done (reassign)"
+                }
+              }
+            },
+            {
+              "id": 33,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{1.result.table_api_url}}/decision_log",
+                "method": "post",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{15.log_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 4200,
+                  "y": 600,
+                  "name": "Step 11: Decision log (reassign)"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "flow": [
+            {
+              "id": 37,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{1.result.messaging_url}}/messages",
+                "method": "post",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{15.remind_message}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 3300,
+                  "y": 1200,
+                  "name": "Step 6: Remind the owner, with the pull date"
+                }
+              },
+              "onerror": [
+                {
+                  "id": 34,
+                  "module": "http:MakeRequest",
+                  "version": 4,
+                  "parameters": {},
+                  "mapper": {
+                    "url": "{{1.result.table_api_url}}/key_log?recipe=eq.R13.2&key=eq.{{15.key_q}}",
+                    "method": "patch",
+                    "timeout": "40",
+                    "parseResponse": false,
+                    "stopOnHttpError": true,
+                    "allowRedirects": true,
+                    "shareCookies": false,
+                    "requestCompressedContent": true,
+                    "contentType": "json",
+                    "inputMethod": "jsonString",
+                    "jsonStringBodyContent": "{\"status\": \"failed\", \"result\": \"write failed\"}"
+                  },
+                  "metadata": {
+                    "designer": {
+                      "x": 3300,
+                      "y": 1500,
+                      "name": "Step 6: Remind the owner, with the pull date: mark key failed"
+                    }
+                  }
+                },
+                {
+                  "id": 35,
+                  "module": "http:MakeRequest",
+                  "version": 4,
+                  "parameters": {},
+                  "mapper": {
+                    "url": "{{1.result.table_api_url}}/exception_queue",
+                    "method": "post",
+                    "timeout": "40",
+                    "parseResponse": false,
+                    "stopOnHttpError": true,
+                    "allowRedirects": true,
+                    "shareCookies": false,
+                    "requestCompressedContent": true,
+                    "contentType": "json",
+                    "inputMethod": "jsonString",
+                    "jsonStringBodyContent": "{{15.failed_body}}"
+                  },
+                  "metadata": {
+                    "designer": {
+                      "x": 3600,
+                      "y": 1500,
+                      "name": "Step 6: Remind the owner, with the pull date: exception queue"
+                    }
+                  }
+                },
+                {
+                  "id": 36,
+                  "module": "builtin:Ignore",
+                  "version": 1,
+                  "metadata": {
+                    "designer": {
+                      "x": 3900,
+                      "y": 1500
+                    }
+                  }
+                }
+              ],
+              "filter": {
+                "name": "new key, action is remind",
+                "conditions": [
+                  [
+                    {
+                      "a": "{{16.data}}",
+                      "b": "true",
+                      "o": "text:equal"
+                    },
+                    {
+                      "a": "{{15.action}}",
+                      "b": "remind",
+                      "o": "text:equal"
+                    }
+                  ]
+                ]
+              }
+            },
+            {
+              "id": 38,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{1.result.table_api_url}}/key_log?recipe=eq.R13.2&key=eq.{{15.key_q}}",
+                "method": "patch",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{15.done_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 3600,
+                  "y": 1200,
+                  "name": "Mark key done (remind)"
+                }
+              }
+            },
+            {
+              "id": 39,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{1.result.table_api_url}}/decision_log",
+                "method": "post",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{15.log_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 3900,
+                  "y": 1200,
+                  "name": "Step 11: Decision log (remind)"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "flow": [
+            {
+              "id": 43,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{1.result.register_url}}/sources/{{15.source_q}}",
+                "method": "patch",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{15.withdrawn_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 3300,
+                  "y": 1800,
+                  "name": "Step 7: Set withdrawn"
+                }
+              },
+              "onerror": [
+                {
+                  "id": 40,
+                  "module": "http:MakeRequest",
+                  "version": 4,
+                  "parameters": {},
+                  "mapper": {
+                    "url": "{{1.result.table_api_url}}/key_log?recipe=eq.R13.2&key=eq.{{15.key_q}}",
+                    "method": "patch",
+                    "timeout": "40",
+                    "parseResponse": false,
+                    "stopOnHttpError": true,
+                    "allowRedirects": true,
+                    "shareCookies": false,
+                    "requestCompressedContent": true,
+                    "contentType": "json",
+                    "inputMethod": "jsonString",
+                    "jsonStringBodyContent": "{\"status\": \"failed\", \"result\": \"write failed\"}"
+                  },
+                  "metadata": {
+                    "designer": {
+                      "x": 3300,
+                      "y": 2100,
+                      "name": "Step 7: Set withdrawn: mark key failed"
+                    }
+                  }
+                },
+                {
+                  "id": 41,
+                  "module": "http:MakeRequest",
+                  "version": 4,
+                  "parameters": {},
+                  "mapper": {
+                    "url": "{{1.result.table_api_url}}/exception_queue",
+                    "method": "post",
+                    "timeout": "40",
+                    "parseResponse": false,
+                    "stopOnHttpError": true,
+                    "allowRedirects": true,
+                    "shareCookies": false,
+                    "requestCompressedContent": true,
+                    "contentType": "json",
+                    "inputMethod": "jsonString",
+                    "jsonStringBodyContent": "{{15.failed_body}}"
+                  },
+                  "metadata": {
+                    "designer": {
+                      "x": 3600,
+                      "y": 2100,
+                      "name": "Step 7: Set withdrawn: exception queue"
+                    }
+                  }
+                },
+                {
+                  "id": 42,
+                  "module": "builtin:Ignore",
+                  "version": 1,
+                  "metadata": {
+                    "designer": {
+                      "x": 3900,
+                      "y": 2100
+                    }
+                  }
+                }
+              ],
+              "filter": {
+                "name": "new key, action is withdraw_expired",
+                "conditions": [
+                  [
+                    {
+                      "a": "{{16.data}}",
+                      "b": "true",
+                      "o": "text:equal"
+                    },
+                    {
+                      "a": "{{15.action}}",
+                      "b": "withdraw_expired",
+                      "o": "text:equal"
+                    }
+                  ]
+                ]
+              }
+            },
+            {
+              "id": 47,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{1.result.documents_url}}/files/{{15.file_q}}",
+                "method": "patch",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{15.archive_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 3600,
+                  "y": 1800,
+                  "name": "Step 7: Archive the file"
+                }
+              },
+              "onerror": [
+                {
+                  "id": 44,
+                  "module": "http:MakeRequest",
+                  "version": 4,
+                  "parameters": {},
+                  "mapper": {
+                    "url": "{{1.result.table_api_url}}/key_log?recipe=eq.R13.2&key=eq.{{15.key_q}}",
+                    "method": "patch",
+                    "timeout": "40",
+                    "parseResponse": false,
+                    "stopOnHttpError": true,
+                    "allowRedirects": true,
+                    "shareCookies": false,
+                    "requestCompressedContent": true,
+                    "contentType": "json",
+                    "inputMethod": "jsonString",
+                    "jsonStringBodyContent": "{\"status\": \"failed\", \"result\": \"write failed\"}"
+                  },
+                  "metadata": {
+                    "designer": {
+                      "x": 3600,
+                      "y": 2100,
+                      "name": "Step 7: Archive the file: mark key failed"
+                    }
+                  }
+                },
+                {
+                  "id": 45,
+                  "module": "http:MakeRequest",
+                  "version": 4,
+                  "parameters": {},
+                  "mapper": {
+                    "url": "{{1.result.table_api_url}}/exception_queue",
+                    "method": "post",
+                    "timeout": "40",
+                    "parseResponse": false,
+                    "stopOnHttpError": true,
+                    "allowRedirects": true,
+                    "shareCookies": false,
+                    "requestCompressedContent": true,
+                    "contentType": "json",
+                    "inputMethod": "jsonString",
+                    "jsonStringBodyContent": "{{15.failed_body}}"
+                  },
+                  "metadata": {
+                    "designer": {
+                      "x": 3900,
+                      "y": 2100,
+                      "name": "Step 7: Archive the file: exception queue"
+                    }
+                  }
+                },
+                {
+                  "id": 46,
+                  "module": "builtin:Ignore",
+                  "version": 1,
+                  "metadata": {
+                    "designer": {
+                      "x": 4200,
+                      "y": 2100
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "id": 51,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{1.result.messaging_url}}/messages",
+                "method": "post",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{15.expired_message}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 3900,
+                  "y": 1800,
+                  "name": "Step 7: Tell the owner and the register admin"
+                }
+              },
+              "onerror": [
+                {
+                  "id": 48,
+                  "module": "http:MakeRequest",
+                  "version": 4,
+                  "parameters": {},
+                  "mapper": {
+                    "url": "{{1.result.table_api_url}}/key_log?recipe=eq.R13.2&key=eq.{{15.key_q}}",
+                    "method": "patch",
+                    "timeout": "40",
+                    "parseResponse": false,
+                    "stopOnHttpError": true,
+                    "allowRedirects": true,
+                    "shareCookies": false,
+                    "requestCompressedContent": true,
+                    "contentType": "json",
+                    "inputMethod": "jsonString",
+                    "jsonStringBodyContent": "{\"status\": \"failed\", \"result\": \"write failed\"}"
+                  },
+                  "metadata": {
+                    "designer": {
+                      "x": 3900,
+                      "y": 2100,
+                      "name": "Step 7: Tell the owner and the register admin: mark key failed"
+                    }
+                  }
+                },
+                {
+                  "id": 49,
+                  "module": "http:MakeRequest",
+                  "version": 4,
+                  "parameters": {},
+                  "mapper": {
+                    "url": "{{1.result.table_api_url}}/exception_queue",
+                    "method": "post",
+                    "timeout": "40",
+                    "parseResponse": false,
+                    "stopOnHttpError": true,
+                    "allowRedirects": true,
+                    "shareCookies": false,
+                    "requestCompressedContent": true,
+                    "contentType": "json",
+                    "inputMethod": "jsonString",
+                    "jsonStringBodyContent": "{{15.failed_body}}"
+                  },
+                  "metadata": {
+                    "designer": {
+                      "x": 4200,
+                      "y": 2100,
+                      "name": "Step 7: Tell the owner and the register admin: exception queue"
+                    }
+                  }
+                },
+                {
+                  "id": 50,
+                  "module": "builtin:Ignore",
+                  "version": 1,
+                  "metadata": {
+                    "designer": {
+                      "x": 4500,
+                      "y": 2100
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "id": 52,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{1.result.table_api_url}}/key_log?recipe=eq.R13.2&key=eq.{{15.key_q}}",
+                "method": "patch",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{15.done_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 4200,
+                  "y": 1800,
+                  "name": "Mark key done (withdrawn, expired)"
+                }
+              }
+            },
+            {
+              "id": 53,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{1.result.table_api_url}}/decision_log",
+                "method": "post",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{15.log_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 4500,
+                  "y": 1800,
+                  "name": "Step 11: Decision log (withdrawn, expired)"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "flow": [
+            {
+              "id": 54,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{1.result.table_api_url}}/exception_queue",
+                "method": "post",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{15.mismatch_exception}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 3300,
+                  "y": 2400,
+                  "name": "Step 10: Exception queue: mismatch"
+                }
+              },
+              "filter": {
+                "name": "new key, action is mismatch",
+                "conditions": [
+                  [
+                    {
+                      "a": "{{16.data}}",
+                      "b": "true",
+                      "o": "text:equal"
+                    },
+                    {
+                      "a": "{{15.action}}",
+                      "b": "mismatch",
+                      "o": "text:equal"
+                    }
+                  ]
+                ]
+              }
+            },
+            {
+              "id": 58,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{1.result.messaging_url}}/messages",
+                "method": "post",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{15.mismatch_message}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 3600,
+                  "y": 2400,
+                  "name": "Step 10: Tell the register admin"
+                }
+              },
+              "onerror": [
+                {
+                  "id": 55,
+                  "module": "http:MakeRequest",
+                  "version": 4,
+                  "parameters": {},
+                  "mapper": {
+                    "url": "{{1.result.table_api_url}}/key_log?recipe=eq.R13.2&key=eq.{{15.key_q}}",
+                    "method": "patch",
+                    "timeout": "40",
+                    "parseResponse": false,
+                    "stopOnHttpError": true,
+                    "allowRedirects": true,
+                    "shareCookies": false,
+                    "requestCompressedContent": true,
+                    "contentType": "json",
+                    "inputMethod": "jsonString",
+                    "jsonStringBodyContent": "{\"status\": \"failed\", \"result\": \"write failed\"}"
+                  },
+                  "metadata": {
+                    "designer": {
+                      "x": 3600,
+                      "y": 2700,
+                      "name": "Step 10: Tell the register admin: mark key failed"
+                    }
+                  }
+                },
+                {
+                  "id": 56,
+                  "module": "http:MakeRequest",
+                  "version": 4,
+                  "parameters": {},
+                  "mapper": {
+                    "url": "{{1.result.table_api_url}}/exception_queue",
+                    "method": "post",
+                    "timeout": "40",
+                    "parseResponse": false,
+                    "stopOnHttpError": true,
+                    "allowRedirects": true,
+                    "shareCookies": false,
+                    "requestCompressedContent": true,
+                    "contentType": "json",
+                    "inputMethod": "jsonString",
+                    "jsonStringBodyContent": "{{15.failed_body}}"
+                  },
+                  "metadata": {
+                    "designer": {
+                      "x": 3900,
+                      "y": 2700,
+                      "name": "Step 10: Tell the register admin: exception queue"
+                    }
+                  }
+                },
+                {
+                  "id": 57,
+                  "module": "builtin:Ignore",
+                  "version": 1,
+                  "metadata": {
+                    "designer": {
+                      "x": 4200,
+                      "y": 2700
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "id": 59,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{1.result.table_api_url}}/key_log?recipe=eq.R13.2&key=eq.{{15.key_q}}",
+                "method": "patch",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{15.done_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 3900,
+                  "y": 2400,
+                  "name": "Mark key done (mismatch)"
+                }
+              }
+            },
+            {
+              "id": 60,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{1.result.table_api_url}}/decision_log",
+                "method": "post",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{15.log_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 4200,
+                  "y": 2400,
+                  "name": "Step 11: Decision log (mismatch)"
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "designer": {
+          "x": 3000,
+          "y": 0,
+          "name": "Action"
+        }
+      }
+    }
+  ],
+  "metadata": {
+    "instant": false,
+    "version": 1,
+    "designer": {
+      "orphans": []
+    },
+    "scenario": {
+      "dlq": true,
+      "slots": null,
+      "dataloss": false,
+      "maxErrors": 3,
+      "autoCommit": true,
+      "roundtrips": 1,
+      "sequential": false,
+      "confidential": false,
+      "freshVariables": false,
+      "autoCommitTriggerLast": true
+    }
+  }
+}

@@ -47,6 +47,9 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "tools" / "n8n"))
 import golden  # noqa: E402
 
+sys.path.insert(0, str(ROOT / "tools" / "make"))
+import mk  # noqa: E402
+
 UA = {"User-Agent": "companion-golden/1.0"}  # Make refuses Python's default agent
 MOCKS_PUBLIC = os.environ.get("MOCKS_PUBLIC_URL", "").rstrip("/")
 TABLE_API = os.environ.get("TABLE_API_URL", MOCKS_PUBLIC + "/db")
@@ -103,7 +106,7 @@ def set_config(bp: dict, values: dict) -> None:
     if unknown:
         raise ValueError(f"tests.json config has fields the Config step does not: {sorted(unknown)}")
     cfg.update(values)
-    m["mapper"]["codeEditorJavascript"] = head + "\nreturn " + json.dumps(cfg, indent=2) + ";"
+    m["mapper"]["codeEditorJavascript"] = head + "\nreturn " + mk.settings_js(cfg) + ";"
 
 
 def public(v):

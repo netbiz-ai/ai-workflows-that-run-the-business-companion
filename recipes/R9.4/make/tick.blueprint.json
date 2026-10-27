@@ -1,0 +1,526 @@
+{
+  "name": "R9.4 Remove a leaver's access: a person ticks an item",
+  "flow": [
+    {
+      "id": 1,
+      "module": "gateway:CustomWebHook",
+      "version": 1,
+      "parameters": {
+        "hook": null,
+        "maxResults": 1
+      },
+      "mapper": {},
+      "metadata": {
+        "designer": {
+          "x": 0,
+          "y": 0,
+          "name": "Step 7: Person ticks an item"
+        }
+      }
+    },
+    {
+      "id": 2,
+      "module": "code:ExecuteCode",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "language": "javascript",
+        "inputFormat": "editor",
+        "dependencies": [],
+        "codeEditorJavascript": "// Config: edit these values for your company; nothing else in the scenario hard-codes them.\nreturn {\n  \"stop_flag_url\": \"https://<your stop list API>/stop_flags/R9.4\",\n  \"table_api_url\": \"https://<your table API for the key log, decision log and exception queue>\",\n  \"workflow_owner\": \"<your workflow owner>\",\n  \"leavers_url\": \"https://<your leaver list API>\",\n  \"inventory_url\": \"https://<your access inventory API>\",\n  \"directory_url\": \"https://<your directory API>\",\n  \"pos_url\": \"https://<your point-of-sale API>\",\n  \"tasks_url\": \"https://<your task list API>\",\n  \"evidence_url\": \"https://<your evidence list API>\",\n  \"itsm_url\": \"https://<your IT provider's ticket API>\",\n  \"messaging_url\": \"https://<your messaging API>\",\n  \"leaver_list_owner\": \"<your HR owner, the only person who edits the leaver list>\",\n  \"access_owner\": \"<your IT owner, who checks evidence and closes cases>\",\n  \"deadline_working_days\": 1\n};",
+        "input": []
+      },
+      "metadata": {
+        "designer": {
+          "x": 300,
+          "y": 0,
+          "name": "Config"
+        }
+      }
+    },
+    {
+      "id": 5,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{2.result.stop_flag_url}}",
+        "method": "get",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true
+      },
+      "metadata": {
+        "designer": {
+          "x": 600,
+          "y": 0,
+          "name": "Stop flag: read"
+        }
+      },
+      "onerror": [
+        {
+          "id": 3,
+          "module": "http:MakeRequest",
+          "version": 4,
+          "parameters": {},
+          "mapper": {
+            "url": "{{2.result.table_api_url}}/exception_queue",
+            "method": "post",
+            "timeout": "40",
+            "parseResponse": false,
+            "stopOnHttpError": true,
+            "allowRedirects": true,
+            "shareCookies": false,
+            "requestCompressedContent": true,
+            "contentType": "json",
+            "inputMethod": "jsonString",
+            "jsonStringBodyContent": "{\"recipe\": \"R9.4\", \"item\": \"run {{var.scenario.executionId}}\", \"reason\": \"stop list unreadable\", \"detail\": \"The stop list could not be read, so the run stopped\", \"owner\": \"{{2.result.workflow_owner}}\"}"
+          },
+          "metadata": {
+            "designer": {
+              "x": 600,
+              "y": 300,
+              "name": "Stop flag: list unreadable"
+            }
+          }
+        },
+        {
+          "id": 4,
+          "module": "builtin:Ignore",
+          "version": 1,
+          "metadata": {
+            "designer": {
+              "x": 900,
+              "y": 300
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{2.result.evidence_url}}/items",
+        "method": "get",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true,
+        "queryParameters": [
+          {
+            "name": "_wrap",
+            "value": "1"
+          },
+          {
+            "name": "id",
+            "value": "{{1.evidence_id}}"
+          }
+        ]
+      },
+      "metadata": {
+        "designer": {
+          "x": 900,
+          "y": 0,
+          "name": "Step 7: Read the item"
+        }
+      },
+      "onerror": [
+        {
+          "id": 6,
+          "module": "builtin:Break",
+          "version": 1,
+          "parameters": {},
+          "mapper": {
+            "count": "3",
+            "retry": true,
+            "interval": "1"
+          },
+          "metadata": {
+            "designer": {
+              "x": 900,
+              "y": 300
+            }
+          }
+        }
+      ],
+      "filter": {
+        "name": "stop flag not set",
+        "conditions": [
+          [
+            {
+              "a": "{{5.data.stopped}}",
+              "b": "true",
+              "o": "text:notequal"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "id": 8,
+      "module": "code:ExecuteCode",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "language": "javascript",
+        "inputFormat": "editor",
+        "dependencies": [],
+        "codeEditorJavascript": "// Adapter: the rule below is the same JavaScript as the recipe's n8n build.\n// $('Step name') answers from this step's inputs: each is that step's output in this scenario.\nconst SOURCES = {\"Step 7: Read the item\": \"in0_Step7Readtheitem\"};\nconst LISTS = [];\nconst EXECUTED = [];\nconst DATA = {};\nfor (const [node, key] of Object.entries(SOURCES)) {\n  const raw = input[key];\n  let v = raw;\n  if (typeof raw === 'string') { try { v = JSON.parse(raw); } catch (e) { v = raw; } }\n  DATA[node] = LISTS.includes(node) ? (v || []).map(i => (i && i.json !== undefined ? i : { json: i })) : [{ json: v }];\n}\nconst $ = (node) => {\n  const ran = node in DATA || EXECUTED.includes(node);\n  const list = () => { if (!(node in DATA)) throw new Error(`step ${node} has no data in this scenario`); return DATA[node]; };\n  return { isExecuted: ran, first: () => list()[0], last: () => list()[list().length - 1], all: () => list(),\n           get item() { return list()[0]; } };\n};\nconst INPUT = \"Step 7: Read the item\";\nconst $input = { all: () => $(INPUT).all(), first: () => $(INPUT).first(), last: () => $(INPUT).last(), get item() { return $(INPUT).first(); } };\nconst $execution = { id: input.run_id };\n// The webhook's fields, as the rule reads them in n8n: $('Step 7: Person ticks an item').first().json.body.\nDATA[\"Step 7: Person ticks an item\"] = [{ json: { body: { \"evidence_id\": input.t_evidence_id, \"by\": input.t_by } } }];\nconst BODIES = (out) => ({\"id_q\": encodeURIComponent(out.id || ''), \"tick_body\": JSON.stringify({ status: 'confirmed', by: out.by, at: out.at })});\nconst one = (r) => (Array.isArray(r) ? r : [r]).filter(Boolean).map(i => (i.json !== undefined ? i.json : i));\nconst $json = INPUT && INPUT in DATA ? $input.first().json : {};\nconst __rule = () => {\n// Step 7: a person's tick confirms an item that is still open; the time is recorded.\nconst t = $('Step 7: Person ticks an item').first().json.body;\nconst e = ($('Step 7: Read the item').first().json.items || [])[0];\nif (!e || e.status === 'confirmed' || !t.by) return [];\nreturn [{ json: { id: e.id, case_id: e.case_id, by: t.by, at: new Date().toISOString() } }];\n};\nconst out = one(__rule())[0] || {};\nreturn Object.assign({}, out, BODIES(out));\n",
+        "input": [
+          {
+            "name": "t_evidence_id",
+            "value": "{{1.evidence_id}}"
+          },
+          {
+            "name": "t_by",
+            "value": "{{1.by}}"
+          },
+          {
+            "name": "in0_Step7Readtheitem",
+            "value": "{{7.data}}"
+          },
+          {
+            "name": "run_id",
+            "value": "{{var.scenario.executionId}}"
+          }
+        ]
+      },
+      "metadata": {
+        "designer": {
+          "x": 1200,
+          "y": 0,
+          "name": "Step 7: Rule: open item?"
+        }
+      }
+    },
+    {
+      "id": 9,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{2.result.evidence_url}}/items/{{8.result.id_q}}",
+        "method": "patch",
+        "timeout": "40",
+        "parseResponse": false,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true,
+        "contentType": "json",
+        "inputMethod": "jsonString",
+        "jsonStringBodyContent": "{{8.result.tick_body}}"
+      },
+      "metadata": {
+        "designer": {
+          "x": 1500,
+          "y": 0,
+          "name": "Step 7: Record the tick"
+        }
+      },
+      "filter": {
+        "name": "an open item",
+        "conditions": [
+          [
+            {
+              "a": "{{8.result.id}}",
+              "b": "",
+              "o": "exist"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "id": 10,
+      "module": "code:ExecuteCode",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "language": "javascript",
+        "inputFormat": "editor",
+        "dependencies": [],
+        "codeEditorJavascript": "// Adapter: the rule below is the same JavaScript as the recipe's n8n build.\n// $('Step name') answers from this step's inputs: each is that step's output in this scenario.\nconst SOURCES = {\"Step 7: Rule: open item?\": \"in0_Step7Ruleopenitem\"};\nconst LISTS = [];\nconst EXECUTED = [\"Step 7: Person ticks an item\"];\nconst DATA = {};\nfor (const [node, key] of Object.entries(SOURCES)) {\n  const raw = input[key];\n  let v = raw;\n  if (typeof raw === 'string') { try { v = JSON.parse(raw); } catch (e) { v = raw; } }\n  DATA[node] = LISTS.includes(node) ? (v || []).map(i => (i && i.json !== undefined ? i : { json: i })) : [{ json: v }];\n}\nconst $ = (node) => {\n  const ran = node in DATA || EXECUTED.includes(node);\n  const list = () => { if (!(node in DATA)) throw new Error(`step ${node} has no data in this scenario`); return DATA[node]; };\n  return { isExecuted: ran, first: () => list()[0], last: () => list()[list().length - 1], all: () => list(),\n           get item() { return list()[0]; } };\n};\nconst INPUT = \"Step 7: Rule: open item?\";\nconst $input = { all: () => $(INPUT).all(), first: () => $(INPUT).first(), last: () => $(INPUT).last(), get item() { return $(INPUT).first(); } };\nconst $execution = { id: input.run_id };\nconst BODIES = (out) => ({});\nconst one = (r) => (Array.isArray(r) ? r : [r]).filter(Boolean).map(i => (i.json !== undefined ? i.json : i));\nconst $json = INPUT && INPUT in DATA ? $input.first().json : {};\nconst __rule = () => {\n// Step 7 runs after every pass: from the leaver run, or after a person's tick.\nif ($('Step 7: Person ticks an item').isExecuted) {\n  return [{ json: { case_id: $('Step 7: Rule: open item?').first().json.case_id } }];\n}\nreturn $input.all().map(i => ({ json: { case_id: i.json.case_id, key: i.json.key, leaver: i.json.leaver, item_ids: i.json.item_ids } }));\n};\nconst out = one(__rule())[0] || {};\nreturn Object.assign({}, out, BODIES(out));\n",
+        "input": [
+          {
+            "name": "in0_Step7Ruleopenitem",
+            "value": "{{8.result}}"
+          },
+          {
+            "name": "run_id",
+            "value": "{{var.scenario.executionId}}"
+          }
+        ]
+      },
+      "metadata": {
+        "designer": {
+          "x": 1800,
+          "y": 0,
+          "name": "Step 7: Case to check"
+        }
+      }
+    },
+    {
+      "id": 12,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{2.result.evidence_url}}/cases",
+        "method": "get",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true,
+        "queryParameters": [
+          {
+            "name": "_wrap",
+            "value": "1"
+          },
+          {
+            "name": "id",
+            "value": "{{10.result.case_id}}"
+          }
+        ]
+      },
+      "metadata": {
+        "designer": {
+          "x": 2100,
+          "y": 0,
+          "name": "Step 7: Read the case"
+        }
+      },
+      "onerror": [
+        {
+          "id": 11,
+          "module": "builtin:Break",
+          "version": 1,
+          "parameters": {},
+          "mapper": {
+            "count": "3",
+            "retry": true,
+            "interval": "1"
+          },
+          "metadata": {
+            "designer": {
+              "x": 2100,
+              "y": 300
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 14,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{2.result.evidence_url}}/items",
+        "method": "get",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true,
+        "queryParameters": [
+          {
+            "name": "_wrap",
+            "value": "1"
+          },
+          {
+            "name": "case_id",
+            "value": "{{10.result.case_id}}"
+          }
+        ]
+      },
+      "metadata": {
+        "designer": {
+          "x": 2400,
+          "y": 0,
+          "name": "Step 7: Read the case evidence"
+        }
+      },
+      "onerror": [
+        {
+          "id": 13,
+          "module": "builtin:Break",
+          "version": 1,
+          "parameters": {},
+          "mapper": {
+            "count": "3",
+            "retry": true,
+            "interval": "1"
+          },
+          "metadata": {
+            "designer": {
+              "x": 2400,
+              "y": 300
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 15,
+      "module": "code:ExecuteCode",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "language": "javascript",
+        "inputFormat": "editor",
+        "dependencies": [],
+        "codeEditorJavascript": "// Adapter: the rule below is the same JavaScript as the recipe's n8n build.\n// $('Step name') answers from this step's inputs: each is that step's output in this scenario.\nconst SOURCES = {\"Config\": \"in0_Config\", \"Step 7: Case to check\": \"in1_Step7Casetocheck\", \"Step 7: Read the case\": \"in2_Step7Readthecase\", \"Step 7: Read the case evidence\": \"in3_Step7Readthecaseevidence\"};\nconst LISTS = [];\nconst EXECUTED = [];\nconst DATA = {};\nfor (const [node, key] of Object.entries(SOURCES)) {\n  const raw = input[key];\n  let v = raw;\n  if (typeof raw === 'string') { try { v = JSON.parse(raw); } catch (e) { v = raw; } }\n  DATA[node] = LISTS.includes(node) ? (v || []).map(i => (i && i.json !== undefined ? i : { json: i })) : [{ json: v }];\n}\nconst $ = (node) => {\n  const ran = node in DATA || EXECUTED.includes(node);\n  const list = () => { if (!(node in DATA)) throw new Error(`step ${node} has no data in this scenario`); return DATA[node]; };\n  return { isExecuted: ran, first: () => list()[0], last: () => list()[list().length - 1], all: () => list(),\n           get item() { return list()[0]; } };\n};\nconst INPUT = \"Step 7: Read the case evidence\";\nconst $input = { all: () => $(INPUT).all(), first: () => $(INPUT).first(), last: () => $(INPUT).last(), get item() { return $(INPUT).first(); } };\nconst $execution = { id: input.run_id };\nconst BODIES = (out) => ({\"id_q\": encodeURIComponent(out.record.id), \"record_body\": JSON.stringify(out.record), \"close_message\": JSON.stringify({ to: $('Config').first().json.access_owner, subject: 'Leaver ' + out.record.name + ': every item confirmed', text: 'Check the evidence for case ' + out.record.id + ' and close it.' }), \"log_body\": JSON.stringify({ recipe: 'R9.4', item: out.record.id, decision: 'every item confirmed; to the access owner', rules: { items: (out.record.items || []).length } })});\nconst one = (r) => (Array.isArray(r) ? r : [r]).filter(Boolean).map(i => (i.json !== undefined ? i.json : i));\nconst $json = INPUT && INPUT in DATA ? $input.first().json : {};\nconst __rule = () => {\nconst isoToday = () => new Date().toISOString().slice(0, 10);\nconst day = d => new Date(String(d).slice(0, 10) + 'T00:00:00Z');\n// The date a number of working days (Monday to Friday) after a date.\nfunction addWorkingDays(d, n) {\n  let x = day(d), k = 0;\n  while (k < n) { x = new Date(x.getTime() + 86400000); if (x.getUTCDay() % 6 !== 0) k++; }\n  return x.toISOString().slice(0, 10);\n}\n\n// Step 7: every item confirmed, by a response or a person's timed tick.\nconst cfg = $('Config').first().json;\nconst c = $('Step 7: Case to check').item.json;\nconst existing = ($('Step 7: Read the case').item.json.items || [])[0] || {};\nconst evidence = $json.items || [];\nconst l = c.leaver || {};\nconst record = Object.assign({ id: c.case_id, key: c.key, employee_id: l.employee_id, name: l.name, last_day: l.last_day, manager: l.manager,\n  deadline_on: l.last_day ? addWorkingDays(l.last_day, cfg.deadline_working_days) : null, ticketed: false, opened: new Date().toISOString() },\n  existing, c.item_ids ? { items: c.item_ids } : {});\nconst confirmed = new Set(evidence.filter(e => e.status === 'confirmed').map(e => e.item_id));\nconst items = record.items || [];\nconst all = items.length > 0 && items.every(i => confirmed.has(i));\nconst before = existing.status;\nrecord.unconfirmed = items.filter(i => !confirmed.has(i));\nrecord.status = before === 'closed' ? 'closed' : all ? 'all confirmed; to close' : 'open';\nreturn { json: { record, newly_confirmed: record.status === 'all confirmed; to close' && before !== record.status } };\n};\nconst out = one(__rule())[0] || {};\nreturn Object.assign({}, out, BODIES(out));\n",
+        "input": [
+          {
+            "name": "in0_Config",
+            "value": "{{2.result}}"
+          },
+          {
+            "name": "in1_Step7Casetocheck",
+            "value": "{{10.result}}"
+          },
+          {
+            "name": "in2_Step7Readthecase",
+            "value": "{{12.data}}"
+          },
+          {
+            "name": "in3_Step7Readthecaseevidence",
+            "value": "{{14.data}}"
+          },
+          {
+            "name": "run_id",
+            "value": "{{var.scenario.executionId}}"
+          }
+        ]
+      },
+      "metadata": {
+        "designer": {
+          "x": 2700,
+          "y": 0,
+          "name": "Step 7: Rule: every item confirmed?"
+        }
+      }
+    },
+    {
+      "id": 16,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{2.result.evidence_url}}/cases/{{15.result.id_q}}",
+        "method": "put",
+        "timeout": "40",
+        "parseResponse": false,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true,
+        "contentType": "json",
+        "inputMethod": "jsonString",
+        "jsonStringBodyContent": "{{15.result.record_body}}"
+      },
+      "metadata": {
+        "designer": {
+          "x": 3000,
+          "y": 0,
+          "name": "Step 9: Log the case"
+        }
+      }
+    },
+    {
+      "id": 17,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{2.result.messaging_url}}/messages",
+        "method": "post",
+        "timeout": "40",
+        "parseResponse": false,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true,
+        "contentType": "json",
+        "inputMethod": "jsonString",
+        "jsonStringBodyContent": "{{15.result.close_message}}"
+      },
+      "metadata": {
+        "designer": {
+          "x": 3300,
+          "y": 0,
+          "name": "Step 9: Ask Owen to check and close"
+        }
+      },
+      "filter": {
+        "name": "all confirmed now",
+        "conditions": [
+          [
+            {
+              "a": "{{15.result.newly_confirmed}}",
+              "b": "true",
+              "o": "text:equal"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "id": 18,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{2.result.table_api_url}}/decision_log",
+        "method": "post",
+        "timeout": "40",
+        "parseResponse": false,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true,
+        "contentType": "json",
+        "inputMethod": "jsonString",
+        "jsonStringBodyContent": "{{15.result.log_body}}"
+      },
+      "metadata": {
+        "designer": {
+          "x": 3600,
+          "y": 0,
+          "name": "Step 9: Decision log: all confirmed"
+        }
+      }
+    }
+  ],
+  "metadata": {
+    "instant": true,
+    "version": 1,
+    "designer": {
+      "orphans": []
+    },
+    "scenario": {
+      "dlq": true,
+      "slots": null,
+      "dataloss": false,
+      "maxErrors": 3,
+      "autoCommit": true,
+      "roundtrips": 1,
+      "sequential": false,
+      "confidential": false,
+      "freshVariables": false,
+      "autoCommitTriggerLast": true
+    }
+  }
+}

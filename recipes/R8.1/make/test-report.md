@@ -1,0 +1,26 @@
+# R8.1 Make build: golden-set run
+
+Run 2026-10-26 on Make (cloud service, Core plan, us2.make.com), against the companion's mock systems (`tools/mock-systems/`).
+Result: 16 of 16 cases passed.
+Make credits used by the whole set: 334.
+
+| Case | Input | Result | Credits | Checked |
+|---|---|---|---|---|
+| Normal | Past due, on neither list | Pass | 24 | mail/outbox: 1 records; mail/outbox/1.subject = "First reminder: invoice 4471"; sharepoint/reminders/4471.stage = "second overdue reminder"; sharepoint/reminders/4471.due_on = "2026-11-02"; select status from key_log where recipe='R8.1' and key='4471:first overdue reminder' -> done; select decision from decision_log where recipe='R8.1' -> sent first overdue reminder |
+| Edge | Part-paid yesterday | Pass | 18 | mail/outbox: 0 records; sharepoint/reminders/4471.status = "stopped"; sharepoint/reminders/4471.reason = "part-paid"; messaging/messages: 1 records; messaging/messages/1.to = ["aisha@example.test"]; select decision from decision_log where recipe='R8.1' -> stopped: part-paid |
+| Restart | Dispute closed yesterday | Pass | 24 | mail/outbox: 1 records; mail/outbox/1.subject = "Second reminder: invoice 4471"; sharepoint/reminders/4471.stage = "final notice"; sharepoint/reminders/4471.status = "active" |
+| Duplicate | Flow run twice the same morning | Pass | 39 | POST /mail/outbox: 1 call(s); mail/outbox: 1 records; select count(*) from decision_log where recipe='R8.1' -> 1 |
+| Refuse | Dispute logged by Ben, or agreed hold | Pass | 19 | mail/outbox: 0 records; sharepoint/reminders/4471.reason = "open dispute, set by Ben Hollis"; sharepoint/reminders/4480.reason = "hold: agreed, set by Aisha Karim"; select string_agg(decision, ' | ' order by item) from decision_log where recipe='R8.1' -> stopped: open dispute, set by Ben Hollis | stopped: hold: agreed, set by Aisha Karim |
+| Escalate | Dispute logged while a final notice awaits approval | Pass | 18 | mail/outbox: 0 records; POST /mail/outbox: 0 call(s); sharepoint/reminders/4471.status = "stopped"; sharepoint/reminders/4471.stage = "final notice"; select decision from decision_log where recipe='R8.1' -> final notice not sent; stopped: open dispute, set by Ben Hollis |
+| Export stale | Yesterday's export (companion extension) | Pass | 10 | POST /mail/outbox: 0 call(s); select decision from decision_log where recipe='R8.1' -> no run; messaging/messages: 1 records; messaging/messages/1.to = ["aisha@example.test"] |
+| Export missing | No export saved today (companion extension) | Pass | 10 | POST /mail/outbox: 0 call(s); select decision from decision_log where recipe='R8.1' -> no run; select rules->>'problems' from decision_log where recipe='R8.1' -> ["export missing"]; messaging/messages: 1 records |
+| No mailbox check | R8.3 logged no mailbox check today (companion extension) | Pass | 10 | POST /mail/outbox: 0 call(s); select decision from decision_log where recipe='R8.1' -> no run; messaging/messages: 1 records |
+| Send fails | The AR mailbox refuses the send (companion extension) | Pass | 24 | POST /mail/outbox: 1 call(s); sharepoint/reminders/4471.stage = "first overdue reminder"; sharepoint/reminders/4471.due_on = "2026-10-25"; select count(*) from key_log where recipe='R8.1' -> 0; select reason from exception_queue where recipe='R8.1' -> send failed; select decision from decision_log where recipe='R8.1' -> unsent: first overdue reminder |
+| Missing contact | No AR contact in the CRM (companion extension) | Pass | 24 | POST /mail/outbox: 0 call(s); select reason from exception_queue where recipe='R8.1' -> held: template check; select detail from exception_queue where recipe='R8.1' -> no AR contact in the CRM; select count(*) from key_log where recipe='R8.1' -> 0; messaging/messages: 1 records |
+| List write fails | Reminder list write fails after a send, then a second run (companion extension) | Pass | 40 | POST /mail/outbox: 1 call(s); select status from key_log where recipe='R8.1' -> failed; select copies_skipped from key_log where recipe='R8.1' -> 1; select reason from exception_queue where recipe='R8.1' -> write failed |
+| Final notice due | Final notice falls due (companion extension) | Pass | 21 | POST /mail/outbox: 0 call(s); approvals/requests/4471-2026-10-26.status = "pending"; approvals/requests/4471-2026-10-26.subject = "Final notice: invoice 4471"; select decision from decision_log where recipe='R8.1' -> final notice: approval requested |
+| Final notice approved | Aisha approves a final notice (companion extension) | Pass | 26 | mail/outbox: 1 records; mail/outbox/1.subject = "Final notice: invoice 4471"; sharepoint/reminders/4471.stage = "handoff"; sharepoint/handoffs/4471.owner = "aisha@example.test"; select decision from decision_log where recipe='R8.1' -> sent final notice |
+| Pause date passed | A promise-to-pay pause whose date passed yesterday, unpaid (companion extension) | Pass | 24 | mail/outbox: 1 records; mail/outbox/1.subject = "Second reminder: invoice 4471"; sharepoint/reminders/4471.status = "active" |
+| Stop flag | The stop flag is set (companion extension) | Pass | 3 | writes to systems: none; select count(*) from key_log -> 0; select count(*) from decision_log -> 0 |
+
+The mock systems stand in for the business systems; connect your own before go-live and rerun the golden set with your data (book Chapter 16).

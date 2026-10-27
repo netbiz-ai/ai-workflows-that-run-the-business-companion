@@ -12,7 +12,7 @@ An opt-out covers every marketing channel, as Northstar's outside legal adviser 
 |---|---|---|
 | Tool-neutral | `build-spec.md` | Available |
 | n8n | [`n8n/workflow.json`](n8n/workflow.json) | Available: golden set passed on n8n 2.42.7, 2026-10-19 ([report](n8n/test-report.md)) |
-| Make | `make/blueprint.json` | Not yet available |
+| Make | [`make/blueprint.json`](make/blueprint.json) and [`make/helpdesk-tag.blueprint.json`](make/helpdesk-tag.blueprint.json) and [`make/nightly.blueprint.json`](make/nightly.blueprint.json) and [`make/opt-in.blueprint.json`](make/opt-in.blueprint.json) and [`make/pos-signup.blueprint.json`](make/pos-signup.blueprint.json) | Available: golden set passed on Make (Core plan), 2026-10-26 ([report](make/test-report.md)) |
 | Power Automate | `power-automate/` | Not yet available |
 | Zapier | `zapier.md` | Not yet available |
 

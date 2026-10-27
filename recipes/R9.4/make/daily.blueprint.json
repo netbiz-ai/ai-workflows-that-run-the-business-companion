@@ -1,0 +1,2413 @@
+{
+  "name": "R9.4 Remove a leaver's access: daily check after closing",
+  "flow": [
+    {
+      "id": 1,
+      "module": "code:ExecuteCode",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "language": "javascript",
+        "inputFormat": "editor",
+        "dependencies": [],
+        "codeEditorJavascript": "// Config: edit these values for your company; nothing else in the scenario hard-codes them.\n// Schedule: set this scenario to run every day at 19:00; Make keeps the schedule outside the blueprint.\nreturn {\n  \"stop_flag_url\": \"https://<your stop list API>/stop_flags/R9.4\",\n  \"table_api_url\": \"https://<your table API for the key log, decision log and exception queue>\",\n  \"workflow_owner\": \"<your workflow owner>\",\n  \"leavers_url\": \"https://<your leaver list API>\",\n  \"inventory_url\": \"https://<your access inventory API>\",\n  \"directory_url\": \"https://<your directory API>\",\n  \"pos_url\": \"https://<your point-of-sale API>\",\n  \"tasks_url\": \"https://<your task list API>\",\n  \"evidence_url\": \"https://<your evidence list API>\",\n  \"itsm_url\": \"https://<your IT provider's ticket API>\",\n  \"messaging_url\": \"https://<your messaging API>\",\n  \"leaver_list_owner\": \"<your HR owner, the only person who edits the leaver list>\",\n  \"access_owner\": \"<your IT owner, who checks evidence and closes cases>\",\n  \"deadline_working_days\": 1\n};",
+        "input": []
+      },
+      "metadata": {
+        "designer": {
+          "x": 0,
+          "y": 0,
+          "name": "Config"
+        }
+      }
+    },
+    {
+      "id": 4,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{1.result.stop_flag_url}}",
+        "method": "get",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true
+      },
+      "metadata": {
+        "designer": {
+          "x": 300,
+          "y": 0,
+          "name": "Stop flag: read"
+        }
+      },
+      "onerror": [
+        {
+          "id": 2,
+          "module": "http:MakeRequest",
+          "version": 4,
+          "parameters": {},
+          "mapper": {
+            "url": "{{1.result.table_api_url}}/exception_queue",
+            "method": "post",
+            "timeout": "40",
+            "parseResponse": false,
+            "stopOnHttpError": true,
+            "allowRedirects": true,
+            "shareCookies": false,
+            "requestCompressedContent": true,
+            "contentType": "json",
+            "inputMethod": "jsonString",
+            "jsonStringBodyContent": "{\"recipe\": \"R9.4\", \"item\": \"run {{var.scenario.executionId}}\", \"reason\": \"stop list unreadable\", \"detail\": \"The stop list could not be read, so the run stopped\", \"owner\": \"{{1.result.workflow_owner}}\"}"
+          },
+          "metadata": {
+            "designer": {
+              "x": 300,
+              "y": 300,
+              "name": "Stop flag: list unreadable"
+            }
+          }
+        },
+        {
+          "id": 3,
+          "module": "builtin:Ignore",
+          "version": 1,
+          "metadata": {
+            "designer": {
+              "x": 600,
+              "y": 300
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 91,
+      "module": "builtin:BasicRouter",
+      "version": 1,
+      "mapper": null,
+      "routes": [
+        {
+          "flow": [
+            {
+              "id": 6,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{1.result.leavers_url}}/leavers",
+                "method": "get",
+                "timeout": "40",
+                "parseResponse": true,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "queryParameters": [
+                  {
+                    "name": "_wrap",
+                    "value": "1"
+                  },
+                  {
+                    "name": "last_day",
+                    "value": "{{formatDate(now; \"YYYY-MM-DD\"; \"UTC\")}}"
+                  }
+                ]
+              },
+              "metadata": {
+                "designer": {
+                  "x": 900,
+                  "y": 0,
+                  "name": "Step 1: Read today's leavers"
+                }
+              },
+              "onerror": [
+                {
+                  "id": 5,
+                  "module": "builtin:Break",
+                  "version": 1,
+                  "parameters": {},
+                  "mapper": {
+                    "count": "3",
+                    "retry": true,
+                    "interval": "1"
+                  },
+                  "metadata": {
+                    "designer": {
+                      "x": 900,
+                      "y": 300
+                    }
+                  }
+                }
+              ],
+              "filter": {
+                "name": "stop flag not set",
+                "conditions": [
+                  [
+                    {
+                      "a": "{{4.data.stopped}}",
+                      "b": "true",
+                      "o": "text:notequal"
+                    }
+                  ]
+                ]
+              }
+            },
+            {
+              "id": 7,
+              "module": "code:ExecuteCode",
+              "version": 1,
+              "parameters": {},
+              "mapper": {
+                "language": "javascript",
+                "inputFormat": "editor",
+                "dependencies": [],
+                "codeEditorJavascript": "// Adapter: the rule below is the same JavaScript as the recipe's n8n build.\n// $('Step name') answers from this step's inputs: each is that step's output in this scenario.\nconst SOURCES = {\"Config\": \"in0_Config\", \"Step 1: Read today's leavers\": \"in1_Step1Readtodaysleavers\"};\nconst LISTS = [];\nconst EXECUTED = [];\nconst DATA = {};\nfor (const [node, key] of Object.entries(SOURCES)) {\n  const raw = input[key];\n  let v = raw;\n  if (typeof raw === 'string') { try { v = JSON.parse(raw); } catch (e) { v = raw; } }\n  DATA[node] = LISTS.includes(node) ? (v || []).map(i => (i && i.json !== undefined ? i : { json: i })) : [{ json: v }];\n}\nconst $ = (node) => {\n  const ran = node in DATA || EXECUTED.includes(node);\n  const list = () => { if (!(node in DATA)) throw new Error(`step ${node} has no data in this scenario`); return DATA[node]; };\n  return { isExecuted: ran, first: () => list()[0], last: () => list()[list().length - 1], all: () => list(),\n           get item() { return list()[0]; } };\n};\nconst INPUT = \"Step 1: Read today's leavers\";\nconst $input = { all: () => $(INPUT).all(), first: () => $(INPUT).first(), last: () => $(INPUT).last(), get item() { return $(INPUT).first(); } };\nconst $execution = { id: input.run_id };\nconst BODIES = (out) => ({\"self\": JSON.stringify(out), \"reserve_body\": JSON.stringify({ p_recipe: 'R9.4', p_key: out.key }), \"not_hr_body\": JSON.stringify({ recipe: 'R9.4', item: out.id, reason: 'not entered by HR', detail: 'Leaver entry ' + out.id + ' was made by ' + out.entered_by + '; nothing removed', owner: $('Config').first().json.leaver_list_owner }), \"not_hr_message\": JSON.stringify({ to: $('Config').first().json.leaver_list_owner, subject: 'Leaver entry not made by you: nothing removed', text: 'Entry ' + out.id + ' for ' + out.name + ' was made by ' + out.entered_by + '. Confirm it and enter it yourself.' })});\nconst one = (r) => (Array.isArray(r) ? r : [r]).filter(Boolean).map(i => (i.json !== undefined ? i.json : i));\nconst $json = INPUT && INPUT in DATA ? $input.first().json : {};\nconst __rule = () => {\n// Step 1: every leaver to process now; an entry not made by HR is flagged here.\nconst cfg = $('Config').first().json;\nconst leavers = $input.all().flatMap(i => i.json.items || []);\nreturn leavers.map(l => ({ json: Object.assign({}, l, {\n  by_hr: String(l.entered_by || '').toLowerCase() === String(cfg.leaver_list_owner).toLowerCase(),\n  case_id: l.employee_id + '-' + String(l.last_day).slice(0, 10),\n  key: l.employee_id + ':' + String(l.last_day).slice(0, 10) }) }));\n};\nreturn { items: one(__rule()).map(o => Object.assign({}, o, BODIES(o))) };\n",
+                "input": [
+                  {
+                    "name": "in0_Config",
+                    "value": "{{1.result}}"
+                  },
+                  {
+                    "name": "in1_Step1Readtodaysleavers",
+                    "value": "{{6.data}}"
+                  },
+                  {
+                    "name": "run_id",
+                    "value": "{{var.scenario.executionId}}"
+                  }
+                ]
+              },
+              "metadata": {
+                "designer": {
+                  "x": 1200,
+                  "y": 0,
+                  "name": "Step 1: Leavers to process"
+                }
+              }
+            },
+            {
+              "id": 8,
+              "module": "builtin:BasicFeeder",
+              "version": 1,
+              "parameters": {},
+              "mapper": {
+                "array": "{{7.result.items}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 1500,
+                  "y": 0,
+                  "name": "Each leaver"
+                }
+              }
+            },
+            {
+              "id": 83,
+              "module": "builtin:BasicRouter",
+              "version": 1,
+              "mapper": null,
+              "routes": [
+                {
+                  "flow": [
+                    {
+                      "id": 9,
+                      "module": "http:MakeRequest",
+                      "version": 4,
+                      "parameters": {},
+                      "mapper": {
+                        "url": "{{1.result.table_api_url}}/exception_queue",
+                        "method": "post",
+                        "timeout": "40",
+                        "parseResponse": false,
+                        "stopOnHttpError": true,
+                        "allowRedirects": true,
+                        "shareCookies": false,
+                        "requestCompressedContent": true,
+                        "contentType": "json",
+                        "inputMethod": "jsonString",
+                        "jsonStringBodyContent": "{{8.not_hr_body}}"
+                      },
+                      "metadata": {
+                        "designer": {
+                          "x": 2100,
+                          "y": 0,
+                          "name": "Step 1: Exception queue: not entered by HR"
+                        }
+                      },
+                      "filter": {
+                        "name": "not entered by HR",
+                        "conditions": [
+                          [
+                            {
+                              "a": "{{8.by_hr}}",
+                              "b": "true",
+                              "o": "text:notequal"
+                            }
+                          ]
+                        ]
+                      }
+                    },
+                    {
+                      "id": 10,
+                      "module": "http:MakeRequest",
+                      "version": 4,
+                      "parameters": {},
+                      "mapper": {
+                        "url": "{{1.result.messaging_url}}/messages",
+                        "method": "post",
+                        "timeout": "40",
+                        "parseResponse": false,
+                        "stopOnHttpError": true,
+                        "allowRedirects": true,
+                        "shareCookies": false,
+                        "requestCompressedContent": true,
+                        "contentType": "json",
+                        "inputMethod": "jsonString",
+                        "jsonStringBodyContent": "{{8.not_hr_message}}"
+                      },
+                      "metadata": {
+                        "designer": {
+                          "x": 2400,
+                          "y": 0,
+                          "name": "Step 1: Alert Aisha"
+                        }
+                      }
+                    }
+                  ]
+                },
+                {
+                  "flow": [
+                    {
+                      "id": 11,
+                      "module": "http:MakeRequest",
+                      "version": 4,
+                      "parameters": {},
+                      "mapper": {
+                        "url": "{{1.result.table_api_url}}/rpc/reserve_key",
+                        "method": "post",
+                        "timeout": "40",
+                        "parseResponse": true,
+                        "stopOnHttpError": true,
+                        "allowRedirects": true,
+                        "shareCookies": false,
+                        "requestCompressedContent": true,
+                        "contentType": "json",
+                        "inputMethod": "jsonString",
+                        "jsonStringBodyContent": "{{8.reserve_body}}"
+                      },
+                      "metadata": {
+                        "designer": {
+                          "x": 2100,
+                          "y": 300,
+                          "name": "Step 2: Reserve key"
+                        }
+                      },
+                      "filter": {
+                        "name": "entered by HR",
+                        "conditions": [
+                          [
+                            {
+                              "a": "{{8.by_hr}}",
+                              "b": "true",
+                              "o": "text:equal"
+                            }
+                          ]
+                        ]
+                      }
+                    },
+                    {
+                      "id": 13,
+                      "module": "http:MakeRequest",
+                      "version": 4,
+                      "parameters": {},
+                      "mapper": {
+                        "url": "{{1.result.inventory_url}}/items",
+                        "method": "get",
+                        "timeout": "40",
+                        "parseResponse": true,
+                        "stopOnHttpError": true,
+                        "allowRedirects": true,
+                        "shareCookies": false,
+                        "requestCompressedContent": true,
+                        "queryParameters": [
+                          {
+                            "name": "_wrap",
+                            "value": "1"
+                          },
+                          {
+                            "name": "person_id",
+                            "value": "{{8.employee_id}}"
+                          }
+                        ]
+                      },
+                      "metadata": {
+                        "designer": {
+                          "x": 2400,
+                          "y": 300,
+                          "name": "Step 3: Read the inventory"
+                        }
+                      },
+                      "onerror": [
+                        {
+                          "id": 12,
+                          "module": "builtin:Break",
+                          "version": 1,
+                          "parameters": {},
+                          "mapper": {
+                            "count": "3",
+                            "retry": true,
+                            "interval": "1"
+                          },
+                          "metadata": {
+                            "designer": {
+                              "x": 2400,
+                              "y": 600
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "id": 15,
+                      "module": "http:MakeRequest",
+                      "version": 4,
+                      "parameters": {},
+                      "mapper": {
+                        "url": "{{1.result.evidence_url}}/items",
+                        "method": "get",
+                        "timeout": "40",
+                        "parseResponse": true,
+                        "stopOnHttpError": true,
+                        "allowRedirects": true,
+                        "shareCookies": false,
+                        "requestCompressedContent": true,
+                        "queryParameters": [
+                          {
+                            "name": "_wrap",
+                            "value": "1"
+                          },
+                          {
+                            "name": "case_id",
+                            "value": "{{8.case_id}}"
+                          }
+                        ]
+                      },
+                      "metadata": {
+                        "designer": {
+                          "x": 2700,
+                          "y": 300,
+                          "name": "Step 2: Read the evidence so far"
+                        }
+                      },
+                      "onerror": [
+                        {
+                          "id": 14,
+                          "module": "builtin:Break",
+                          "version": 1,
+                          "parameters": {},
+                          "mapper": {
+                            "count": "3",
+                            "retry": true,
+                            "interval": "1"
+                          },
+                          "metadata": {
+                            "designer": {
+                              "x": 2700,
+                              "y": 600
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "id": 16,
+                      "module": "code:ExecuteCode",
+                      "version": 1,
+                      "parameters": {},
+                      "mapper": {
+                        "language": "javascript",
+                        "inputFormat": "editor",
+                        "dependencies": [],
+                        "codeEditorJavascript": "// Adapter: the rule below is the same JavaScript as the recipe's n8n build.\n// $('Step name') answers from this step's inputs: each is that step's output in this scenario.\nconst SOURCES = {\"Config\": \"in0_Config\", \"Step 1: Leavers to process\": \"in1_Step1Leaverstoprocess\", \"Step 3: Read the inventory\": \"in2_Step3Readtheinventory\", \"Step 2: Read the evidence so far\": \"in3_Step2Readtheevidencesofa\"};\nconst LISTS = [];\nconst EXECUTED = [];\nconst DATA = {};\nfor (const [node, key] of Object.entries(SOURCES)) {\n  const raw = input[key];\n  let v = raw;\n  if (typeof raw === 'string') { try { v = JSON.parse(raw); } catch (e) { v = raw; } }\n  DATA[node] = LISTS.includes(node) ? (v || []).map(i => (i && i.json !== undefined ? i : { json: i })) : [{ json: v }];\n}\nconst $ = (node) => {\n  const ran = node in DATA || EXECUTED.includes(node);\n  const list = () => { if (!(node in DATA)) throw new Error(`step ${node} has no data in this scenario`); return DATA[node]; };\n  return { isExecuted: ran, first: () => list()[0], last: () => list()[list().length - 1], all: () => list(),\n           get item() { return list()[0]; } };\n};\nconst INPUT = \"Step 2: Read the evidence so far\";\nconst $input = { all: () => $(INPUT).all(), first: () => $(INPUT).first(), last: () => $(INPUT).last(), get item() { return $(INPUT).first(); } };\nconst $execution = { id: input.run_id };\nconst BODIES = (out) => ({\"key_q\": encodeURIComponent(out.key), \"invalid_body\": JSON.stringify({ recipe: 'R9.4', item: out.case_id, reason: 'inventory not valid', detail: out.why + '; nothing removed', owner: $('Config').first().json.access_owner }), \"invalid_message\": JSON.stringify({ to: $('Config').first().json.access_owner, subject: 'Leaver ' + out.leaver.name + ': stopped, nothing removed', text: out.why + '. Empty means unknown: build the inventory, then save the leaver again.' }), \"invalid_key_body\": JSON.stringify({ status: 'failed', result: 'stopped: ' + out.why })});\nconst one = (r) => (Array.isArray(r) ? r : [r]).filter(Boolean).map(i => (i.json !== undefined ? i.json : i));\nconst $json = INPUT && INPUT in DATA ? $input.first().json : {};\nconst __rule = () => {\n// Step 2: resume at the first unconfirmed item. Step 3: an empty inventory, or one listing an\n// administrator account, stops everything: empty means unknown.\nconst l = $('Step 1: Leavers to process').item.json;\nconst inventory = $('Step 3: Read the inventory').item.json.items || [];\nconst evidence = $json.items || [];\nconst done = new Set(evidence.filter(e => e.status === 'confirmed').map(e => e.item_id));\nconst tasked = new Set(evidence.filter(e => e.status === 'open' && e.task_id).map(e => e.item_id));\nconst base = { case_id: l.case_id, key: l.key, leaver: { id: l.id, employee_id: l.employee_id, name: l.name, last_day: l.last_day, manager: l.manager } };\nif (!inventory.length) return { json: Object.assign(base, { valid: false, why: 'inventory empty' }) };\nconst admins = inventory.filter(i => i.admin);\nif (admins.length) return { json: Object.assign(base, { valid: false, why: 'inventory lists an administrator account: ' + admins.map(i => i.system).join(', ') }) };\nconst rank = i => (i.kind === 'sso account' ? 0 : 1);\nconst todo = inventory.filter(i => !done.has(i.id) && !tasked.has(i.id)).sort((a, b) => rank(a) - rank(b));\nreturn { json: Object.assign(base, { valid: true, item_ids: inventory.map(i => i.id), todo }) };\n};\nconst out = one(__rule())[0] || {};\nreturn Object.assign({}, out, BODIES(out));\n",
+                        "input": [
+                          {
+                            "name": "in0_Config",
+                            "value": "{{1.result}}"
+                          },
+                          {
+                            "name": "in1_Step1Leaverstoprocess",
+                            "value": "{{8.self}}"
+                          },
+                          {
+                            "name": "in2_Step3Readtheinventory",
+                            "value": "{{13.data}}"
+                          },
+                          {
+                            "name": "in3_Step2Readtheevidencesofa",
+                            "value": "{{15.data}}"
+                          },
+                          {
+                            "name": "run_id",
+                            "value": "{{var.scenario.executionId}}"
+                          }
+                        ]
+                      },
+                      "metadata": {
+                        "designer": {
+                          "x": 3000,
+                          "y": 300,
+                          "name": "Step 3: Rule: inventory valid?"
+                        }
+                      }
+                    },
+                    {
+                      "id": 82,
+                      "module": "builtin:BasicRouter",
+                      "version": 1,
+                      "mapper": null,
+                      "routes": [
+                        {
+                          "flow": [
+                            {
+                              "id": 17,
+                              "module": "http:MakeRequest",
+                              "version": 4,
+                              "parameters": {},
+                              "mapper": {
+                                "url": "{{1.result.table_api_url}}/exception_queue",
+                                "method": "post",
+                                "timeout": "40",
+                                "parseResponse": false,
+                                "stopOnHttpError": true,
+                                "allowRedirects": true,
+                                "shareCookies": false,
+                                "requestCompressedContent": true,
+                                "contentType": "json",
+                                "inputMethod": "jsonString",
+                                "jsonStringBodyContent": "{{16.result.invalid_body}}"
+                              },
+                              "metadata": {
+                                "designer": {
+                                  "x": 3600,
+                                  "y": 300,
+                                  "name": "Step 3: Exception queue: inventory not valid"
+                                }
+                              },
+                              "filter": {
+                                "name": "inventory not valid",
+                                "conditions": [
+                                  [
+                                    {
+                                      "a": "{{16.result.valid}}",
+                                      "b": "true",
+                                      "o": "text:notequal"
+                                    }
+                                  ]
+                                ]
+                              }
+                            },
+                            {
+                              "id": 18,
+                              "module": "http:MakeRequest",
+                              "version": 4,
+                              "parameters": {},
+                              "mapper": {
+                                "url": "{{1.result.messaging_url}}/messages",
+                                "method": "post",
+                                "timeout": "40",
+                                "parseResponse": false,
+                                "stopOnHttpError": true,
+                                "allowRedirects": true,
+                                "shareCookies": false,
+                                "requestCompressedContent": true,
+                                "contentType": "json",
+                                "inputMethod": "jsonString",
+                                "jsonStringBodyContent": "{{16.result.invalid_message}}"
+                              },
+                              "metadata": {
+                                "designer": {
+                                  "x": 3900,
+                                  "y": 300,
+                                  "name": "Step 3: Alert Owen"
+                                }
+                              }
+                            },
+                            {
+                              "id": 19,
+                              "module": "http:MakeRequest",
+                              "version": 4,
+                              "parameters": {},
+                              "mapper": {
+                                "url": "{{1.result.table_api_url}}/key_log?recipe=eq.R9.4&key=eq.{{16.result.key_q}}",
+                                "method": "patch",
+                                "timeout": "40",
+                                "parseResponse": false,
+                                "stopOnHttpError": true,
+                                "allowRedirects": true,
+                                "shareCookies": false,
+                                "requestCompressedContent": true,
+                                "contentType": "json",
+                                "inputMethod": "jsonString",
+                                "jsonStringBodyContent": "{{16.result.invalid_key_body}}"
+                              },
+                              "metadata": {
+                                "designer": {
+                                  "x": 4200,
+                                  "y": 300,
+                                  "name": "Mark key failed: inventory"
+                                }
+                              }
+                            }
+                          ]
+                        },
+                        {
+                          "flow": [
+                            {
+                              "id": 20,
+                              "module": "code:ExecuteCode",
+                              "version": 1,
+                              "parameters": {},
+                              "mapper": {
+                                "language": "javascript",
+                                "inputFormat": "editor",
+                                "dependencies": [],
+                                "codeEditorJavascript": "// Adapter: the rule below is the same JavaScript as the recipe's n8n build.\n// $('Step name') answers from this step's inputs: each is that step's output in this scenario.\nconst SOURCES = {\"Config\": \"in0_Config\", \"Step 3: Rule: inventory valid?\": \"in1_Step3Ruleinventoryvalid\"};\nconst LISTS = [];\nconst EXECUTED = [];\nconst DATA = {};\nfor (const [node, key] of Object.entries(SOURCES)) {\n  const raw = input[key];\n  let v = raw;\n  if (typeof raw === 'string') { try { v = JSON.parse(raw); } catch (e) { v = raw; } }\n  DATA[node] = LISTS.includes(node) ? (v || []).map(i => (i && i.json !== undefined ? i : { json: i })) : [{ json: v }];\n}\nconst $ = (node) => {\n  const ran = node in DATA || EXECUTED.includes(node);\n  const list = () => { if (!(node in DATA)) throw new Error(`step ${node} has no data in this scenario`); return DATA[node]; };\n  return { isExecuted: ran, first: () => list()[0], last: () => list()[list().length - 1], all: () => list(),\n           get item() { return list()[0]; } };\n};\nconst INPUT = \"Step 3: Rule: inventory valid?\";\nconst $input = { all: () => $(INPUT).all(), first: () => $(INPUT).first(), last: () => $(INPUT).last(), get item() { return $(INPUT).first(); } };\nconst $execution = { id: input.run_id };\nconst BODIES = (out) => ({\"self\": JSON.stringify(out), \"account_q\": encodeURIComponent(out.account), \"evidence_q\": encodeURIComponent(out.evidence_id), \"key_q\": encodeURIComponent(out.key), \"sessions_body\": JSON.stringify({ user: out.account }), \"sso_evidence\": JSON.stringify({ id: out.evidence_id, case_id: out.case_id, item_id: out.item_id, system: out.system, account: out.account, action: 'disabled; sessions ended', status: 'confirmed', by: 'response: directory', at: new Date().toISOString() }), \"removed_evidence\": JSON.stringify({ id: out.evidence_id, case_id: out.case_id, item_id: out.item_id, system: out.system, account: out.account, action: 'removed through its connection', status: 'confirmed', by: 'response: ' + out.system, at: new Date().toISOString() }), \"task_body\": JSON.stringify({ id: out.evidence_id, case_id: out.case_id, assignee: out.assignee, task: out.task, tick: 'Tick it done with your name; the time is recorded' }), \"task_evidence\": JSON.stringify({ id: out.evidence_id, case_id: out.case_id, item_id: out.item_id, system: out.system, account: out.account, action: out.task, task_id: out.evidence_id, assignee: out.assignee, status: 'open', at: new Date().toISOString() }), \"failed_key_body\": JSON.stringify({ status: 'failed', result: 'removal failed: ' + out.system }), \"ticket_body\": JSON.stringify({ case_id: out.case_id, subject: 'Leaver access not removed: ' + out.system, detail: out.kind + ' ' + out.account + ' for ' + out.leaver.name + ' failed; remove it by hand' }), \"alert_message\": JSON.stringify({ to: $('Config').first().json.access_owner, subject: 'Leaver ' + out.leaver.name + ': ' + out.system + ' not removed', text: 'The ' + out.kind + ' ' + out.account + ' failed and was not retried. IT ticket raised; the case stays open.' }), \"failed_body\": JSON.stringify({ recipe: 'R9.4', item: out.case_id, reason: 'removal failed', detail: out.system + ' ' + out.account + ': never retried; remove it by hand', owner: $('Config').first().json.access_owner })});\nconst one = (r) => (Array.isArray(r) ? r : [r]).filter(Boolean).map(i => (i.json !== undefined ? i.json : i));\nconst $json = INPUT && INPUT in DATA ? $input.first().json : {};\nconst __rule = () => {\n// Steps 4 to 6: one item per removal still to do, the SSO account first.\n// Groups go with the SSO account; apps with a connection are removed through it;\n// everything else is a task for its administrator, or the manager for keys, codes and devices.\nconst cfg = $('Config').first().json;\nconst out = [];\nfor (const c of $input.all().map(i => i.json)) {\n  const sso = c.todo.find(i => i.kind === 'sso account');\n  for (const i of c.todo) {\n    if (i.kind === 'group' && sso) continue;\n    const base = { case_id: c.case_id, key: c.key, leaver: c.leaver, item_id: i.id, evidence_id: c.case_id + '-' + i.id,\n      kind: i.kind, system: i.system, account: i.account };\n    if (i.kind === 'sso account') {\n      out.push({ json: Object.assign(base, { action: 'sso', covers: c.todo.filter(g => g.kind === 'group').map(g => g.id) }) });\n    } else if (i.connection && cfg[i.connection + '_url']) {\n      out.push({ json: Object.assign(base, { action: 'connection', url: cfg[i.connection + '_url'] + '/users/' + i.account }) });\n    } else {\n      const collect = ['key', 'alarm code', 'device'].includes(i.kind);\n      const shared = ['shared login', 'token'].includes(i.kind);\n      const task = collect ? `Collect the ${i.kind} \"${i.account}\" from ${c.leaver.name}`\n        : shared ? (i.kind === 'token' ? `Revoke the token \"${i.account}\" (${i.system})` : `Change the shared password for ${i.system} (${i.account})`)\n        : `Remove ${c.leaver.name}'s account \"${i.account}\" from ${i.system}`;\n      const assignee = collect ? c.leaver.manager : (i.administrator || cfg.access_owner);\n      out.push({ json: Object.assign(base, { action: 'task', assignee, task }) });\n    }\n  }\n}\nreturn out;\n};\nreturn { items: one(__rule()).map(o => Object.assign({}, o, BODIES(o))) };\n",
+                                "input": [
+                                  {
+                                    "name": "in0_Config",
+                                    "value": "{{1.result}}"
+                                  },
+                                  {
+                                    "name": "in1_Step3Ruleinventoryvalid",
+                                    "value": "{{16.result}}"
+                                  },
+                                  {
+                                    "name": "run_id",
+                                    "value": "{{var.scenario.executionId}}"
+                                  }
+                                ]
+                              },
+                              "metadata": {
+                                "designer": {
+                                  "x": 3600,
+                                  "y": 600,
+                                  "name": "Steps 4 to 6: Items to remove"
+                                }
+                              },
+                              "filter": {
+                                "name": "inventory valid: remove",
+                                "conditions": [
+                                  [
+                                    {
+                                      "a": "{{16.result.valid}}",
+                                      "b": "true",
+                                      "o": "text:equal"
+                                    }
+                                  ]
+                                ]
+                              }
+                            },
+                            {
+                              "id": 21,
+                              "module": "builtin:BasicFeeder",
+                              "version": 1,
+                              "parameters": {},
+                              "mapper": {
+                                "array": "{{20.result.items}}"
+                              },
+                              "metadata": {
+                                "designer": {
+                                  "x": 3900,
+                                  "y": 600,
+                                  "name": "Each item to remove"
+                                }
+                              }
+                            },
+                            {
+                              "id": 72,
+                              "module": "builtin:BasicRouter",
+                              "version": 1,
+                              "mapper": null,
+                              "routes": [
+                                {
+                                  "flow": [
+                                    {
+                                      "id": 27,
+                                      "module": "http:MakeRequest",
+                                      "version": 4,
+                                      "parameters": {},
+                                      "mapper": {
+                                        "url": "{{1.result.directory_url}}/users/{{21.account_q}}",
+                                        "method": "patch",
+                                        "timeout": "40",
+                                        "parseResponse": false,
+                                        "stopOnHttpError": true,
+                                        "allowRedirects": true,
+                                        "shareCookies": false,
+                                        "requestCompressedContent": true,
+                                        "contentType": "json",
+                                        "inputMethod": "jsonString",
+                                        "jsonStringBodyContent": "{\"enabled\": false}"
+                                      },
+                                      "metadata": {
+                                        "designer": {
+                                          "x": 4500,
+                                          "y": 600,
+                                          "name": "Step 4: Disable the SSO account"
+                                        }
+                                      },
+                                      "onerror": [
+                                        {
+                                          "id": 22,
+                                          "module": "http:MakeRequest",
+                                          "version": 4,
+                                          "parameters": {},
+                                          "mapper": {
+                                            "url": "{{1.result.table_api_url}}/key_log?recipe=eq.R9.4&key=eq.{{21.key_q}}",
+                                            "method": "patch",
+                                            "timeout": "40",
+                                            "parseResponse": false,
+                                            "stopOnHttpError": true,
+                                            "allowRedirects": true,
+                                            "shareCookies": false,
+                                            "requestCompressedContent": true,
+                                            "contentType": "json",
+                                            "inputMethod": "jsonString",
+                                            "jsonStringBodyContent": "{{21.failed_key_body}}"
+                                          },
+                                          "metadata": {
+                                            "designer": {
+                                              "x": 4500,
+                                              "y": 900,
+                                              "name": "Step 4: Disable the SSO account: mark key failed"
+                                            }
+                                          }
+                                        },
+                                        {
+                                          "id": 23,
+                                          "module": "http:MakeRequest",
+                                          "version": 4,
+                                          "parameters": {},
+                                          "mapper": {
+                                            "url": "{{1.result.itsm_url}}/tickets",
+                                            "method": "post",
+                                            "timeout": "40",
+                                            "parseResponse": false,
+                                            "stopOnHttpError": true,
+                                            "allowRedirects": true,
+                                            "shareCookies": false,
+                                            "requestCompressedContent": true,
+                                            "contentType": "json",
+                                            "inputMethod": "jsonString",
+                                            "jsonStringBodyContent": "{{21.ticket_body}}"
+                                          },
+                                          "metadata": {
+                                            "designer": {
+                                              "x": 4800,
+                                              "y": 900,
+                                              "name": "Step 4: Disable the SSO account: IT ticket: removal failed"
+                                            }
+                                          }
+                                        },
+                                        {
+                                          "id": 24,
+                                          "module": "http:MakeRequest",
+                                          "version": 4,
+                                          "parameters": {},
+                                          "mapper": {
+                                            "url": "{{1.result.messaging_url}}/messages",
+                                            "method": "post",
+                                            "timeout": "40",
+                                            "parseResponse": false,
+                                            "stopOnHttpError": true,
+                                            "allowRedirects": true,
+                                            "shareCookies": false,
+                                            "requestCompressedContent": true,
+                                            "contentType": "json",
+                                            "inputMethod": "jsonString",
+                                            "jsonStringBodyContent": "{{21.alert_message}}"
+                                          },
+                                          "metadata": {
+                                            "designer": {
+                                              "x": 5100,
+                                              "y": 900,
+                                              "name": "Step 4: Disable the SSO account: alert Owen: removal failed"
+                                            }
+                                          }
+                                        },
+                                        {
+                                          "id": 25,
+                                          "module": "http:MakeRequest",
+                                          "version": 4,
+                                          "parameters": {},
+                                          "mapper": {
+                                            "url": "{{1.result.table_api_url}}/exception_queue",
+                                            "method": "post",
+                                            "timeout": "40",
+                                            "parseResponse": false,
+                                            "stopOnHttpError": true,
+                                            "allowRedirects": true,
+                                            "shareCookies": false,
+                                            "requestCompressedContent": true,
+                                            "contentType": "json",
+                                            "inputMethod": "jsonString",
+                                            "jsonStringBodyContent": "{{21.failed_body}}"
+                                          },
+                                          "metadata": {
+                                            "designer": {
+                                              "x": 5400,
+                                              "y": 900,
+                                              "name": "Step 4: Disable the SSO account: exception queue: removal failed"
+                                            }
+                                          }
+                                        },
+                                        {
+                                          "id": 26,
+                                          "module": "builtin:Ignore",
+                                          "version": 1,
+                                          "metadata": {
+                                            "designer": {
+                                              "x": 5700,
+                                              "y": 900
+                                            }
+                                          }
+                                        }
+                                      ],
+                                      "filter": {
+                                        "name": "action is sso",
+                                        "conditions": [
+                                          [
+                                            {
+                                              "a": "{{21.action}}",
+                                              "b": "sso",
+                                              "o": "text:equal"
+                                            }
+                                          ]
+                                        ]
+                                      }
+                                    },
+                                    {
+                                      "id": 33,
+                                      "module": "http:MakeRequest",
+                                      "version": 4,
+                                      "parameters": {},
+                                      "mapper": {
+                                        "url": "{{1.result.directory_url}}/sign_in_revocations",
+                                        "method": "post",
+                                        "timeout": "40",
+                                        "parseResponse": false,
+                                        "stopOnHttpError": true,
+                                        "allowRedirects": true,
+                                        "shareCookies": false,
+                                        "requestCompressedContent": true,
+                                        "contentType": "json",
+                                        "inputMethod": "jsonString",
+                                        "jsonStringBodyContent": "{{21.sessions_body}}"
+                                      },
+                                      "metadata": {
+                                        "designer": {
+                                          "x": 4800,
+                                          "y": 600,
+                                          "name": "Step 4: End its sessions"
+                                        }
+                                      },
+                                      "onerror": [
+                                        {
+                                          "id": 28,
+                                          "module": "http:MakeRequest",
+                                          "version": 4,
+                                          "parameters": {},
+                                          "mapper": {
+                                            "url": "{{1.result.table_api_url}}/key_log?recipe=eq.R9.4&key=eq.{{21.key_q}}",
+                                            "method": "patch",
+                                            "timeout": "40",
+                                            "parseResponse": false,
+                                            "stopOnHttpError": true,
+                                            "allowRedirects": true,
+                                            "shareCookies": false,
+                                            "requestCompressedContent": true,
+                                            "contentType": "json",
+                                            "inputMethod": "jsonString",
+                                            "jsonStringBodyContent": "{{21.failed_key_body}}"
+                                          },
+                                          "metadata": {
+                                            "designer": {
+                                              "x": 4800,
+                                              "y": 900,
+                                              "name": "Step 4: End its sessions: mark key failed"
+                                            }
+                                          }
+                                        },
+                                        {
+                                          "id": 29,
+                                          "module": "http:MakeRequest",
+                                          "version": 4,
+                                          "parameters": {},
+                                          "mapper": {
+                                            "url": "{{1.result.itsm_url}}/tickets",
+                                            "method": "post",
+                                            "timeout": "40",
+                                            "parseResponse": false,
+                                            "stopOnHttpError": true,
+                                            "allowRedirects": true,
+                                            "shareCookies": false,
+                                            "requestCompressedContent": true,
+                                            "contentType": "json",
+                                            "inputMethod": "jsonString",
+                                            "jsonStringBodyContent": "{{21.ticket_body}}"
+                                          },
+                                          "metadata": {
+                                            "designer": {
+                                              "x": 5100,
+                                              "y": 900,
+                                              "name": "Step 4: End its sessions: IT ticket: removal failed"
+                                            }
+                                          }
+                                        },
+                                        {
+                                          "id": 30,
+                                          "module": "http:MakeRequest",
+                                          "version": 4,
+                                          "parameters": {},
+                                          "mapper": {
+                                            "url": "{{1.result.messaging_url}}/messages",
+                                            "method": "post",
+                                            "timeout": "40",
+                                            "parseResponse": false,
+                                            "stopOnHttpError": true,
+                                            "allowRedirects": true,
+                                            "shareCookies": false,
+                                            "requestCompressedContent": true,
+                                            "contentType": "json",
+                                            "inputMethod": "jsonString",
+                                            "jsonStringBodyContent": "{{21.alert_message}}"
+                                          },
+                                          "metadata": {
+                                            "designer": {
+                                              "x": 5400,
+                                              "y": 900,
+                                              "name": "Step 4: End its sessions: alert Owen: removal failed"
+                                            }
+                                          }
+                                        },
+                                        {
+                                          "id": 31,
+                                          "module": "http:MakeRequest",
+                                          "version": 4,
+                                          "parameters": {},
+                                          "mapper": {
+                                            "url": "{{1.result.table_api_url}}/exception_queue",
+                                            "method": "post",
+                                            "timeout": "40",
+                                            "parseResponse": false,
+                                            "stopOnHttpError": true,
+                                            "allowRedirects": true,
+                                            "shareCookies": false,
+                                            "requestCompressedContent": true,
+                                            "contentType": "json",
+                                            "inputMethod": "jsonString",
+                                            "jsonStringBodyContent": "{{21.failed_body}}"
+                                          },
+                                          "metadata": {
+                                            "designer": {
+                                              "x": 5700,
+                                              "y": 900,
+                                              "name": "Step 4: End its sessions: exception queue: removal failed"
+                                            }
+                                          }
+                                        },
+                                        {
+                                          "id": 32,
+                                          "module": "builtin:Ignore",
+                                          "version": 1,
+                                          "metadata": {
+                                            "designer": {
+                                              "x": 6000,
+                                              "y": 900
+                                            }
+                                          }
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "id": 39,
+                                      "module": "http:MakeRequest",
+                                      "version": 4,
+                                      "parameters": {},
+                                      "mapper": {
+                                        "url": "{{1.result.evidence_url}}/items/{{21.evidence_q}}",
+                                        "method": "put",
+                                        "timeout": "40",
+                                        "parseResponse": true,
+                                        "stopOnHttpError": true,
+                                        "allowRedirects": true,
+                                        "shareCookies": false,
+                                        "requestCompressedContent": true,
+                                        "contentType": "json",
+                                        "inputMethod": "jsonString",
+                                        "jsonStringBodyContent": "{{21.sso_evidence}}"
+                                      },
+                                      "metadata": {
+                                        "designer": {
+                                          "x": 5100,
+                                          "y": 600,
+                                          "name": "Step 4: Evidence: SSO disabled"
+                                        }
+                                      },
+                                      "onerror": [
+                                        {
+                                          "id": 34,
+                                          "module": "http:MakeRequest",
+                                          "version": 4,
+                                          "parameters": {},
+                                          "mapper": {
+                                            "url": "{{1.result.table_api_url}}/key_log?recipe=eq.R9.4&key=eq.{{21.key_q}}",
+                                            "method": "patch",
+                                            "timeout": "40",
+                                            "parseResponse": false,
+                                            "stopOnHttpError": true,
+                                            "allowRedirects": true,
+                                            "shareCookies": false,
+                                            "requestCompressedContent": true,
+                                            "contentType": "json",
+                                            "inputMethod": "jsonString",
+                                            "jsonStringBodyContent": "{{21.failed_key_body}}"
+                                          },
+                                          "metadata": {
+                                            "designer": {
+                                              "x": 5100,
+                                              "y": 900,
+                                              "name": "Step 4: Evidence: SSO disabled: mark key failed"
+                                            }
+                                          }
+                                        },
+                                        {
+                                          "id": 35,
+                                          "module": "http:MakeRequest",
+                                          "version": 4,
+                                          "parameters": {},
+                                          "mapper": {
+                                            "url": "{{1.result.itsm_url}}/tickets",
+                                            "method": "post",
+                                            "timeout": "40",
+                                            "parseResponse": false,
+                                            "stopOnHttpError": true,
+                                            "allowRedirects": true,
+                                            "shareCookies": false,
+                                            "requestCompressedContent": true,
+                                            "contentType": "json",
+                                            "inputMethod": "jsonString",
+                                            "jsonStringBodyContent": "{{21.ticket_body}}"
+                                          },
+                                          "metadata": {
+                                            "designer": {
+                                              "x": 5400,
+                                              "y": 900,
+                                              "name": "Step 4: Evidence: SSO disabled: IT ticket: removal failed"
+                                            }
+                                          }
+                                        },
+                                        {
+                                          "id": 36,
+                                          "module": "http:MakeRequest",
+                                          "version": 4,
+                                          "parameters": {},
+                                          "mapper": {
+                                            "url": "{{1.result.messaging_url}}/messages",
+                                            "method": "post",
+                                            "timeout": "40",
+                                            "parseResponse": false,
+                                            "stopOnHttpError": true,
+                                            "allowRedirects": true,
+                                            "shareCookies": false,
+                                            "requestCompressedContent": true,
+                                            "contentType": "json",
+                                            "inputMethod": "jsonString",
+                                            "jsonStringBodyContent": "{{21.alert_message}}"
+                                          },
+                                          "metadata": {
+                                            "designer": {
+                                              "x": 5700,
+                                              "y": 900,
+                                              "name": "Step 4: Evidence: SSO disabled: alert Owen: removal failed"
+                                            }
+                                          }
+                                        },
+                                        {
+                                          "id": 37,
+                                          "module": "http:MakeRequest",
+                                          "version": 4,
+                                          "parameters": {},
+                                          "mapper": {
+                                            "url": "{{1.result.table_api_url}}/exception_queue",
+                                            "method": "post",
+                                            "timeout": "40",
+                                            "parseResponse": false,
+                                            "stopOnHttpError": true,
+                                            "allowRedirects": true,
+                                            "shareCookies": false,
+                                            "requestCompressedContent": true,
+                                            "contentType": "json",
+                                            "inputMethod": "jsonString",
+                                            "jsonStringBodyContent": "{{21.failed_body}}"
+                                          },
+                                          "metadata": {
+                                            "designer": {
+                                              "x": 6000,
+                                              "y": 900,
+                                              "name": "Step 4: Evidence: SSO disabled: exception queue: removal failed"
+                                            }
+                                          }
+                                        },
+                                        {
+                                          "id": 38,
+                                          "module": "builtin:Ignore",
+                                          "version": 1,
+                                          "metadata": {
+                                            "designer": {
+                                              "x": 6300,
+                                              "y": 900
+                                            }
+                                          }
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "id": 40,
+                                      "module": "code:ExecuteCode",
+                                      "version": 1,
+                                      "parameters": {},
+                                      "mapper": {
+                                        "language": "javascript",
+                                        "inputFormat": "editor",
+                                        "dependencies": [],
+                                        "codeEditorJavascript": "// Adapter: the rule below is the same JavaScript as the recipe's n8n build.\n// $('Step name') answers from this step's inputs: each is that step's output in this scenario.\nconst SOURCES = {\"Steps 4 to 6: Items to remove\": \"in0_Steps4to6Itemstoremove\", \"Step 4: Evidence: SSO disabled\": \"in1_Step4EvidenceSSOdisabled\"};\nconst LISTS = [];\nconst EXECUTED = [];\nconst DATA = {};\nfor (const [node, key] of Object.entries(SOURCES)) {\n  const raw = input[key];\n  let v = raw;\n  if (typeof raw === 'string') { try { v = JSON.parse(raw); } catch (e) { v = raw; } }\n  DATA[node] = LISTS.includes(node) ? (v || []).map(i => (i && i.json !== undefined ? i : { json: i })) : [{ json: v }];\n}\nconst $ = (node) => {\n  const ran = node in DATA || EXECUTED.includes(node);\n  const list = () => { if (!(node in DATA)) throw new Error(`step ${node} has no data in this scenario`); return DATA[node]; };\n  return { isExecuted: ran, itemMatching: (n) => list()[n], first: () => list()[0], last: () => list()[list().length - 1], all: () => list(),\n           get item() { return list()[0]; } };\n};\nconst INPUT = \"Step 4: Evidence: SSO disabled\";\nconst $input = { all: () => $(INPUT).all(), first: () => $(INPUT).first(), last: () => $(INPUT).last(), get item() { return $(INPUT).first(); } };\nconst $execution = { id: input.run_id };\nconst BODIES = (out) => ({\"id_q\": encodeURIComponent(out.id), \"body\": JSON.stringify(Object.assign({}, out))});\nconst one = (r) => (Array.isArray(r) ? r : [r]).filter(Boolean).map(i => (i.json !== undefined ? i.json : i));\nconst $json = INPUT && INPUT in DATA ? $input.first().json : {};\nconst __rule = () => {\n// Step 4: group memberships end with the SSO account.\nconst now = new Date().toISOString();\nreturn $input.all().flatMap((x, n) => {\n  const s = $('Steps 4 to 6: Items to remove').itemMatching(n).json;\n  return (s.covers || []).map(g => ({ json: { id: s.case_id + '-' + g, case_id: s.case_id, item_id: g, status: 'confirmed',\n    action: 'ended with the SSO account', by: 'response: SSO disabled', at: now } }));\n});\n};\nreturn { items: one(__rule()).map(o => Object.assign({}, o, BODIES(o))) };\n",
+                                        "input": [
+                                          {
+                                            "name": "in0_Steps4to6Itemstoremove",
+                                            "value": "{{21.self}}"
+                                          },
+                                          {
+                                            "name": "in1_Step4EvidenceSSOdisabled",
+                                            "value": "{{39.data}}"
+                                          },
+                                          {
+                                            "name": "run_id",
+                                            "value": "{{var.scenario.executionId}}"
+                                          }
+                                        ]
+                                      },
+                                      "metadata": {
+                                        "designer": {
+                                          "x": 5400,
+                                          "y": 600,
+                                          "name": "Step 4: Groups ended with the account"
+                                        }
+                                      }
+                                    },
+                                    {
+                                      "id": 41,
+                                      "module": "builtin:BasicFeeder",
+                                      "version": 1,
+                                      "parameters": {},
+                                      "mapper": {
+                                        "array": "{{40.result.items}}"
+                                      },
+                                      "metadata": {
+                                        "designer": {
+                                          "x": 5700,
+                                          "y": 600,
+                                          "name": "Each group"
+                                        }
+                                      }
+                                    },
+                                    {
+                                      "id": 47,
+                                      "module": "http:MakeRequest",
+                                      "version": 4,
+                                      "parameters": {},
+                                      "mapper": {
+                                        "url": "{{1.result.evidence_url}}/items/{{41.id_q}}",
+                                        "method": "put",
+                                        "timeout": "40",
+                                        "parseResponse": false,
+                                        "stopOnHttpError": true,
+                                        "allowRedirects": true,
+                                        "shareCookies": false,
+                                        "requestCompressedContent": true,
+                                        "contentType": "json",
+                                        "inputMethod": "jsonString",
+                                        "jsonStringBodyContent": "{{41.body}}"
+                                      },
+                                      "metadata": {
+                                        "designer": {
+                                          "x": 6000,
+                                          "y": 600,
+                                          "name": "Step 4: Evidence: group ended"
+                                        }
+                                      },
+                                      "onerror": [
+                                        {
+                                          "id": 42,
+                                          "module": "http:MakeRequest",
+                                          "version": 4,
+                                          "parameters": {},
+                                          "mapper": {
+                                            "url": "{{1.result.table_api_url}}/key_log?recipe=eq.R9.4&key=eq.{{21.key_q}}",
+                                            "method": "patch",
+                                            "timeout": "40",
+                                            "parseResponse": false,
+                                            "stopOnHttpError": true,
+                                            "allowRedirects": true,
+                                            "shareCookies": false,
+                                            "requestCompressedContent": true,
+                                            "contentType": "json",
+                                            "inputMethod": "jsonString",
+                                            "jsonStringBodyContent": "{{21.failed_key_body}}"
+                                          },
+                                          "metadata": {
+                                            "designer": {
+                                              "x": 6000,
+                                              "y": 900,
+                                              "name": "Step 4: Evidence: group ended: mark key failed"
+                                            }
+                                          }
+                                        },
+                                        {
+                                          "id": 43,
+                                          "module": "http:MakeRequest",
+                                          "version": 4,
+                                          "parameters": {},
+                                          "mapper": {
+                                            "url": "{{1.result.itsm_url}}/tickets",
+                                            "method": "post",
+                                            "timeout": "40",
+                                            "parseResponse": false,
+                                            "stopOnHttpError": true,
+                                            "allowRedirects": true,
+                                            "shareCookies": false,
+                                            "requestCompressedContent": true,
+                                            "contentType": "json",
+                                            "inputMethod": "jsonString",
+                                            "jsonStringBodyContent": "{{21.ticket_body}}"
+                                          },
+                                          "metadata": {
+                                            "designer": {
+                                              "x": 6300,
+                                              "y": 900,
+                                              "name": "Step 4: Evidence: group ended: IT ticket: removal failed"
+                                            }
+                                          }
+                                        },
+                                        {
+                                          "id": 44,
+                                          "module": "http:MakeRequest",
+                                          "version": 4,
+                                          "parameters": {},
+                                          "mapper": {
+                                            "url": "{{1.result.messaging_url}}/messages",
+                                            "method": "post",
+                                            "timeout": "40",
+                                            "parseResponse": false,
+                                            "stopOnHttpError": true,
+                                            "allowRedirects": true,
+                                            "shareCookies": false,
+                                            "requestCompressedContent": true,
+                                            "contentType": "json",
+                                            "inputMethod": "jsonString",
+                                            "jsonStringBodyContent": "{{21.alert_message}}"
+                                          },
+                                          "metadata": {
+                                            "designer": {
+                                              "x": 6600,
+                                              "y": 900,
+                                              "name": "Step 4: Evidence: group ended: alert Owen: removal failed"
+                                            }
+                                          }
+                                        },
+                                        {
+                                          "id": 45,
+                                          "module": "http:MakeRequest",
+                                          "version": 4,
+                                          "parameters": {},
+                                          "mapper": {
+                                            "url": "{{1.result.table_api_url}}/exception_queue",
+                                            "method": "post",
+                                            "timeout": "40",
+                                            "parseResponse": false,
+                                            "stopOnHttpError": true,
+                                            "allowRedirects": true,
+                                            "shareCookies": false,
+                                            "requestCompressedContent": true,
+                                            "contentType": "json",
+                                            "inputMethod": "jsonString",
+                                            "jsonStringBodyContent": "{{21.failed_body}}"
+                                          },
+                                          "metadata": {
+                                            "designer": {
+                                              "x": 6900,
+                                              "y": 900,
+                                              "name": "Step 4: Evidence: group ended: exception queue: removal failed"
+                                            }
+                                          }
+                                        },
+                                        {
+                                          "id": 46,
+                                          "module": "builtin:Ignore",
+                                          "version": 1,
+                                          "metadata": {
+                                            "designer": {
+                                              "x": 7200,
+                                              "y": 900
+                                            }
+                                          }
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "flow": [
+                                    {
+                                      "id": 53,
+                                      "module": "http:MakeRequest",
+                                      "version": 4,
+                                      "parameters": {},
+                                      "mapper": {
+                                        "url": "{{21.url}}",
+                                        "method": "patch",
+                                        "timeout": "40",
+                                        "parseResponse": false,
+                                        "stopOnHttpError": true,
+                                        "allowRedirects": true,
+                                        "shareCookies": false,
+                                        "requestCompressedContent": true,
+                                        "contentType": "json",
+                                        "inputMethod": "jsonString",
+                                        "jsonStringBodyContent": "{\"active\": false}"
+                                      },
+                                      "metadata": {
+                                        "designer": {
+                                          "x": 4500,
+                                          "y": 1200,
+                                          "name": "Step 5: Remove from the app"
+                                        }
+                                      },
+                                      "onerror": [
+                                        {
+                                          "id": 48,
+                                          "module": "http:MakeRequest",
+                                          "version": 4,
+                                          "parameters": {},
+                                          "mapper": {
+                                            "url": "{{1.result.table_api_url}}/key_log?recipe=eq.R9.4&key=eq.{{21.key_q}}",
+                                            "method": "patch",
+                                            "timeout": "40",
+                                            "parseResponse": false,
+                                            "stopOnHttpError": true,
+                                            "allowRedirects": true,
+                                            "shareCookies": false,
+                                            "requestCompressedContent": true,
+                                            "contentType": "json",
+                                            "inputMethod": "jsonString",
+                                            "jsonStringBodyContent": "{{21.failed_key_body}}"
+                                          },
+                                          "metadata": {
+                                            "designer": {
+                                              "x": 4500,
+                                              "y": 1500,
+                                              "name": "Step 5: Remove from the app: mark key failed"
+                                            }
+                                          }
+                                        },
+                                        {
+                                          "id": 49,
+                                          "module": "http:MakeRequest",
+                                          "version": 4,
+                                          "parameters": {},
+                                          "mapper": {
+                                            "url": "{{1.result.itsm_url}}/tickets",
+                                            "method": "post",
+                                            "timeout": "40",
+                                            "parseResponse": false,
+                                            "stopOnHttpError": true,
+                                            "allowRedirects": true,
+                                            "shareCookies": false,
+                                            "requestCompressedContent": true,
+                                            "contentType": "json",
+                                            "inputMethod": "jsonString",
+                                            "jsonStringBodyContent": "{{21.ticket_body}}"
+                                          },
+                                          "metadata": {
+                                            "designer": {
+                                              "x": 4800,
+                                              "y": 1500,
+                                              "name": "Step 5: Remove from the app: IT ticket: removal failed"
+                                            }
+                                          }
+                                        },
+                                        {
+                                          "id": 50,
+                                          "module": "http:MakeRequest",
+                                          "version": 4,
+                                          "parameters": {},
+                                          "mapper": {
+                                            "url": "{{1.result.messaging_url}}/messages",
+                                            "method": "post",
+                                            "timeout": "40",
+                                            "parseResponse": false,
+                                            "stopOnHttpError": true,
+                                            "allowRedirects": true,
+                                            "shareCookies": false,
+                                            "requestCompressedContent": true,
+                                            "contentType": "json",
+                                            "inputMethod": "jsonString",
+                                            "jsonStringBodyContent": "{{21.alert_message}}"
+                                          },
+                                          "metadata": {
+                                            "designer": {
+                                              "x": 5100,
+                                              "y": 1500,
+                                              "name": "Step 5: Remove from the app: alert Owen: removal failed"
+                                            }
+                                          }
+                                        },
+                                        {
+                                          "id": 51,
+                                          "module": "http:MakeRequest",
+                                          "version": 4,
+                                          "parameters": {},
+                                          "mapper": {
+                                            "url": "{{1.result.table_api_url}}/exception_queue",
+                                            "method": "post",
+                                            "timeout": "40",
+                                            "parseResponse": false,
+                                            "stopOnHttpError": true,
+                                            "allowRedirects": true,
+                                            "shareCookies": false,
+                                            "requestCompressedContent": true,
+                                            "contentType": "json",
+                                            "inputMethod": "jsonString",
+                                            "jsonStringBodyContent": "{{21.failed_body}}"
+                                          },
+                                          "metadata": {
+                                            "designer": {
+                                              "x": 5400,
+                                              "y": 1500,
+                                              "name": "Step 5: Remove from the app: exception queue: removal failed"
+                                            }
+                                          }
+                                        },
+                                        {
+                                          "id": 52,
+                                          "module": "builtin:Ignore",
+                                          "version": 1,
+                                          "metadata": {
+                                            "designer": {
+                                              "x": 5700,
+                                              "y": 1500
+                                            }
+                                          }
+                                        }
+                                      ],
+                                      "filter": {
+                                        "name": "action is connection",
+                                        "conditions": [
+                                          [
+                                            {
+                                              "a": "{{21.action}}",
+                                              "b": "connection",
+                                              "o": "text:equal"
+                                            }
+                                          ]
+                                        ]
+                                      }
+                                    },
+                                    {
+                                      "id": 59,
+                                      "module": "http:MakeRequest",
+                                      "version": 4,
+                                      "parameters": {},
+                                      "mapper": {
+                                        "url": "{{1.result.evidence_url}}/items/{{21.evidence_q}}",
+                                        "method": "put",
+                                        "timeout": "40",
+                                        "parseResponse": false,
+                                        "stopOnHttpError": true,
+                                        "allowRedirects": true,
+                                        "shareCookies": false,
+                                        "requestCompressedContent": true,
+                                        "contentType": "json",
+                                        "inputMethod": "jsonString",
+                                        "jsonStringBodyContent": "{{21.removed_evidence}}"
+                                      },
+                                      "metadata": {
+                                        "designer": {
+                                          "x": 4800,
+                                          "y": 1200,
+                                          "name": "Step 5: Evidence: removed"
+                                        }
+                                      },
+                                      "onerror": [
+                                        {
+                                          "id": 54,
+                                          "module": "http:MakeRequest",
+                                          "version": 4,
+                                          "parameters": {},
+                                          "mapper": {
+                                            "url": "{{1.result.table_api_url}}/key_log?recipe=eq.R9.4&key=eq.{{21.key_q}}",
+                                            "method": "patch",
+                                            "timeout": "40",
+                                            "parseResponse": false,
+                                            "stopOnHttpError": true,
+                                            "allowRedirects": true,
+                                            "shareCookies": false,
+                                            "requestCompressedContent": true,
+                                            "contentType": "json",
+                                            "inputMethod": "jsonString",
+                                            "jsonStringBodyContent": "{{21.failed_key_body}}"
+                                          },
+                                          "metadata": {
+                                            "designer": {
+                                              "x": 4800,
+                                              "y": 1500,
+                                              "name": "Step 5: Evidence: removed: mark key failed"
+                                            }
+                                          }
+                                        },
+                                        {
+                                          "id": 55,
+                                          "module": "http:MakeRequest",
+                                          "version": 4,
+                                          "parameters": {},
+                                          "mapper": {
+                                            "url": "{{1.result.itsm_url}}/tickets",
+                                            "method": "post",
+                                            "timeout": "40",
+                                            "parseResponse": false,
+                                            "stopOnHttpError": true,
+                                            "allowRedirects": true,
+                                            "shareCookies": false,
+                                            "requestCompressedContent": true,
+                                            "contentType": "json",
+                                            "inputMethod": "jsonString",
+                                            "jsonStringBodyContent": "{{21.ticket_body}}"
+                                          },
+                                          "metadata": {
+                                            "designer": {
+                                              "x": 5100,
+                                              "y": 1500,
+                                              "name": "Step 5: Evidence: removed: IT ticket: removal failed"
+                                            }
+                                          }
+                                        },
+                                        {
+                                          "id": 56,
+                                          "module": "http:MakeRequest",
+                                          "version": 4,
+                                          "parameters": {},
+                                          "mapper": {
+                                            "url": "{{1.result.messaging_url}}/messages",
+                                            "method": "post",
+                                            "timeout": "40",
+                                            "parseResponse": false,
+                                            "stopOnHttpError": true,
+                                            "allowRedirects": true,
+                                            "shareCookies": false,
+                                            "requestCompressedContent": true,
+                                            "contentType": "json",
+                                            "inputMethod": "jsonString",
+                                            "jsonStringBodyContent": "{{21.alert_message}}"
+                                          },
+                                          "metadata": {
+                                            "designer": {
+                                              "x": 5400,
+                                              "y": 1500,
+                                              "name": "Step 5: Evidence: removed: alert Owen: removal failed"
+                                            }
+                                          }
+                                        },
+                                        {
+                                          "id": 57,
+                                          "module": "http:MakeRequest",
+                                          "version": 4,
+                                          "parameters": {},
+                                          "mapper": {
+                                            "url": "{{1.result.table_api_url}}/exception_queue",
+                                            "method": "post",
+                                            "timeout": "40",
+                                            "parseResponse": false,
+                                            "stopOnHttpError": true,
+                                            "allowRedirects": true,
+                                            "shareCookies": false,
+                                            "requestCompressedContent": true,
+                                            "contentType": "json",
+                                            "inputMethod": "jsonString",
+                                            "jsonStringBodyContent": "{{21.failed_body}}"
+                                          },
+                                          "metadata": {
+                                            "designer": {
+                                              "x": 5700,
+                                              "y": 1500,
+                                              "name": "Step 5: Evidence: removed: exception queue: removal failed"
+                                            }
+                                          }
+                                        },
+                                        {
+                                          "id": 58,
+                                          "module": "builtin:Ignore",
+                                          "version": 1,
+                                          "metadata": {
+                                            "designer": {
+                                              "x": 6000,
+                                              "y": 1500
+                                            }
+                                          }
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "flow": [
+                                    {
+                                      "id": 65,
+                                      "module": "http:MakeRequest",
+                                      "version": 4,
+                                      "parameters": {},
+                                      "mapper": {
+                                        "url": "{{1.result.tasks_url}}/tasks",
+                                        "method": "post",
+                                        "timeout": "40",
+                                        "parseResponse": false,
+                                        "stopOnHttpError": true,
+                                        "allowRedirects": true,
+                                        "shareCookies": false,
+                                        "requestCompressedContent": true,
+                                        "contentType": "json",
+                                        "inputMethod": "jsonString",
+                                        "jsonStringBodyContent": "{{21.task_body}}"
+                                      },
+                                      "metadata": {
+                                        "designer": {
+                                          "x": 4500,
+                                          "y": 1800,
+                                          "name": "Steps 5 and 6: Task a person"
+                                        }
+                                      },
+                                      "onerror": [
+                                        {
+                                          "id": 60,
+                                          "module": "http:MakeRequest",
+                                          "version": 4,
+                                          "parameters": {},
+                                          "mapper": {
+                                            "url": "{{1.result.table_api_url}}/key_log?recipe=eq.R9.4&key=eq.{{21.key_q}}",
+                                            "method": "patch",
+                                            "timeout": "40",
+                                            "parseResponse": false,
+                                            "stopOnHttpError": true,
+                                            "allowRedirects": true,
+                                            "shareCookies": false,
+                                            "requestCompressedContent": true,
+                                            "contentType": "json",
+                                            "inputMethod": "jsonString",
+                                            "jsonStringBodyContent": "{{21.failed_key_body}}"
+                                          },
+                                          "metadata": {
+                                            "designer": {
+                                              "x": 4500,
+                                              "y": 2100,
+                                              "name": "Steps 5 and 6: Task a person: mark key failed"
+                                            }
+                                          }
+                                        },
+                                        {
+                                          "id": 61,
+                                          "module": "http:MakeRequest",
+                                          "version": 4,
+                                          "parameters": {},
+                                          "mapper": {
+                                            "url": "{{1.result.itsm_url}}/tickets",
+                                            "method": "post",
+                                            "timeout": "40",
+                                            "parseResponse": false,
+                                            "stopOnHttpError": true,
+                                            "allowRedirects": true,
+                                            "shareCookies": false,
+                                            "requestCompressedContent": true,
+                                            "contentType": "json",
+                                            "inputMethod": "jsonString",
+                                            "jsonStringBodyContent": "{{21.ticket_body}}"
+                                          },
+                                          "metadata": {
+                                            "designer": {
+                                              "x": 4800,
+                                              "y": 2100,
+                                              "name": "Steps 5 and 6: Task a person: IT ticket: removal failed"
+                                            }
+                                          }
+                                        },
+                                        {
+                                          "id": 62,
+                                          "module": "http:MakeRequest",
+                                          "version": 4,
+                                          "parameters": {},
+                                          "mapper": {
+                                            "url": "{{1.result.messaging_url}}/messages",
+                                            "method": "post",
+                                            "timeout": "40",
+                                            "parseResponse": false,
+                                            "stopOnHttpError": true,
+                                            "allowRedirects": true,
+                                            "shareCookies": false,
+                                            "requestCompressedContent": true,
+                                            "contentType": "json",
+                                            "inputMethod": "jsonString",
+                                            "jsonStringBodyContent": "{{21.alert_message}}"
+                                          },
+                                          "metadata": {
+                                            "designer": {
+                                              "x": 5100,
+                                              "y": 2100,
+                                              "name": "Steps 5 and 6: Task a person: alert Owen: removal failed"
+                                            }
+                                          }
+                                        },
+                                        {
+                                          "id": 63,
+                                          "module": "http:MakeRequest",
+                                          "version": 4,
+                                          "parameters": {},
+                                          "mapper": {
+                                            "url": "{{1.result.table_api_url}}/exception_queue",
+                                            "method": "post",
+                                            "timeout": "40",
+                                            "parseResponse": false,
+                                            "stopOnHttpError": true,
+                                            "allowRedirects": true,
+                                            "shareCookies": false,
+                                            "requestCompressedContent": true,
+                                            "contentType": "json",
+                                            "inputMethod": "jsonString",
+                                            "jsonStringBodyContent": "{{21.failed_body}}"
+                                          },
+                                          "metadata": {
+                                            "designer": {
+                                              "x": 5400,
+                                              "y": 2100,
+                                              "name": "Steps 5 and 6: Task a person: exception queue: removal failed"
+                                            }
+                                          }
+                                        },
+                                        {
+                                          "id": 64,
+                                          "module": "builtin:Ignore",
+                                          "version": 1,
+                                          "metadata": {
+                                            "designer": {
+                                              "x": 5700,
+                                              "y": 2100
+                                            }
+                                          }
+                                        }
+                                      ],
+                                      "filter": {
+                                        "name": "action is task",
+                                        "conditions": [
+                                          [
+                                            {
+                                              "a": "{{21.action}}",
+                                              "b": "task",
+                                              "o": "text:equal"
+                                            }
+                                          ]
+                                        ]
+                                      }
+                                    },
+                                    {
+                                      "id": 71,
+                                      "module": "http:MakeRequest",
+                                      "version": 4,
+                                      "parameters": {},
+                                      "mapper": {
+                                        "url": "{{1.result.evidence_url}}/items/{{21.evidence_q}}",
+                                        "method": "put",
+                                        "timeout": "40",
+                                        "parseResponse": false,
+                                        "stopOnHttpError": true,
+                                        "allowRedirects": true,
+                                        "shareCookies": false,
+                                        "requestCompressedContent": true,
+                                        "contentType": "json",
+                                        "inputMethod": "jsonString",
+                                        "jsonStringBodyContent": "{{21.task_evidence}}"
+                                      },
+                                      "metadata": {
+                                        "designer": {
+                                          "x": 4800,
+                                          "y": 1800,
+                                          "name": "Steps 5 and 6: Evidence: task open"
+                                        }
+                                      },
+                                      "onerror": [
+                                        {
+                                          "id": 66,
+                                          "module": "http:MakeRequest",
+                                          "version": 4,
+                                          "parameters": {},
+                                          "mapper": {
+                                            "url": "{{1.result.table_api_url}}/key_log?recipe=eq.R9.4&key=eq.{{21.key_q}}",
+                                            "method": "patch",
+                                            "timeout": "40",
+                                            "parseResponse": false,
+                                            "stopOnHttpError": true,
+                                            "allowRedirects": true,
+                                            "shareCookies": false,
+                                            "requestCompressedContent": true,
+                                            "contentType": "json",
+                                            "inputMethod": "jsonString",
+                                            "jsonStringBodyContent": "{{21.failed_key_body}}"
+                                          },
+                                          "metadata": {
+                                            "designer": {
+                                              "x": 4800,
+                                              "y": 2100,
+                                              "name": "Steps 5 and 6: Evidence: task open: mark key failed"
+                                            }
+                                          }
+                                        },
+                                        {
+                                          "id": 67,
+                                          "module": "http:MakeRequest",
+                                          "version": 4,
+                                          "parameters": {},
+                                          "mapper": {
+                                            "url": "{{1.result.itsm_url}}/tickets",
+                                            "method": "post",
+                                            "timeout": "40",
+                                            "parseResponse": false,
+                                            "stopOnHttpError": true,
+                                            "allowRedirects": true,
+                                            "shareCookies": false,
+                                            "requestCompressedContent": true,
+                                            "contentType": "json",
+                                            "inputMethod": "jsonString",
+                                            "jsonStringBodyContent": "{{21.ticket_body}}"
+                                          },
+                                          "metadata": {
+                                            "designer": {
+                                              "x": 5100,
+                                              "y": 2100,
+                                              "name": "Steps 5 and 6: Evidence: task open: IT ticket: removal failed"
+                                            }
+                                          }
+                                        },
+                                        {
+                                          "id": 68,
+                                          "module": "http:MakeRequest",
+                                          "version": 4,
+                                          "parameters": {},
+                                          "mapper": {
+                                            "url": "{{1.result.messaging_url}}/messages",
+                                            "method": "post",
+                                            "timeout": "40",
+                                            "parseResponse": false,
+                                            "stopOnHttpError": true,
+                                            "allowRedirects": true,
+                                            "shareCookies": false,
+                                            "requestCompressedContent": true,
+                                            "contentType": "json",
+                                            "inputMethod": "jsonString",
+                                            "jsonStringBodyContent": "{{21.alert_message}}"
+                                          },
+                                          "metadata": {
+                                            "designer": {
+                                              "x": 5400,
+                                              "y": 2100,
+                                              "name": "Steps 5 and 6: Evidence: task open: alert Owen: removal failed"
+                                            }
+                                          }
+                                        },
+                                        {
+                                          "id": 69,
+                                          "module": "http:MakeRequest",
+                                          "version": 4,
+                                          "parameters": {},
+                                          "mapper": {
+                                            "url": "{{1.result.table_api_url}}/exception_queue",
+                                            "method": "post",
+                                            "timeout": "40",
+                                            "parseResponse": false,
+                                            "stopOnHttpError": true,
+                                            "allowRedirects": true,
+                                            "shareCookies": false,
+                                            "requestCompressedContent": true,
+                                            "contentType": "json",
+                                            "inputMethod": "jsonString",
+                                            "jsonStringBodyContent": "{{21.failed_body}}"
+                                          },
+                                          "metadata": {
+                                            "designer": {
+                                              "x": 5700,
+                                              "y": 2100,
+                                              "name": "Steps 5 and 6: Evidence: task open: exception queue: removal failed"
+                                            }
+                                          }
+                                        },
+                                        {
+                                          "id": 70,
+                                          "module": "builtin:Ignore",
+                                          "version": 1,
+                                          "metadata": {
+                                            "designer": {
+                                              "x": 6000,
+                                              "y": 2100
+                                            }
+                                          }
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                }
+                              ],
+                              "metadata": {
+                                "designer": {
+                                  "x": 4200,
+                                  "y": 600,
+                                  "name": "How is it removed?"
+                                }
+                              }
+                            }
+                          ]
+                        },
+                        {
+                          "flow": [
+                            {
+                              "id": 73,
+                              "module": "code:ExecuteCode",
+                              "version": 1,
+                              "parameters": {},
+                              "mapper": {
+                                "language": "javascript",
+                                "inputFormat": "editor",
+                                "dependencies": [],
+                                "codeEditorJavascript": "// Adapter: the rule below is the same JavaScript as the recipe's n8n build.\n// $('Step name') answers from this step's inputs: each is that step's output in this scenario.\nconst SOURCES = {\"Step 3: Rule: inventory valid?\": \"in0_Step3Ruleinventoryvalid\"};\nconst LISTS = [];\nconst EXECUTED = [];\nconst DATA = {};\nfor (const [node, key] of Object.entries(SOURCES)) {\n  const raw = input[key];\n  let v = raw;\n  if (typeof raw === 'string') { try { v = JSON.parse(raw); } catch (e) { v = raw; } }\n  DATA[node] = LISTS.includes(node) ? (v || []).map(i => (i && i.json !== undefined ? i : { json: i })) : [{ json: v }];\n}\nconst $ = (node) => {\n  const ran = node in DATA || EXECUTED.includes(node);\n  const list = () => { if (!(node in DATA)) throw new Error(`step ${node} has no data in this scenario`); return DATA[node]; };\n  return { isExecuted: ran, first: () => list()[0], last: () => list()[list().length - 1], all: () => list(),\n           get item() { return list()[0]; } };\n};\nconst INPUT = \"Step 3: Rule: inventory valid?\";\nconst $input = { all: () => $(INPUT).all(), first: () => $(INPUT).first(), last: () => $(INPUT).last(), get item() { return $(INPUT).first(); } };\nconst $execution = { id: input.run_id };\nconst BODIES = (out) => ({});\nconst one = (r) => (Array.isArray(r) ? r : [r]).filter(Boolean).map(i => (i.json !== undefined ? i.json : i));\nconst $json = INPUT && INPUT in DATA ? $input.first().json : {};\nconst __rule = () => {\n// Step 7 runs after every pass: from the leaver run, or after a person's tick.\nif ($('Step 7: Person ticks an item').isExecuted) {\n  return [{ json: { case_id: $('Step 7: Rule: open item?').first().json.case_id } }];\n}\nreturn $input.all().map(i => ({ json: { case_id: i.json.case_id, key: i.json.key, leaver: i.json.leaver, item_ids: i.json.item_ids } }));\n};\nconst out = one(__rule())[0] || {};\nreturn Object.assign({}, out, BODIES(out));\n",
+                                "input": [
+                                  {
+                                    "name": "in0_Step3Ruleinventoryvalid",
+                                    "value": "{{16.result}}"
+                                  },
+                                  {
+                                    "name": "run_id",
+                                    "value": "{{var.scenario.executionId}}"
+                                  }
+                                ]
+                              },
+                              "metadata": {
+                                "designer": {
+                                  "x": 3600,
+                                  "y": 2400,
+                                  "name": "Step 7: Case to check"
+                                }
+                              },
+                              "filter": {
+                                "name": "inventory valid: check the case",
+                                "conditions": [
+                                  [
+                                    {
+                                      "a": "{{16.result.valid}}",
+                                      "b": "true",
+                                      "o": "text:equal"
+                                    }
+                                  ]
+                                ]
+                              }
+                            },
+                            {
+                              "id": 75,
+                              "module": "http:MakeRequest",
+                              "version": 4,
+                              "parameters": {},
+                              "mapper": {
+                                "url": "{{1.result.evidence_url}}/cases",
+                                "method": "get",
+                                "timeout": "40",
+                                "parseResponse": true,
+                                "stopOnHttpError": true,
+                                "allowRedirects": true,
+                                "shareCookies": false,
+                                "requestCompressedContent": true,
+                                "queryParameters": [
+                                  {
+                                    "name": "_wrap",
+                                    "value": "1"
+                                  },
+                                  {
+                                    "name": "id",
+                                    "value": "{{73.result.case_id}}"
+                                  }
+                                ]
+                              },
+                              "metadata": {
+                                "designer": {
+                                  "x": 3900,
+                                  "y": 2400,
+                                  "name": "Step 7: Read the case"
+                                }
+                              },
+                              "onerror": [
+                                {
+                                  "id": 74,
+                                  "module": "builtin:Break",
+                                  "version": 1,
+                                  "parameters": {},
+                                  "mapper": {
+                                    "count": "3",
+                                    "retry": true,
+                                    "interval": "1"
+                                  },
+                                  "metadata": {
+                                    "designer": {
+                                      "x": 3900,
+                                      "y": 2700
+                                    }
+                                  }
+                                }
+                              ]
+                            },
+                            {
+                              "id": 77,
+                              "module": "http:MakeRequest",
+                              "version": 4,
+                              "parameters": {},
+                              "mapper": {
+                                "url": "{{1.result.evidence_url}}/items",
+                                "method": "get",
+                                "timeout": "40",
+                                "parseResponse": true,
+                                "stopOnHttpError": true,
+                                "allowRedirects": true,
+                                "shareCookies": false,
+                                "requestCompressedContent": true,
+                                "queryParameters": [
+                                  {
+                                    "name": "_wrap",
+                                    "value": "1"
+                                  },
+                                  {
+                                    "name": "case_id",
+                                    "value": "{{73.result.case_id}}"
+                                  }
+                                ]
+                              },
+                              "metadata": {
+                                "designer": {
+                                  "x": 4200,
+                                  "y": 2400,
+                                  "name": "Step 7: Read the case evidence"
+                                }
+                              },
+                              "onerror": [
+                                {
+                                  "id": 76,
+                                  "module": "builtin:Break",
+                                  "version": 1,
+                                  "parameters": {},
+                                  "mapper": {
+                                    "count": "3",
+                                    "retry": true,
+                                    "interval": "1"
+                                  },
+                                  "metadata": {
+                                    "designer": {
+                                      "x": 4200,
+                                      "y": 2700
+                                    }
+                                  }
+                                }
+                              ]
+                            },
+                            {
+                              "id": 78,
+                              "module": "code:ExecuteCode",
+                              "version": 1,
+                              "parameters": {},
+                              "mapper": {
+                                "language": "javascript",
+                                "inputFormat": "editor",
+                                "dependencies": [],
+                                "codeEditorJavascript": "// Adapter: the rule below is the same JavaScript as the recipe's n8n build.\n// $('Step name') answers from this step's inputs: each is that step's output in this scenario.\nconst SOURCES = {\"Config\": \"in0_Config\", \"Step 7: Case to check\": \"in1_Step7Casetocheck\", \"Step 7: Read the case\": \"in2_Step7Readthecase\", \"Step 7: Read the case evidence\": \"in3_Step7Readthecaseevidence\"};\nconst LISTS = [];\nconst EXECUTED = [];\nconst DATA = {};\nfor (const [node, key] of Object.entries(SOURCES)) {\n  const raw = input[key];\n  let v = raw;\n  if (typeof raw === 'string') { try { v = JSON.parse(raw); } catch (e) { v = raw; } }\n  DATA[node] = LISTS.includes(node) ? (v || []).map(i => (i && i.json !== undefined ? i : { json: i })) : [{ json: v }];\n}\nconst $ = (node) => {\n  const ran = node in DATA || EXECUTED.includes(node);\n  const list = () => { if (!(node in DATA)) throw new Error(`step ${node} has no data in this scenario`); return DATA[node]; };\n  return { isExecuted: ran, first: () => list()[0], last: () => list()[list().length - 1], all: () => list(),\n           get item() { return list()[0]; } };\n};\nconst INPUT = \"Step 7: Read the case evidence\";\nconst $input = { all: () => $(INPUT).all(), first: () => $(INPUT).first(), last: () => $(INPUT).last(), get item() { return $(INPUT).first(); } };\nconst $execution = { id: input.run_id };\nconst BODIES = (out) => ({\"id_q\": encodeURIComponent(out.record.id), \"record_body\": JSON.stringify(out.record), \"close_message\": JSON.stringify({ to: $('Config').first().json.access_owner, subject: 'Leaver ' + out.record.name + ': every item confirmed', text: 'Check the evidence for case ' + out.record.id + ' and close it.' }), \"log_body\": JSON.stringify({ recipe: 'R9.4', item: out.record.id, decision: 'every item confirmed; to the access owner', rules: { items: (out.record.items || []).length } })});\nconst one = (r) => (Array.isArray(r) ? r : [r]).filter(Boolean).map(i => (i.json !== undefined ? i.json : i));\nconst $json = INPUT && INPUT in DATA ? $input.first().json : {};\nconst __rule = () => {\nconst isoToday = () => new Date().toISOString().slice(0, 10);\nconst day = d => new Date(String(d).slice(0, 10) + 'T00:00:00Z');\n// The date a number of working days (Monday to Friday) after a date.\nfunction addWorkingDays(d, n) {\n  let x = day(d), k = 0;\n  while (k < n) { x = new Date(x.getTime() + 86400000); if (x.getUTCDay() % 6 !== 0) k++; }\n  return x.toISOString().slice(0, 10);\n}\n\n// Step 7: every item confirmed, by a response or a person's timed tick.\nconst cfg = $('Config').first().json;\nconst c = $('Step 7: Case to check').item.json;\nconst existing = ($('Step 7: Read the case').item.json.items || [])[0] || {};\nconst evidence = $json.items || [];\nconst l = c.leaver || {};\nconst record = Object.assign({ id: c.case_id, key: c.key, employee_id: l.employee_id, name: l.name, last_day: l.last_day, manager: l.manager,\n  deadline_on: l.last_day ? addWorkingDays(l.last_day, cfg.deadline_working_days) : null, ticketed: false, opened: new Date().toISOString() },\n  existing, c.item_ids ? { items: c.item_ids } : {});\nconst confirmed = new Set(evidence.filter(e => e.status === 'confirmed').map(e => e.item_id));\nconst items = record.items || [];\nconst all = items.length > 0 && items.every(i => confirmed.has(i));\nconst before = existing.status;\nrecord.unconfirmed = items.filter(i => !confirmed.has(i));\nrecord.status = before === 'closed' ? 'closed' : all ? 'all confirmed; to close' : 'open';\nreturn { json: { record, newly_confirmed: record.status === 'all confirmed; to close' && before !== record.status } };\n};\nconst out = one(__rule())[0] || {};\nreturn Object.assign({}, out, BODIES(out));\n",
+                                "input": [
+                                  {
+                                    "name": "in0_Config",
+                                    "value": "{{1.result}}"
+                                  },
+                                  {
+                                    "name": "in1_Step7Casetocheck",
+                                    "value": "{{73.result}}"
+                                  },
+                                  {
+                                    "name": "in2_Step7Readthecase",
+                                    "value": "{{75.data}}"
+                                  },
+                                  {
+                                    "name": "in3_Step7Readthecaseevidence",
+                                    "value": "{{77.data}}"
+                                  },
+                                  {
+                                    "name": "run_id",
+                                    "value": "{{var.scenario.executionId}}"
+                                  }
+                                ]
+                              },
+                              "metadata": {
+                                "designer": {
+                                  "x": 4500,
+                                  "y": 2400,
+                                  "name": "Step 7: Rule: every item confirmed?"
+                                }
+                              }
+                            },
+                            {
+                              "id": 79,
+                              "module": "http:MakeRequest",
+                              "version": 4,
+                              "parameters": {},
+                              "mapper": {
+                                "url": "{{1.result.evidence_url}}/cases/{{78.result.id_q}}",
+                                "method": "put",
+                                "timeout": "40",
+                                "parseResponse": false,
+                                "stopOnHttpError": true,
+                                "allowRedirects": true,
+                                "shareCookies": false,
+                                "requestCompressedContent": true,
+                                "contentType": "json",
+                                "inputMethod": "jsonString",
+                                "jsonStringBodyContent": "{{78.result.record_body}}"
+                              },
+                              "metadata": {
+                                "designer": {
+                                  "x": 4800,
+                                  "y": 2400,
+                                  "name": "Step 9: Log the case"
+                                }
+                              }
+                            },
+                            {
+                              "id": 80,
+                              "module": "http:MakeRequest",
+                              "version": 4,
+                              "parameters": {},
+                              "mapper": {
+                                "url": "{{1.result.messaging_url}}/messages",
+                                "method": "post",
+                                "timeout": "40",
+                                "parseResponse": false,
+                                "stopOnHttpError": true,
+                                "allowRedirects": true,
+                                "shareCookies": false,
+                                "requestCompressedContent": true,
+                                "contentType": "json",
+                                "inputMethod": "jsonString",
+                                "jsonStringBodyContent": "{{78.result.close_message}}"
+                              },
+                              "metadata": {
+                                "designer": {
+                                  "x": 5100,
+                                  "y": 2400,
+                                  "name": "Step 9: Ask Owen to check and close"
+                                }
+                              },
+                              "filter": {
+                                "name": "all confirmed now",
+                                "conditions": [
+                                  [
+                                    {
+                                      "a": "{{78.result.newly_confirmed}}",
+                                      "b": "true",
+                                      "o": "text:equal"
+                                    }
+                                  ]
+                                ]
+                              }
+                            },
+                            {
+                              "id": 81,
+                              "module": "http:MakeRequest",
+                              "version": 4,
+                              "parameters": {},
+                              "mapper": {
+                                "url": "{{1.result.table_api_url}}/decision_log",
+                                "method": "post",
+                                "timeout": "40",
+                                "parseResponse": false,
+                                "stopOnHttpError": true,
+                                "allowRedirects": true,
+                                "shareCookies": false,
+                                "requestCompressedContent": true,
+                                "contentType": "json",
+                                "inputMethod": "jsonString",
+                                "jsonStringBodyContent": "{{78.result.log_body}}"
+                              },
+                              "metadata": {
+                                "designer": {
+                                  "x": 5400,
+                                  "y": 2400,
+                                  "name": "Step 9: Decision log: all confirmed"
+                                }
+                              }
+                            }
+                          ]
+                        }
+                      ],
+                      "metadata": {
+                        "designer": {
+                          "x": 3300,
+                          "y": 300,
+                          "name": "Inventory valid?"
+                        }
+                      }
+                    }
+                  ]
+                }
+              ],
+              "metadata": {
+                "designer": {
+                  "x": 1800,
+                  "y": 0,
+                  "name": "Entered by HR?"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "flow": [
+            {
+              "id": 85,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{1.result.evidence_url}}/cases",
+                "method": "get",
+                "timeout": "40",
+                "parseResponse": true,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "queryParameters": [
+                  {
+                    "name": "_wrap",
+                    "value": "1"
+                  },
+                  {
+                    "name": "status",
+                    "value": "open"
+                  }
+                ]
+              },
+              "metadata": {
+                "designer": {
+                  "x": 900,
+                  "y": 3000,
+                  "name": "Step 8: Read open cases"
+                }
+              },
+              "onerror": [
+                {
+                  "id": 84,
+                  "module": "builtin:Break",
+                  "version": 1,
+                  "parameters": {},
+                  "mapper": {
+                    "count": "3",
+                    "retry": true,
+                    "interval": "1"
+                  },
+                  "metadata": {
+                    "designer": {
+                      "x": 900,
+                      "y": 3300
+                    }
+                  }
+                }
+              ],
+              "filter": {
+                "name": "stop flag not set",
+                "conditions": [
+                  [
+                    {
+                      "a": "{{4.data.stopped}}",
+                      "b": "true",
+                      "o": "text:notequal"
+                    }
+                  ]
+                ]
+              }
+            },
+            {
+              "id": 86,
+              "module": "code:ExecuteCode",
+              "version": 1,
+              "parameters": {},
+              "mapper": {
+                "language": "javascript",
+                "inputFormat": "editor",
+                "dependencies": [],
+                "codeEditorJavascript": "// Adapter: the rule below is the same JavaScript as the recipe's n8n build.\n// $('Step name') answers from this step's inputs: each is that step's output in this scenario.\nconst SOURCES = {\"Config\": \"in0_Config\", \"Step 8: Read open cases\": \"in1_Step8Readopencases\"};\nconst LISTS = [];\nconst EXECUTED = [];\nconst DATA = {};\nfor (const [node, key] of Object.entries(SOURCES)) {\n  const raw = input[key];\n  let v = raw;\n  if (typeof raw === 'string') { try { v = JSON.parse(raw); } catch (e) { v = raw; } }\n  DATA[node] = LISTS.includes(node) ? (v || []).map(i => (i && i.json !== undefined ? i : { json: i })) : [{ json: v }];\n}\nconst $ = (node) => {\n  const ran = node in DATA || EXECUTED.includes(node);\n  const list = () => { if (!(node in DATA)) throw new Error(`step ${node} has no data in this scenario`); return DATA[node]; };\n  return { isExecuted: ran, first: () => list()[0], last: () => list()[list().length - 1], all: () => list(),\n           get item() { return list()[0]; } };\n};\nconst INPUT = \"Step 8: Read open cases\";\nconst $input = { all: () => $(INPUT).all(), first: () => $(INPUT).first(), last: () => $(INPUT).last(), get item() { return $(INPUT).first(); } };\nconst $execution = { id: input.run_id };\nconst BODIES = (out) => ({\"id_q\": encodeURIComponent(out.id), \"ticket_body\": JSON.stringify({ case_id: out.id, subject: 'Leaver access unconfirmed at the deadline: ' + out.name, detail: 'Unconfirmed: ' + (out.unconfirmed || []).join(', ') + '; remove them' }), \"alert_message\": JSON.stringify({ to: $('Config').first().json.access_owner, subject: 'Leaver ' + out.name + ': unconfirmed at the deadline', text: 'Unconfirmed: ' + (out.unconfirmed || []).join(', ') + '. IT ticket raised.' })});\nconst one = (r) => (Array.isArray(r) ? r : [r]).filter(Boolean).map(i => (i.json !== undefined ? i.json : i));\nconst $json = INPUT && INPUT in DATA ? $input.first().json : {};\nconst __rule = () => {\n// Step 8: a case still open at its deadline gets an IT ticket and an alert, once.\nconst today = new Date().toISOString().slice(0, 10);\nreturn ($('Step 8: Read open cases').first().json.items || [])\n  .filter(c => c.deadline_on && c.deadline_on <= today && !c.ticketed)\n  .map(c => ({ json: c }));\n};\nreturn { items: one(__rule()).map(o => Object.assign({}, o, BODIES(o))) };\n",
+                "input": [
+                  {
+                    "name": "in0_Config",
+                    "value": "{{1.result}}"
+                  },
+                  {
+                    "name": "in1_Step8Readopencases",
+                    "value": "{{85.data}}"
+                  },
+                  {
+                    "name": "run_id",
+                    "value": "{{var.scenario.executionId}}"
+                  }
+                ]
+              },
+              "metadata": {
+                "designer": {
+                  "x": 1200,
+                  "y": 3000,
+                  "name": "Step 8: Rule: past the deadline?"
+                }
+              }
+            },
+            {
+              "id": 87,
+              "module": "builtin:BasicFeeder",
+              "version": 1,
+              "parameters": {},
+              "mapper": {
+                "array": "{{86.result.items}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 1500,
+                  "y": 3000,
+                  "name": "Each case past the deadline"
+                }
+              }
+            },
+            {
+              "id": 88,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{1.result.itsm_url}}/tickets",
+                "method": "post",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{87.ticket_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 1800,
+                  "y": 3000,
+                  "name": "Step 8: IT ticket: unconfirmed at the deadline"
+                }
+              }
+            },
+            {
+              "id": 89,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{1.result.messaging_url}}/messages",
+                "method": "post",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{87.alert_message}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 2100,
+                  "y": 3000,
+                  "name": "Step 8: Alert Owen"
+                }
+              }
+            },
+            {
+              "id": 90,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{1.result.evidence_url}}/cases/{{87.id_q}}",
+                "method": "patch",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{\"ticketed\": true}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 2400,
+                  "y": 3000,
+                  "name": "Step 8: Mark the case ticketed"
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "designer": {
+          "x": 600,
+          "y": 0,
+          "name": "Leavers, then the deadline check"
+        }
+      }
+    }
+  ],
+  "metadata": {
+    "instant": false,
+    "version": 1,
+    "designer": {
+      "orphans": []
+    },
+    "scenario": {
+      "dlq": true,
+      "slots": null,
+      "dataloss": false,
+      "maxErrors": 3,
+      "autoCommit": true,
+      "roundtrips": 1,
+      "sequential": false,
+      "confidential": false,
+      "freshVariables": false,
+      "autoCommitTriggerLast": true
+    }
+  }
+}

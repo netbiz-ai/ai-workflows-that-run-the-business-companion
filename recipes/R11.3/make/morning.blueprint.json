@@ -1,0 +1,506 @@
+{
+  "name": "R11.3 Route purchase approval: each morning",
+  "flow": [
+    {
+      "id": 1,
+      "module": "code:ExecuteCode",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "language": "javascript",
+        "inputFormat": "editor",
+        "dependencies": [],
+        "codeEditorJavascript": "// Config: edit these values for your company; nothing else in the scenario hard-codes them.\n// Schedule: set this scenario to run every day at 07:00; Make keeps the schedule outside the blueprint.\nreturn {\n  \"stop_flag_url\": \"https://<your stop list API>/stop_flags/R11.3\",\n  \"table_api_url\": \"https://<your table API for the key log, decision log and exception queue>\",\n  \"workflow_owner\": \"<your workflow owner>\",\n  \"requests_url\": \"https://<your request list API>\",\n  \"budget_url\": \"https://<your budget list API>\",\n  \"approvals_url\": \"https://<your approvals API>\",\n  \"vendors_url\": \"https://<your vendor-record export API>\",\n  \"policy_url\": \"https://<your policy list API>\",\n  \"ledger_url\": \"https://<your accounting platform export API>\",\n  \"messaging_url\": \"https://<your messaging API>\",\n  \"budget_export_max_days\": 7,\n  \"senior_limit\": 10000,\n  \"release_margin_working_days\": 2,\n  \"remind_working_days\": 2,\n  \"standin_working_days\": 3,\n  \"bill_tolerance\": \"<your bill tolerance, in dollars>\",\n  \"approver\": \"<your approver up to the limit>\",\n  \"senior_approver\": \"<your senior approver>\",\n  \"payment_approver\": \"<your payment approver>\",\n  \"budget_owner\": \"<your budget owner>\",\n  \"buyer\": \"<your buyer>\",\n  \"editor\": \"<your workflow editor>\"\n};",
+        "input": []
+      },
+      "metadata": {
+        "designer": {
+          "x": 0,
+          "y": 0,
+          "name": "Config"
+        }
+      }
+    },
+    {
+      "id": 4,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{1.result.stop_flag_url}}",
+        "method": "get",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true
+      },
+      "metadata": {
+        "designer": {
+          "x": 300,
+          "y": 0,
+          "name": "Stop flag: read"
+        }
+      },
+      "onerror": [
+        {
+          "id": 2,
+          "module": "http:MakeRequest",
+          "version": 4,
+          "parameters": {},
+          "mapper": {
+            "url": "{{1.result.table_api_url}}/exception_queue",
+            "method": "post",
+            "timeout": "40",
+            "parseResponse": false,
+            "stopOnHttpError": true,
+            "allowRedirects": true,
+            "shareCookies": false,
+            "requestCompressedContent": true,
+            "contentType": "json",
+            "inputMethod": "jsonString",
+            "jsonStringBodyContent": "{\"recipe\": \"R11.3\", \"item\": \"run {{var.scenario.executionId}}\", \"reason\": \"stop list unreadable\", \"detail\": \"The stop list could not be read, so the run stopped\", \"owner\": \"{{1.result.workflow_owner}}\"}"
+          },
+          "metadata": {
+            "designer": {
+              "x": 300,
+              "y": 300,
+              "name": "Stop flag: list unreadable"
+            }
+          }
+        },
+        {
+          "id": 3,
+          "module": "builtin:Ignore",
+          "version": 1,
+          "metadata": {
+            "designer": {
+              "x": 600,
+              "y": 300
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{1.result.approvals_url}}/approvals",
+        "method": "get",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true,
+        "queryParameters": [
+          {
+            "name": "_wrap",
+            "value": "1"
+          },
+          {
+            "name": "status",
+            "value": "open"
+          }
+        ]
+      },
+      "metadata": {
+        "designer": {
+          "x": 600,
+          "y": 0,
+          "name": "Read open approvals"
+        }
+      },
+      "onerror": [
+        {
+          "id": 5,
+          "module": "builtin:Break",
+          "version": 1,
+          "parameters": {},
+          "mapper": {
+            "count": "3",
+            "retry": true,
+            "interval": "1"
+          },
+          "metadata": {
+            "designer": {
+              "x": 600,
+              "y": 300
+            }
+          }
+        }
+      ],
+      "filter": {
+        "name": "stop flag not set",
+        "conditions": [
+          [
+            {
+              "a": "{{4.data.stopped}}",
+              "b": "true",
+              "o": "text:notequal"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "id": 7,
+      "module": "code:ExecuteCode",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "language": "javascript",
+        "inputFormat": "editor",
+        "dependencies": [],
+        "codeEditorJavascript": "// Adapter: the rule below is the same JavaScript as the recipe's n8n build.\n// $('Step name') answers from this step's inputs: each is that step's output in this scenario.\nconst SOURCES = {\"Config\": \"in0_Config\", \"Read open approvals\": \"in1_Readopenapprovals\"};\nconst LISTS = [];\nconst EXECUTED = [];\nconst DATA = {};\nfor (const [node, key] of Object.entries(SOURCES)) {\n  const raw = input[key];\n  let v = raw;\n  if (typeof raw === 'string') { try { v = JSON.parse(raw); } catch (e) { v = raw; } }\n  DATA[node] = LISTS.includes(node) ? (v || []).map(i => (i && i.json !== undefined ? i : { json: i })) : [{ json: v }];\n}\nconst $ = (node) => {\n  const ran = node in DATA || EXECUTED.includes(node);\n  const list = () => { if (!(node in DATA)) throw new Error(`step ${node} has no data in this scenario`); return DATA[node]; };\n  return { isExecuted: ran, first: () => list()[0], last: () => list()[list().length - 1], all: () => list(),\n           get item() { return list()[0]; } };\n};\nconst INPUT = \"Read open approvals\";\nconst $input = { all: () => $(INPUT).all(), first: () => $(INPUT).first(), last: () => $(INPUT).last(), get item() { return $(INPUT).first(); } };\nconst $execution = { id: input.run_id };\nconst BODIES = (out) => ({\"id_q\": encodeURIComponent(out.id), \"patch_body\": JSON.stringify(out.patch || {}), \"send_body\": JSON.stringify({ to: out.to, subject: out.subject, text: out.text }), \"exception_body\": JSON.stringify({ recipe: 'R11.3', item: out.request_id, reason: 'no answer after the stand-in', detail: out.text, owner: $('Config').first().json.senior_approver })});\nconst one = (r) => (Array.isArray(r) ? r : [r]).filter(Boolean).map(i => (i.json !== undefined ? i.json : i));\nconst $json = INPUT && INPUT in DATA ? $input.first().json : {};\nconst __rule = () => {\nconst iso = d => d.toISOString().slice(0, 10);\nconst day = s => new Date(String(s).slice(0, 10) + 'T00:00:00Z');\nconst today = day(iso(new Date()));\nconst addWorkingDays = (d, n) => { let x = new Date(d), k = 0; while (k < n) { x = new Date(x.getTime() + 86400000); if (x.getUTCDay() % 6 !== 0) k++; } return x; };\nconst same = (a, b) => String(a || '').trim().toLowerCase() === String(b || '').trim().toLowerCase();\n\n// Steps 7 and 8: remind after two working days (warning the requester if the quote expires first), then the stand-in after three.\nconst cfg = $('Config').first().json;\nconst open = $('Read open approvals').first().json.items || [];\nconst t = iso(today);\nconst out = [];\nfor (const a of open) {\n  const what = `Approval ${a.id}: request ${a.request_id}, ${a.amount}`;\n  if (a.escalated) {\n    if (!a.final_sent && a.final_on && t >= a.final_on) {\n      out.push({ action: 'final', id: a.id, request_id: a.request_id, patch: { final_sent: true },\n        to: cfg.senior_approver, subject: `No answer after the stand-in: ${a.id}`, text: `${what}; no answer from ${a.approver}. Decide it.` });\n    }\n    continue;\n  }\n  if (a.standin_on && t >= a.standin_on) {\n    if (a.standin) {\n      out.push({ action: 'standin', id: a.id, request_id: a.request_id,\n        patch: { approver: a.standin, standin: null, escalated: true, final_on: iso(addWorkingDays(today, cfg.standin_working_days)) },\n        to: a.standin, subject: `Approval waiting for you as stand-in: ${a.id}`, text: `${what}; no answer from ${a.approver}.` });\n    } else {\n      out.push({ action: 'final', id: a.id, request_id: a.request_id, patch: { escalated: true, final_sent: true },\n        to: cfg.senior_approver, subject: `No answer and no stand-in: ${a.id}`, text: `${what}; no answer from ${a.approver} and no eligible stand-in. Decide it.` });\n    }\n    continue;\n  }\n  if (!a.reminded && a.remind_on && t >= a.remind_on) {\n    out.push({ action: 'remind', id: a.id, request_id: a.request_id, patch: { reminded: true },\n      to: a.approver, subject: `Reminder: approval ${a.id}`, text: `${what} is waiting for your answer.` });\n    if (!a.waiver && a.valid_until && day(a.valid_until) < addWorkingDays(today, cfg.release_margin_working_days)) {\n      out.push({ action: 'warn', id: a.id, request_id: a.request_id, to: a.requester,\n        subject: `Quote may expire before approval: ${a.request_id}`,\n        text: `The quote is valid until ${a.valid_until}; if it expires before the approval arrives, the request is blocked and needs a fresh quote.` });\n    }\n  }\n}\nreturn out.map(json => ({ json }));\n};\nreturn { items: one(__rule()).map(o => Object.assign({}, o, BODIES(o))) };\n",
+        "input": [
+          {
+            "name": "in0_Config",
+            "value": "{{1.result}}"
+          },
+          {
+            "name": "in1_Readopenapprovals",
+            "value": "{{6.data}}"
+          },
+          {
+            "name": "run_id",
+            "value": "{{var.scenario.executionId}}"
+          }
+        ]
+      },
+      "metadata": {
+        "designer": {
+          "x": 900,
+          "y": 0,
+          "name": "Rules: steps 7 and 8"
+        }
+      }
+    },
+    {
+      "id": 8,
+      "module": "builtin:BasicFeeder",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "array": "{{7.result.items}}"
+      },
+      "metadata": {
+        "designer": {
+          "x": 1200,
+          "y": 0,
+          "name": "Each action"
+        }
+      }
+    },
+    {
+      "id": 17,
+      "module": "builtin:BasicRouter",
+      "version": 1,
+      "mapper": null,
+      "routes": [
+        {
+          "flow": [
+            {
+              "id": 9,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{1.result.approvals_url}}/approvals/{{8.id_q}}",
+                "method": "patch",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{8.patch_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 1800,
+                  "y": 0,
+                  "name": "Step 7: Record the reminder"
+                }
+              },
+              "filter": {
+                "name": "action is remind",
+                "conditions": [
+                  [
+                    {
+                      "a": "{{8.action}}",
+                      "b": "remind",
+                      "o": "text:equal"
+                    }
+                  ]
+                ]
+              }
+            },
+            {
+              "id": 10,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{1.result.messaging_url}}/messages",
+                "method": "post",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{8.send_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 2100,
+                  "y": 0,
+                  "name": "Step 7: Remind the approver"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "flow": [
+            {
+              "id": 11,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{1.result.messaging_url}}/messages",
+                "method": "post",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{8.send_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 1800,
+                  "y": 300,
+                  "name": "Step 7: Warn the requester"
+                }
+              },
+              "filter": {
+                "name": "action is warn",
+                "conditions": [
+                  [
+                    {
+                      "a": "{{8.action}}",
+                      "b": "warn",
+                      "o": "text:equal"
+                    }
+                  ]
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "flow": [
+            {
+              "id": 12,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{1.result.approvals_url}}/approvals/{{8.id_q}}",
+                "method": "patch",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{8.patch_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 1800,
+                  "y": 600,
+                  "name": "Step 8: Send to the stand-in"
+                }
+              },
+              "filter": {
+                "name": "action is standin",
+                "conditions": [
+                  [
+                    {
+                      "a": "{{8.action}}",
+                      "b": "standin",
+                      "o": "text:equal"
+                    }
+                  ]
+                ]
+              }
+            },
+            {
+              "id": 13,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{1.result.messaging_url}}/messages",
+                "method": "post",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{8.send_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 2100,
+                  "y": 600,
+                  "name": "Step 8: Tell the stand-in"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "flow": [
+            {
+              "id": 14,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{1.result.table_api_url}}/exception_queue",
+                "method": "post",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{8.exception_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 1800,
+                  "y": 900,
+                  "name": "Exception queue: no answer after the stand-in"
+                }
+              },
+              "filter": {
+                "name": "action is final",
+                "conditions": [
+                  [
+                    {
+                      "a": "{{8.action}}",
+                      "b": "final",
+                      "o": "text:equal"
+                    }
+                  ]
+                ]
+              }
+            },
+            {
+              "id": 15,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{1.result.approvals_url}}/approvals/{{8.id_q}}",
+                "method": "patch",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{8.patch_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 2100,
+                  "y": 900,
+                  "name": "Record the final escalation"
+                }
+              }
+            },
+            {
+              "id": 16,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{1.result.messaging_url}}/messages",
+                "method": "post",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{8.send_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 2400,
+                  "y": 900,
+                  "name": "Tell the senior approver"
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "designer": {
+          "x": 1500,
+          "y": 0,
+          "name": "Action"
+        }
+      }
+    }
+  ],
+  "metadata": {
+    "instant": false,
+    "version": 1,
+    "designer": {
+      "orphans": []
+    },
+    "scenario": {
+      "dlq": true,
+      "slots": null,
+      "dataloss": false,
+      "maxErrors": 3,
+      "autoCommit": true,
+      "roundtrips": 1,
+      "sequential": false,
+      "confidential": false,
+      "freshVariables": false,
+      "autoCommitTriggerLast": true
+    }
+  }
+}

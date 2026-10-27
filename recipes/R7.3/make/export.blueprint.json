@@ -1,0 +1,1061 @@
+{
+  "name": "R7.3 Stop and verify any change to a supplier's bank details: new export",
+  "flow": [
+    {
+      "id": 1,
+      "module": "gateway:CustomWebHook",
+      "version": 1,
+      "parameters": {
+        "hook": null,
+        "maxResults": 1
+      },
+      "mapper": {},
+      "metadata": {
+        "designer": {
+          "x": 0,
+          "y": 0,
+          "name": "Step 1: New export"
+        }
+      }
+    },
+    {
+      "id": 2,
+      "module": "code:ExecuteCode",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "language": "javascript",
+        "inputFormat": "editor",
+        "dependencies": [],
+        "codeEditorJavascript": "// Config: edit these values for your company; nothing else in the scenario hard-codes them.\nreturn {\n  \"stop_flag_url\": \"https://<your stop list API>/stop_flags/R7.3\",\n  \"table_api_url\": \"https://<your table API for the key log, decision log and exception queue>\",\n  \"workflow_owner\": \"<your workflow owner>\",\n  \"review_url\": \"https://<your review list API>\",\n  \"mailbox_url\": \"https://<your AP mailbox API>\",\n  \"exports_url\": \"https://<your supplier export library API>\",\n  \"suppliers_url\": \"https://<your supplier list API>\",\n  \"register_url\": \"https://<your bank register API>\",\n  \"checks_url\": \"https://<your R7.3 check list API>\",\n  \"tasks_url\": \"https://<your task list API>\",\n  \"messaging_url\": \"https://<your messaging API>\",\n  \"change_phrases\": [\n    \"new bank\",\n    \"<your change-request phrases>\"\n  ],\n  \"bank_caller\": \"<your caller, not a payment approver>\",\n  \"finance_assistant\": \"<your bank-change enterer, not a payment approver>\",\n  \"fraud_report_to\": \"<who you report suspected fraud to>\",\n  \"pre_run_reviewer\": \"<your AP owner>\",\n  \"kill_switch_alert\": \"<who is alerted when R7.3 is off>\"\n};",
+        "input": []
+      },
+      "metadata": {
+        "designer": {
+          "x": 300,
+          "y": 0,
+          "name": "Config"
+        }
+      }
+    },
+    {
+      "id": 5,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{2.result.stop_flag_url}}",
+        "method": "get",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true
+      },
+      "metadata": {
+        "designer": {
+          "x": 600,
+          "y": 0,
+          "name": "Stop flag: read"
+        }
+      },
+      "onerror": [
+        {
+          "id": 3,
+          "module": "http:MakeRequest",
+          "version": 4,
+          "parameters": {},
+          "mapper": {
+            "url": "{{2.result.table_api_url}}/exception_queue",
+            "method": "post",
+            "timeout": "40",
+            "parseResponse": false,
+            "stopOnHttpError": true,
+            "allowRedirects": true,
+            "shareCookies": false,
+            "requestCompressedContent": true,
+            "contentType": "json",
+            "inputMethod": "jsonString",
+            "jsonStringBodyContent": "{\"recipe\": \"R7.3\", \"item\": \"run {{var.scenario.executionId}}\", \"reason\": \"stop list unreadable\", \"detail\": \"The stop list could not be read, so the run stopped\", \"owner\": \"{{2.result.workflow_owner}}\"}"
+          },
+          "metadata": {
+            "designer": {
+              "x": 600,
+              "y": 300,
+              "name": "Stop flag: list unreadable"
+            }
+          }
+        },
+        {
+          "id": 4,
+          "module": "builtin:Ignore",
+          "version": 1,
+          "metadata": {
+            "designer": {
+              "x": 900,
+              "y": 300
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{2.result.exports_url}}/exports/{{encodeURL(1.export_id)}}",
+        "method": "get",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true
+      },
+      "metadata": {
+        "designer": {
+          "x": 900,
+          "y": 0,
+          "name": "Step 1: Read the export"
+        }
+      },
+      "onerror": [
+        {
+          "id": 6,
+          "module": "builtin:Break",
+          "version": 1,
+          "parameters": {},
+          "mapper": {
+            "count": "3",
+            "retry": true,
+            "interval": "1"
+          },
+          "metadata": {
+            "designer": {
+              "x": 900,
+              "y": 300
+            }
+          }
+        }
+      ],
+      "filter": {
+        "name": "stop flag not set",
+        "conditions": [
+          [
+            {
+              "a": "{{5.data.stopped}}",
+              "b": "true",
+              "o": "text:notequal"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "id": 8,
+      "module": "code:ExecuteCode",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "language": "javascript",
+        "inputFormat": "editor",
+        "dependencies": [],
+        "codeEditorJavascript": "// Adapter: the rule below is the same JavaScript as the recipe's n8n build.\n// $('Step name') answers from this step's inputs: each is that step's output in this scenario.\nconst SOURCES = {\"Step 1: Read the export\": \"in0_Step1Readtheexport\"};\nconst LISTS = [];\nconst EXECUTED = [];\nconst DATA = {};\nfor (const [node, key] of Object.entries(SOURCES)) {\n  const raw = input[key];\n  let v = raw;\n  if (typeof raw === 'string') { try { v = JSON.parse(raw); } catch (e) { v = raw; } }\n  DATA[node] = LISTS.includes(node) ? (v || []).map(i => (i && i.json !== undefined ? i : { json: i })) : [{ json: v }];\n}\nconst $ = (node) => {\n  const ran = node in DATA || EXECUTED.includes(node);\n  const list = () => { if (!(node in DATA)) throw new Error(`step ${node} has no data in this scenario`); return DATA[node]; };\n  return { isExecuted: ran, first: () => list()[0], last: () => list()[list().length - 1], all: () => list(),\n           get item() { return list()[0]; } };\n};\nconst INPUT = \"Step 1: Read the export\";\nconst $input = { all: () => $(INPUT).all(), first: () => $(INPUT).first(), last: () => $(INPUT).last(), get item() { return $(INPUT).first(); } };\nconst $execution = { id: input.run_id };\nconst BODIES = (out) => ({\"check_json\": JSON.stringify(out)});\nconst one = (r) => (Array.isArray(r) ? r : [r]).filter(Boolean).map(i => (i.json !== undefined ? i.json : i));\nconst $json = INPUT && INPUT in DATA ? $input.first().json : {};\nconst __rule = () => {\n// Step 1: a new export: one check for each supplier in it.\nconst e = $('Step 1: Read the export').first().json;\nreturn (e.suppliers || []).map(s => ({ json: { supplier_id: s.supplier_id, details: s.bank_account || null, phrase: null,\n  source: 'export', ref: e.id, record_id: null } }));\n};\nreturn { items: one(__rule()).map(o => Object.assign({}, o, BODIES(o))) };\n",
+        "input": [
+          {
+            "name": "in0_Step1Readtheexport",
+            "value": "{{7.data}}"
+          },
+          {
+            "name": "run_id",
+            "value": "{{var.scenario.executionId}}"
+          }
+        ]
+      },
+      "metadata": {
+        "designer": {
+          "x": 1200,
+          "y": 0,
+          "name": "Step 1: From the export"
+        }
+      }
+    },
+    {
+      "id": 9,
+      "module": "builtin:BasicFeeder",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "array": "{{8.result.items}}"
+      },
+      "metadata": {
+        "designer": {
+          "x": 1500,
+          "y": 0,
+          "name": "Step 2: Checks"
+        }
+      }
+    },
+    {
+      "id": 11,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{2.result.register_url}}/register",
+        "method": "get",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true,
+        "queryParameters": [
+          {
+            "name": "_wrap",
+            "value": "1"
+          },
+          {
+            "name": "supplier_id",
+            "value": "{{9.supplier_id}}"
+          }
+        ]
+      },
+      "metadata": {
+        "designer": {
+          "x": 1800,
+          "y": 0,
+          "name": "Step 2: Read the register"
+        }
+      },
+      "onerror": [
+        {
+          "id": 10,
+          "module": "builtin:Break",
+          "version": 1,
+          "parameters": {},
+          "mapper": {
+            "count": "3",
+            "retry": true,
+            "interval": "1"
+          },
+          "metadata": {
+            "designer": {
+              "x": 1800,
+              "y": 300
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 13,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{2.result.suppliers_url}}/suppliers",
+        "method": "get",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true,
+        "queryParameters": [
+          {
+            "name": "_wrap",
+            "value": "1"
+          },
+          {
+            "name": "id",
+            "value": "{{9.supplier_id}}"
+          }
+        ]
+      },
+      "metadata": {
+        "designer": {
+          "x": 2100,
+          "y": 0,
+          "name": "Step 2: Read the supplier"
+        }
+      },
+      "onerror": [
+        {
+          "id": 12,
+          "module": "builtin:Break",
+          "version": 1,
+          "parameters": {},
+          "mapper": {
+            "count": "3",
+            "retry": true,
+            "interval": "1"
+          },
+          "metadata": {
+            "designer": {
+              "x": 2100,
+              "y": 300
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 14,
+      "module": "code:ExecuteCode",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "language": "javascript",
+        "inputFormat": "editor",
+        "dependencies": [],
+        "codeEditorJavascript": "// Adapter: the rule below is the same JavaScript as the recipe's n8n build.\n// $('Step name') answers from this step's inputs: each is that step's output in this scenario.\nconst SOURCES = {\"Config\": \"in0_Config\", \"Step 2: Checks\": \"in1_Step2Checks\", \"Step 2: Read the register\": \"in2_Step2Readtheregister\", \"Step 2: Read the supplier\": \"in3_Step2Readthesupplier\"};\nconst LISTS = [];\nconst EXECUTED = [];\nconst DATA = {};\nfor (const [node, key] of Object.entries(SOURCES)) {\n  const raw = input[key];\n  let v = raw;\n  if (typeof raw === 'string') { try { v = JSON.parse(raw); } catch (e) { v = raw; } }\n  DATA[node] = LISTS.includes(node) ? (v || []).map(i => (i && i.json !== undefined ? i : { json: i })) : [{ json: v }];\n}\nconst $ = (node) => {\n  const ran = node in DATA || EXECUTED.includes(node);\n  const list = () => { if (!(node in DATA)) throw new Error(`step ${node} has no data in this scenario`); return DATA[node]; };\n  return { isExecuted: ran, first: () => list()[0], last: () => list()[list().length - 1], all: () => list(),\n           get item() { return list()[0]; } };\n};\nconst INPUT = \"Step 2: Checks\";\nconst $input = { all: () => $(INPUT).all(), first: () => $(INPUT).first(), last: () => $(INPUT).last(), get item() { return $(INPUT).first(); } };\nconst $execution = { id: input.run_id };\nconst BODIES = (out) => ({\"check_body\": JSON.stringify({ supplier_id: out.supplier_id, record_id: out.record_id, source: out.source, ref: out.ref, differs: out.differs, hold: out.differs || (out.held_before && !out.lift), checked_on: out.checked_on, checked_at: new Date().toISOString() }), \"supplier_q\": encodeURIComponent(out.supplier_id), \"key_q\": encodeURIComponent(out.key), \"reserve_body\": JSON.stringify({ p_recipe: 'R7.3', p_key: out.key }), \"failed_body\": JSON.stringify({ recipe: 'R7.3', item: out.supplier_id, reason: 'write failed', detail: 'A check, hold or task write failed, never retried; hold the supplier by hand and check the log', owner: $('Config').first().json.workflow_owner }), \"log_no_hold\": JSON.stringify({ recipe: 'R7.3', item: out.supplier_id, decision: 'no hold', rules: out.rules }), \"log_lifted\": JSON.stringify({ recipe: 'R7.3', item: out.supplier_id, decision: 'hold lifted: export shows the confirmed change', rules: out.rules }), \"log_open_hold\": JSON.stringify({ recipe: 'R7.3', item: out.supplier_id, decision: 'held; open hold, no second task', rules: out.rules }), \"log_tasked\": JSON.stringify({ recipe: 'R7.3', item: out.supplier_id, decision: 'held; caller tasked', rules: out.rules })});\nconst one = (r) => (Array.isArray(r) ? r : [r]).filter(Boolean).map(i => (i.json !== undefined ? i.json : i));\nconst $json = INPUT && INPUT in DATA ? $input.first().json : {};\nconst __rule = () => {\nconst norm = s => String(s || '').replace(/[\\s\\-]/g, '').toLowerCase();\n\n// Step 2: normalize spaces, dashes and case, then compare with the register; a phrase match is a difference.\nconst c = $('Step 2: Checks').item.json;\nconst reg = ($('Step 2: Read the register').item.json.items || [])[0] || null;\nconst sup = ($('Step 2: Read the supplier').item.json.items || [])[0] || {};\nlet differs, why;\nif (c.phrase) { differs = true; why = `change-request phrase \"${c.phrase}\"`; }\nelse if (!c.details) { differs = false; why = 'no bank details to compare'; }\nelse if (!reg) { differs = true; why = 'supplier not in the register'; }\nelse { differs = norm(c.details) !== norm(reg.bank_account); why = differs ? 'bank details differ from the register' : 'same as the register'; }\nconst today = new Date().toISOString().slice(0, 10);\nreturn { json: Object.assign({}, c, {\n  differs, why, held_before: !!sup.hold, hold_reason: sup.hold_reason || null, supplier_name: sup.name || c.supplier_id,\n  register_phone: reg ? reg.phone : null, checked_on: today,\n  key: `${c.supplier_id}:${norm(c.details)}`,\n  lift: !differs && c.source === 'export' && !!sup.hold && sup.hold_reason === 'confirmed change; awaiting export',\n  rules: { source: c.source, differs, why, held_before: !!sup.hold } }) };\n};\nconst out = one(__rule())[0] || {};\nreturn Object.assign({}, out, BODIES(out));\n",
+        "input": [
+          {
+            "name": "in0_Config",
+            "value": "{{2.result}}"
+          },
+          {
+            "name": "in1_Step2Checks",
+            "value": "{{9.check_json}}"
+          },
+          {
+            "name": "in2_Step2Readtheregister",
+            "value": "{{11.data}}"
+          },
+          {
+            "name": "in3_Step2Readthesupplier",
+            "value": "{{13.data}}"
+          },
+          {
+            "name": "run_id",
+            "value": "{{var.scenario.executionId}}"
+          }
+        ]
+      },
+      "metadata": {
+        "designer": {
+          "x": 2400,
+          "y": 0,
+          "name": "Step 2: Rule: differs from the register?"
+        }
+      }
+    },
+    {
+      "id": 18,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{2.result.checks_url}}/checks",
+        "method": "post",
+        "timeout": "40",
+        "parseResponse": false,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true,
+        "contentType": "json",
+        "inputMethod": "jsonString",
+        "jsonStringBodyContent": "{{14.result.check_body}}"
+      },
+      "metadata": {
+        "designer": {
+          "x": 2700,
+          "y": 0,
+          "name": "Step 3: Log the check"
+        }
+      },
+      "onerror": [
+        {
+          "id": 15,
+          "module": "http:MakeRequest",
+          "version": 4,
+          "parameters": {},
+          "mapper": {
+            "url": "{{2.result.table_api_url}}/key_log?recipe=eq.R7.3&key=eq.{{14.result.key_q}}",
+            "method": "patch",
+            "timeout": "40",
+            "parseResponse": false,
+            "stopOnHttpError": true,
+            "allowRedirects": true,
+            "shareCookies": false,
+            "requestCompressedContent": true,
+            "contentType": "json",
+            "inputMethod": "jsonString",
+            "jsonStringBodyContent": "{\"status\": \"failed\", \"result\": \"write failed\"}"
+          },
+          "metadata": {
+            "designer": {
+              "x": 2700,
+              "y": 300,
+              "name": "Step 3: Log the check: mark key failed"
+            }
+          }
+        },
+        {
+          "id": 16,
+          "module": "http:MakeRequest",
+          "version": 4,
+          "parameters": {},
+          "mapper": {
+            "url": "{{2.result.table_api_url}}/exception_queue",
+            "method": "post",
+            "timeout": "40",
+            "parseResponse": false,
+            "stopOnHttpError": true,
+            "allowRedirects": true,
+            "shareCookies": false,
+            "requestCompressedContent": true,
+            "contentType": "json",
+            "inputMethod": "jsonString",
+            "jsonStringBodyContent": "{{14.result.failed_body}}"
+          },
+          "metadata": {
+            "designer": {
+              "x": 3000,
+              "y": 300,
+              "name": "Step 3: Log the check: exception queue"
+            }
+          }
+        },
+        {
+          "id": 17,
+          "module": "builtin:Ignore",
+          "version": 1,
+          "metadata": {
+            "designer": {
+              "x": 3300,
+              "y": 300
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 40,
+      "module": "builtin:BasicRouter",
+      "version": 1,
+      "mapper": null,
+      "routes": [
+        {
+          "flow": [
+            {
+              "id": 29,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.suppliers_url}}/suppliers/{{14.result.supplier_q}}",
+                "method": "patch",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{\"hold\": true, \"hold_reason\": \"bank-detail difference\"}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 3300,
+                  "y": 0,
+                  "name": "Step 4: Set the hold flag"
+                }
+              },
+              "onerror": [
+                {
+                  "id": 26,
+                  "module": "http:MakeRequest",
+                  "version": 4,
+                  "parameters": {},
+                  "mapper": {
+                    "url": "{{2.result.table_api_url}}/key_log?recipe=eq.R7.3&key=eq.{{14.result.key_q}}",
+                    "method": "patch",
+                    "timeout": "40",
+                    "parseResponse": false,
+                    "stopOnHttpError": true,
+                    "allowRedirects": true,
+                    "shareCookies": false,
+                    "requestCompressedContent": true,
+                    "contentType": "json",
+                    "inputMethod": "jsonString",
+                    "jsonStringBodyContent": "{\"status\": \"failed\", \"result\": \"write failed\"}"
+                  },
+                  "metadata": {
+                    "designer": {
+                      "x": 3300,
+                      "y": 300,
+                      "name": "Step 4: Set the hold flag: mark key failed"
+                    }
+                  }
+                },
+                {
+                  "id": 27,
+                  "module": "http:MakeRequest",
+                  "version": 4,
+                  "parameters": {},
+                  "mapper": {
+                    "url": "{{2.result.table_api_url}}/exception_queue",
+                    "method": "post",
+                    "timeout": "40",
+                    "parseResponse": false,
+                    "stopOnHttpError": true,
+                    "allowRedirects": true,
+                    "shareCookies": false,
+                    "requestCompressedContent": true,
+                    "contentType": "json",
+                    "inputMethod": "jsonString",
+                    "jsonStringBodyContent": "{{14.result.failed_body}}"
+                  },
+                  "metadata": {
+                    "designer": {
+                      "x": 3600,
+                      "y": 300,
+                      "name": "Step 4: Set the hold flag: exception queue"
+                    }
+                  }
+                },
+                {
+                  "id": 28,
+                  "module": "builtin:Ignore",
+                  "version": 1,
+                  "metadata": {
+                    "designer": {
+                      "x": 3900,
+                      "y": 300
+                    }
+                  }
+                }
+              ],
+              "filter": {
+                "name": "differs from the register",
+                "conditions": [
+                  [
+                    {
+                      "a": "{{14.result.differs}}",
+                      "b": "true",
+                      "o": "text:equal"
+                    }
+                  ]
+                ]
+              }
+            },
+            {
+              "id": 30,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.table_api_url}}/rpc/reserve_key",
+                "method": "post",
+                "timeout": "40",
+                "parseResponse": true,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{14.result.reserve_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 3600,
+                  "y": 0,
+                  "name": "Step 5: Reserve key"
+                }
+              }
+            },
+            {
+              "id": 32,
+              "module": "builtin:BasicRouter",
+              "version": 1,
+              "mapper": null,
+              "routes": [
+                {
+                  "flow": [
+                    {
+                      "id": 19,
+                      "module": "code:ExecuteCode",
+                      "version": 1,
+                      "parameters": {},
+                      "mapper": {
+                        "language": "javascript",
+                        "inputFormat": "editor",
+                        "dependencies": [],
+                        "codeEditorJavascript": "// Adapter: the rule below is the same JavaScript as the recipe's n8n build.\n// $('Step name') answers from this step's inputs: each is that step's output in this scenario.\nconst SOURCES = {\"Step 2: Rule: differs from the register?\": \"in0_Step2Rulediffersfromther\", \"Config\": \"in1_Config\"};\nconst LISTS = [];\nconst EXECUTED = [];\nconst DATA = {};\nfor (const [node, key] of Object.entries(SOURCES)) {\n  const raw = input[key];\n  let v = raw;\n  if (typeof raw === 'string') { try { v = JSON.parse(raw); } catch (e) { v = raw; } }\n  DATA[node] = LISTS.includes(node) ? (v || []).map(i => (i && i.json !== undefined ? i : { json: i })) : [{ json: v }];\n}\nconst $ = (node) => {\n  const ran = node in DATA || EXECUTED.includes(node);\n  const list = () => { if (!(node in DATA)) throw new Error(`step ${node} has no data in this scenario`); return DATA[node]; };\n  return { isExecuted: ran, first: () => list()[0], last: () => list()[list().length - 1], all: () => list(),\n           get item() { return list()[0]; } };\n};\nconst INPUT = \"Step 2: Rule: differs from the register?\";\nconst $input = { all: () => $(INPUT).all(), first: () => $(INPUT).first(), last: () => $(INPUT).last(), get item() { return $(INPUT).first(); } };\nconst $execution = { id: input.run_id };\nconst BODIES = (out) => ({\"task_body\": JSON.stringify(out)});\nconst one = (r) => (Array.isArray(r) ? r : [r]).filter(Boolean).map(i => (i.json !== undefined ? i.json : i));\nconst $json = INPUT && INPUT in DATA ? $input.first().json : {};\nconst __rule = () => {\n// Step 6: the caller's task carries the register's number, never one from the message or invoice.\nconst c = $('Step 2: Rule: differs from the register?').item.json;\nconst cfg = $('Config').first().json;\nconst instruction = c.register_phone\n  ? `Call ${c.supplier_name} on ${c.register_phone}, the number in the bank register, to confirm its bank details. Use no number from any message or invoice. Log the number you dialed and the outcome.`\n  : `${c.supplier_name} has no number in the bank register. Take one from the contract, its official website or a previously verified document, never the invoice or a change email, then call to confirm its bank details. Log the number you dialed and the outcome.`;\nreturn { json: { assignee: cfg.bank_caller, supplier_id: c.supplier_id, supplier: c.supplier_name, phone: c.register_phone,\n  instruction, status: 'open', raised_on: c.checked_on } };\n};\nconst out = one(__rule())[0] || {};\nreturn Object.assign({}, out, BODIES(out));\n",
+                        "input": [
+                          {
+                            "name": "in0_Step2Rulediffersfromther",
+                            "value": "{{14.result}}"
+                          },
+                          {
+                            "name": "in1_Config",
+                            "value": "{{2.result}}"
+                          },
+                          {
+                            "name": "run_id",
+                            "value": "{{var.scenario.executionId}}"
+                          }
+                        ]
+                      },
+                      "metadata": {
+                        "designer": {
+                          "x": 4200,
+                          "y": 0,
+                          "name": "Step 6: Caller's task"
+                        }
+                      },
+                      "filter": {
+                        "name": "new key (not a copy)",
+                        "conditions": [
+                          [
+                            {
+                              "a": "{{30.data}}",
+                              "b": "true",
+                              "o": "text:equal"
+                            }
+                          ]
+                        ]
+                      }
+                    },
+                    {
+                      "id": 23,
+                      "module": "http:MakeRequest",
+                      "version": 4,
+                      "parameters": {},
+                      "mapper": {
+                        "url": "{{2.result.tasks_url}}/tasks",
+                        "method": "post",
+                        "timeout": "40",
+                        "parseResponse": false,
+                        "stopOnHttpError": true,
+                        "allowRedirects": true,
+                        "shareCookies": false,
+                        "requestCompressedContent": true,
+                        "contentType": "json",
+                        "inputMethod": "jsonString",
+                        "jsonStringBodyContent": "{{19.result.task_body}}"
+                      },
+                      "metadata": {
+                        "designer": {
+                          "x": 4500,
+                          "y": 0,
+                          "name": "Step 6: Send the caller a task"
+                        }
+                      },
+                      "onerror": [
+                        {
+                          "id": 20,
+                          "module": "http:MakeRequest",
+                          "version": 4,
+                          "parameters": {},
+                          "mapper": {
+                            "url": "{{2.result.table_api_url}}/key_log?recipe=eq.R7.3&key=eq.{{14.result.key_q}}",
+                            "method": "patch",
+                            "timeout": "40",
+                            "parseResponse": false,
+                            "stopOnHttpError": true,
+                            "allowRedirects": true,
+                            "shareCookies": false,
+                            "requestCompressedContent": true,
+                            "contentType": "json",
+                            "inputMethod": "jsonString",
+                            "jsonStringBodyContent": "{\"status\": \"failed\", \"result\": \"write failed\"}"
+                          },
+                          "metadata": {
+                            "designer": {
+                              "x": 4500,
+                              "y": 300,
+                              "name": "Step 6: Send the caller a task: mark key failed"
+                            }
+                          }
+                        },
+                        {
+                          "id": 21,
+                          "module": "http:MakeRequest",
+                          "version": 4,
+                          "parameters": {},
+                          "mapper": {
+                            "url": "{{2.result.table_api_url}}/exception_queue",
+                            "method": "post",
+                            "timeout": "40",
+                            "parseResponse": false,
+                            "stopOnHttpError": true,
+                            "allowRedirects": true,
+                            "shareCookies": false,
+                            "requestCompressedContent": true,
+                            "contentType": "json",
+                            "inputMethod": "jsonString",
+                            "jsonStringBodyContent": "{{14.result.failed_body}}"
+                          },
+                          "metadata": {
+                            "designer": {
+                              "x": 4800,
+                              "y": 300,
+                              "name": "Step 6: Send the caller a task: exception queue"
+                            }
+                          }
+                        },
+                        {
+                          "id": 22,
+                          "module": "builtin:Ignore",
+                          "version": 1,
+                          "metadata": {
+                            "designer": {
+                              "x": 5100,
+                              "y": 300
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "id": 24,
+                      "module": "http:MakeRequest",
+                      "version": 4,
+                      "parameters": {},
+                      "mapper": {
+                        "url": "{{2.result.table_api_url}}/key_log?recipe=eq.R7.3&key=eq.{{14.result.key_q}}",
+                        "method": "patch",
+                        "timeout": "40",
+                        "parseResponse": false,
+                        "stopOnHttpError": true,
+                        "allowRedirects": true,
+                        "shareCookies": false,
+                        "requestCompressedContent": true,
+                        "contentType": "json",
+                        "inputMethod": "jsonString",
+                        "jsonStringBodyContent": "{\"status\": \"done\", \"result\": \"task sent\"}"
+                      },
+                      "metadata": {
+                        "designer": {
+                          "x": 4800,
+                          "y": 0,
+                          "name": "Mark key done"
+                        }
+                      }
+                    },
+                    {
+                      "id": 25,
+                      "module": "http:MakeRequest",
+                      "version": 4,
+                      "parameters": {},
+                      "mapper": {
+                        "url": "{{2.result.table_api_url}}/decision_log",
+                        "method": "post",
+                        "timeout": "40",
+                        "parseResponse": false,
+                        "stopOnHttpError": true,
+                        "allowRedirects": true,
+                        "shareCookies": false,
+                        "requestCompressedContent": true,
+                        "contentType": "json",
+                        "inputMethod": "jsonString",
+                        "jsonStringBodyContent": "{{14.result.log_tasked}}"
+                      },
+                      "metadata": {
+                        "designer": {
+                          "x": 5100,
+                          "y": 0,
+                          "name": "Decision log (held, task sent)"
+                        }
+                      }
+                    }
+                  ]
+                },
+                {
+                  "flow": [
+                    {
+                      "id": 31,
+                      "module": "http:MakeRequest",
+                      "version": 4,
+                      "parameters": {},
+                      "mapper": {
+                        "url": "{{2.result.table_api_url}}/decision_log",
+                        "method": "post",
+                        "timeout": "40",
+                        "parseResponse": false,
+                        "stopOnHttpError": true,
+                        "allowRedirects": true,
+                        "shareCookies": false,
+                        "requestCompressedContent": true,
+                        "contentType": "json",
+                        "inputMethod": "jsonString",
+                        "jsonStringBodyContent": "{{14.result.log_open_hold}}"
+                      },
+                      "metadata": {
+                        "designer": {
+                          "x": 4200,
+                          "y": 600,
+                          "name": "Decision log (open hold, no second task)"
+                        }
+                      },
+                      "filter": {
+                        "name": "a copy: the hold already has a task",
+                        "conditions": [
+                          [
+                            {
+                              "a": "{{30.data}}",
+                              "b": "true",
+                              "o": "text:notequal"
+                            }
+                          ]
+                        ]
+                      }
+                    }
+                  ]
+                }
+              ],
+              "metadata": {
+                "designer": {
+                  "x": 3900,
+                  "y": 0,
+                  "name": "New key?"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "flow": [
+            {
+              "id": 39,
+              "module": "builtin:BasicRouter",
+              "version": 1,
+              "mapper": null,
+              "routes": [
+                {
+                  "flow": [
+                    {
+                      "id": 36,
+                      "module": "http:MakeRequest",
+                      "version": 4,
+                      "parameters": {},
+                      "mapper": {
+                        "url": "{{2.result.suppliers_url}}/suppliers/{{14.result.supplier_q}}",
+                        "method": "patch",
+                        "timeout": "40",
+                        "parseResponse": false,
+                        "stopOnHttpError": true,
+                        "allowRedirects": true,
+                        "shareCookies": false,
+                        "requestCompressedContent": true,
+                        "contentType": "json",
+                        "inputMethod": "jsonString",
+                        "jsonStringBodyContent": "{\"hold\": false, \"hold_reason\": null}"
+                      },
+                      "metadata": {
+                        "designer": {
+                          "x": 3600,
+                          "y": 900,
+                          "name": "Step 8: Lift the hold"
+                        }
+                      },
+                      "onerror": [
+                        {
+                          "id": 33,
+                          "module": "http:MakeRequest",
+                          "version": 4,
+                          "parameters": {},
+                          "mapper": {
+                            "url": "{{2.result.table_api_url}}/key_log?recipe=eq.R7.3&key=eq.{{14.result.key_q}}",
+                            "method": "patch",
+                            "timeout": "40",
+                            "parseResponse": false,
+                            "stopOnHttpError": true,
+                            "allowRedirects": true,
+                            "shareCookies": false,
+                            "requestCompressedContent": true,
+                            "contentType": "json",
+                            "inputMethod": "jsonString",
+                            "jsonStringBodyContent": "{\"status\": \"failed\", \"result\": \"write failed\"}"
+                          },
+                          "metadata": {
+                            "designer": {
+                              "x": 3600,
+                              "y": 1200,
+                              "name": "Step 8: Lift the hold: mark key failed"
+                            }
+                          }
+                        },
+                        {
+                          "id": 34,
+                          "module": "http:MakeRequest",
+                          "version": 4,
+                          "parameters": {},
+                          "mapper": {
+                            "url": "{{2.result.table_api_url}}/exception_queue",
+                            "method": "post",
+                            "timeout": "40",
+                            "parseResponse": false,
+                            "stopOnHttpError": true,
+                            "allowRedirects": true,
+                            "shareCookies": false,
+                            "requestCompressedContent": true,
+                            "contentType": "json",
+                            "inputMethod": "jsonString",
+                            "jsonStringBodyContent": "{{14.result.failed_body}}"
+                          },
+                          "metadata": {
+                            "designer": {
+                              "x": 3900,
+                              "y": 1200,
+                              "name": "Step 8: Lift the hold: exception queue"
+                            }
+                          }
+                        },
+                        {
+                          "id": 35,
+                          "module": "builtin:Ignore",
+                          "version": 1,
+                          "metadata": {
+                            "designer": {
+                              "x": 4200,
+                              "y": 1200
+                            }
+                          }
+                        }
+                      ],
+                      "filter": {
+                        "name": "export shows the confirmed change",
+                        "conditions": [
+                          [
+                            {
+                              "a": "{{14.result.lift}}",
+                              "b": "true",
+                              "o": "text:equal"
+                            }
+                          ]
+                        ]
+                      }
+                    },
+                    {
+                      "id": 37,
+                      "module": "http:MakeRequest",
+                      "version": 4,
+                      "parameters": {},
+                      "mapper": {
+                        "url": "{{2.result.table_api_url}}/decision_log",
+                        "method": "post",
+                        "timeout": "40",
+                        "parseResponse": false,
+                        "stopOnHttpError": true,
+                        "allowRedirects": true,
+                        "shareCookies": false,
+                        "requestCompressedContent": true,
+                        "contentType": "json",
+                        "inputMethod": "jsonString",
+                        "jsonStringBodyContent": "{{14.result.log_lifted}}"
+                      },
+                      "metadata": {
+                        "designer": {
+                          "x": 3900,
+                          "y": 900,
+                          "name": "Decision log (hold lifted)"
+                        }
+                      }
+                    }
+                  ]
+                },
+                {
+                  "flow": [
+                    {
+                      "id": 38,
+                      "module": "http:MakeRequest",
+                      "version": 4,
+                      "parameters": {},
+                      "mapper": {
+                        "url": "{{2.result.table_api_url}}/decision_log",
+                        "method": "post",
+                        "timeout": "40",
+                        "parseResponse": false,
+                        "stopOnHttpError": true,
+                        "allowRedirects": true,
+                        "shareCookies": false,
+                        "requestCompressedContent": true,
+                        "contentType": "json",
+                        "inputMethod": "jsonString",
+                        "jsonStringBodyContent": "{{14.result.log_no_hold}}"
+                      },
+                      "metadata": {
+                        "designer": {
+                          "x": 3600,
+                          "y": 1500,
+                          "name": "Decision log (no hold)"
+                        }
+                      },
+                      "filter": {
+                        "name": "nothing to lift",
+                        "conditions": [
+                          [
+                            {
+                              "a": "{{14.result.lift}}",
+                              "b": "true",
+                              "o": "text:notequal"
+                            }
+                          ]
+                        ]
+                      }
+                    }
+                  ]
+                }
+              ],
+              "metadata": {
+                "designer": {
+                  "x": 3300,
+                  "y": 900,
+                  "name": "Confirmed change now shown?"
+                }
+              },
+              "filter": {
+                "name": "same as the register",
+                "conditions": [
+                  [
+                    {
+                      "a": "{{14.result.differs}}",
+                      "b": "true",
+                      "o": "text:notequal"
+                    }
+                  ]
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "designer": {
+          "x": 3000,
+          "y": 0,
+          "name": "Differs?"
+        }
+      }
+    }
+  ],
+  "metadata": {
+    "instant": true,
+    "version": 1,
+    "designer": {
+      "orphans": []
+    },
+    "scenario": {
+      "dlq": true,
+      "slots": null,
+      "dataloss": false,
+      "maxErrors": 3,
+      "autoCommit": true,
+      "roundtrips": 1,
+      "sequential": false,
+      "confidential": false,
+      "freshVariables": false,
+      "autoCommitTriggerLast": true
+    }
+  }
+}

@@ -1,0 +1,1471 @@
+{
+  "name": "R12.3 Alert the owner when a measure crosses its threshold",
+  "flow": [
+    {
+      "id": 1,
+      "module": "gateway:CustomWebHook",
+      "version": 1,
+      "parameters": {
+        "hook": null,
+        "maxResults": 1
+      },
+      "mapper": {},
+      "metadata": {
+        "designer": {
+          "x": 0,
+          "y": 0,
+          "name": "Step 1: Table version current"
+        }
+      }
+    },
+    {
+      "id": 2,
+      "module": "code:ExecuteCode",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "language": "javascript",
+        "inputFormat": "editor",
+        "dependencies": [],
+        "codeEditorJavascript": "// Config: edit these values for your company; nothing else in the scenario hard-codes them.\nreturn {\n  \"stop_flag_url\": \"https://<your stop list API>/stop_flags/R12.3\",\n  \"table_api_url\": \"https://<your table API for the key log, decision log and exception queue>\",\n  \"workflow_owner\": \"<your workflow owner>\",\n  \"table_url\": \"https://<your weekly table API>\",\n  \"thresholds_url\": \"https://<your threshold list API>\",\n  \"chat_url\": \"https://<your Teams or chat API>\",\n  \"email_url\": \"https://<your email API>\",\n  \"alert_log_url\": \"https://<your alert log API>\",\n  \"preread_url\": \"https://<your pre-read API>\",\n  \"second_week_only\": false,\n  \"list_editor\": \"<your threshold list editor>\"\n};",
+        "input": []
+      },
+      "metadata": {
+        "designer": {
+          "x": 300,
+          "y": 0,
+          "name": "Config"
+        }
+      }
+    },
+    {
+      "id": 5,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{2.result.stop_flag_url}}",
+        "method": "get",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true
+      },
+      "metadata": {
+        "designer": {
+          "x": 600,
+          "y": 0,
+          "name": "Stop flag: read"
+        }
+      },
+      "onerror": [
+        {
+          "id": 3,
+          "module": "http:MakeRequest",
+          "version": 4,
+          "parameters": {},
+          "mapper": {
+            "url": "{{2.result.table_api_url}}/exception_queue",
+            "method": "post",
+            "timeout": "40",
+            "parseResponse": false,
+            "stopOnHttpError": true,
+            "allowRedirects": true,
+            "shareCookies": false,
+            "requestCompressedContent": true,
+            "contentType": "json",
+            "inputMethod": "jsonString",
+            "jsonStringBodyContent": "{\"recipe\": \"R12.3\", \"item\": \"run {{var.scenario.executionId}}\", \"reason\": \"stop list unreadable\", \"detail\": \"The stop list could not be read, so the run stopped\", \"owner\": \"{{2.result.workflow_owner}}\"}"
+          },
+          "metadata": {
+            "designer": {
+              "x": 600,
+              "y": 300,
+              "name": "Stop flag: list unreadable"
+            }
+          }
+        },
+        {
+          "id": 4,
+          "module": "builtin:Ignore",
+          "version": 1,
+          "metadata": {
+            "designer": {
+              "x": 900,
+              "y": 300
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{2.result.table_url}}/versions/{{encodeURL(1.version)}}",
+        "method": "get",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true
+      },
+      "metadata": {
+        "designer": {
+          "x": 900,
+          "y": 0,
+          "name": "Read the version"
+        }
+      },
+      "onerror": [
+        {
+          "id": 6,
+          "module": "builtin:Break",
+          "version": 1,
+          "parameters": {},
+          "mapper": {
+            "count": "3",
+            "retry": true,
+            "interval": "1"
+          },
+          "metadata": {
+            "designer": {
+              "x": 900,
+              "y": 300
+            }
+          }
+        }
+      ],
+      "filter": {
+        "name": "stop flag not set",
+        "conditions": [
+          [
+            {
+              "a": "{{5.data.stopped}}",
+              "b": "true",
+              "o": "text:notequal"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "id": 9,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{2.result.table_url}}/weekly_table",
+        "method": "get",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true,
+        "queryParameters": [
+          {
+            "name": "_wrap",
+            "value": "1"
+          },
+          {
+            "name": "version",
+            "value": "{{1.version}}"
+          }
+        ]
+      },
+      "metadata": {
+        "designer": {
+          "x": 1200,
+          "y": 0,
+          "name": "Read the table rows"
+        }
+      },
+      "onerror": [
+        {
+          "id": 8,
+          "module": "builtin:Break",
+          "version": 1,
+          "parameters": {},
+          "mapper": {
+            "count": "3",
+            "retry": true,
+            "interval": "1"
+          },
+          "metadata": {
+            "designer": {
+              "x": 1200,
+              "y": 300
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{2.result.thresholds_url}}/lines",
+        "method": "get",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true,
+        "queryParameters": [
+          {
+            "name": "_wrap",
+            "value": "1"
+          }
+        ]
+      },
+      "metadata": {
+        "designer": {
+          "x": 1500,
+          "y": 0,
+          "name": "Read the threshold list"
+        }
+      },
+      "onerror": [
+        {
+          "id": 10,
+          "module": "builtin:Break",
+          "version": 1,
+          "parameters": {},
+          "mapper": {
+            "count": "3",
+            "retry": true,
+            "interval": "1"
+          },
+          "metadata": {
+            "designer": {
+              "x": 1500,
+              "y": 300
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 13,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{2.result.table_url}}/versions",
+        "method": "get",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true,
+        "queryParameters": [
+          {
+            "name": "_wrap",
+            "value": "1"
+          }
+        ]
+      },
+      "metadata": {
+        "designer": {
+          "x": 1800,
+          "y": 0,
+          "name": "Read versions"
+        }
+      },
+      "onerror": [
+        {
+          "id": 12,
+          "module": "builtin:Break",
+          "version": 1,
+          "parameters": {},
+          "mapper": {
+            "count": "3",
+            "retry": true,
+            "interval": "1"
+          },
+          "metadata": {
+            "designer": {
+              "x": 1800,
+              "y": 300
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 15,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{2.result.table_url}}/weekly_table",
+        "method": "get",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true,
+        "queryParameters": [
+          {
+            "name": "_wrap",
+            "value": "1"
+          }
+        ]
+      },
+      "metadata": {
+        "designer": {
+          "x": 2100,
+          "y": 0,
+          "name": "Read earlier rows"
+        }
+      },
+      "onerror": [
+        {
+          "id": 14,
+          "module": "builtin:Break",
+          "version": 1,
+          "parameters": {},
+          "mapper": {
+            "count": "3",
+            "retry": true,
+            "interval": "1"
+          },
+          "metadata": {
+            "designer": {
+              "x": 2100,
+              "y": 300
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 16,
+      "module": "code:ExecuteCode",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "language": "javascript",
+        "inputFormat": "editor",
+        "dependencies": [],
+        "codeEditorJavascript": "// Adapter: the rule below is the same JavaScript as the recipe's n8n build.\n// $('Step name') answers from this step's inputs: each is that step's output in this scenario.\nconst SOURCES = {\"Config\": \"in0_Config\", \"Read the version\": \"in1_Readtheversion\", \"Read the table rows\": \"in2_Readthetablerows\", \"Read the threshold list\": \"in3_Readthethresholdlist\", \"Read versions\": \"in4_Readversions\", \"Read earlier rows\": \"in5_Readearlierrows\"};\nconst LISTS = [];\nconst EXECUTED = [];\nconst DATA = {};\nfor (const [node, key] of Object.entries(SOURCES)) {\n  const raw = input[key];\n  let v = raw;\n  if (typeof raw === 'string') { try { v = JSON.parse(raw); } catch (e) { v = raw; } }\n  DATA[node] = LISTS.includes(node) ? (v || []).map(i => (i && i.json !== undefined ? i : { json: i })) : [{ json: v }];\n}\nconst $ = (node) => {\n  const ran = node in DATA || EXECUTED.includes(node);\n  const list = () => { if (!(node in DATA)) throw new Error(`step ${node} has no data in this scenario`); return DATA[node]; };\n  return { isExecuted: ran, first: () => list()[0], last: () => list()[list().length - 1], all: () => list(),\n           get item() { return list()[0]; } };\n};\nconst INPUT = \"Read earlier rows\";\nconst $input = { all: () => $(INPUT).all(), first: () => $(INPUT).first(), last: () => $(INPUT).last(), get item() { return $(INPUT).first(); } };\nconst $execution = { id: input.run_id };\n// Steps 4 and 6: the alert text, the n8n build's own JavaScript; $(...) answers with this measure's outcome.\nconst alertText = (measure) => {\n  const $ = () => ({ item: { json: measure } });\n// Steps 4 and 6: the alert text. It explains nothing and suggests no action.\nconst o = $('Step 2: Rule: each measure\\'s outcome').item.json;\nif (o.outcome === 'stale') {\n  return { json: { to: o.data_owner, kind: 'stale',\n    subject: `Weekly figures: ${o.measure} is ${o.status}`,\n    text: `${o.measure} printed blank (${o.status}) at the ${o.cutoff} cut-off. Source: ${o.source} ${o.source_link || ''}. Last good: ${o.last_good || 'none'}.` } };\n}\nconst cmp = (o.direction === 'above' ? (o.inclusive ? 'at or above' : 'above') : (o.inclusive ? 'at or below' : 'below'));\nreturn { json: { to: o.measure_owner, kind: 'past the line',\n  subject: `Weekly figures: ${o.measure} is past your line`,\n  text: `${o.measure}: value ${o.value}, change ${o.change === null ? 'none' : o.change}; your line is ${o.field} ${cmp} ${o.line} (line version ${o.line_version}). Cut-off ${o.cutoff}. Source: ${o.source_link}` } };\n};\nconst BODIES = (out) => ({\"alert\": ['stale', 'past the line'].includes(out.outcome) ? 'yes' : 'no', \"key_q\": encodeURIComponent(out.key), \"reserve_body\": JSON.stringify({ p_recipe: 'R12.3', p_key: out.key }), \"post_body\": JSON.stringify((a => ({ to: a.to, subject: a.subject, text: a.text }))((['stale', 'past the line'].includes(out.outcome) ? alertText(out).json : {}))), \"alert_log_body\": JSON.stringify((a => ({ id: out.key, week: out.week, measure: out.measure, outcome: out.outcome, to: a.to, subject: a.subject, cutoff: out.cutoff, seen: false }))((['stale', 'past the line'].includes(out.outcome) ? alertText(out).json : {}))), \"done_body\": JSON.stringify({ status: 'done', result: (['stale', 'past the line'].includes(out.outcome) ? alertText(out).json : {}).kind + ' alert sent' }), \"log_sent\": JSON.stringify({ recipe: 'R12.3', item: out.week + ':' + out.measure, decision: out.outcome + ': alert sent', rules: { version: out.version, value: out.value, change: out.change, status: out.status, line_version: out.line_version, line: out.line, field: out.field, direction: out.direction } }), \"log_none\": JSON.stringify({ recipe: 'R12.3', item: out.week + ':' + out.measure, decision: out.outcome + ': no alert', rules: { version: out.version, value: out.value, change: out.change, status: out.status, line_version: out.line_version, line: out.line, field: out.field, direction: out.direction } }), \"log_copy\": JSON.stringify({ recipe: 'R12.3', item: out.week + ':' + out.measure, decision: out.outcome + ': alert suppressed, outcome unchanged', rules: { version: out.version, value: out.value, change: out.change, status: out.status, line_version: out.line_version, line: out.line, field: out.field, direction: out.direction } }), \"failed_key_body\": JSON.stringify({ status: 'failed', result: 'alert failed' }), \"failed_body\": JSON.stringify({ recipe: 'R12.3', item: out.week + ':' + out.measure, reason: 'alert failed', detail: 'Post and email failed for ' + (['stale', 'past the line'].includes(out.outcome) ? alertText(out).json : {}).to + '; reassign the measure or fix the address', owner: $('Config').first().json.list_editor })});\nconst one = (r) => (Array.isArray(r) ? r : [r]).filter(Boolean).map(i => (i.json !== undefined ? i.json : i));\nconst $json = INPUT && INPUT in DATA ? $input.first().json : {};\nconst __rule = () => {\n// Step 2: each measure's outcome. Step 5 compares with the line; step 9 picks the line in force.\nconst cfg = $('Config').first().json;\nconst version = $('Read the version').first().json;\nif (version.status !== 'written') return [];\nconst rows = $('Read the table rows').first().json.items || [];\nconst lines = $('Read the threshold list').first().json.items || [];\nconst versions = $('Read versions').first().json.items || [];\nconst all = $('Read earlier rows').first().json.items || [];\nconst FAILED = ['stale', 'format changed', 'does not reconcile'];\nconst WEEK = 7 * 86400000;\n\n// Step 9: a line version is in force for a week only if its system-stamped approval came before that\n// week's counting period began (the previous cut-off): it takes effect from the next cut-off after approval.\nfunction lineFor(measure, cutoff) {\n  const start = new Date(cutoff).getTime() - WEEK;\n  return lines.filter(l => l.measure === measure && l.approved_at && new Date(l.approved_at).getTime() <= start)\n    .sort((a, b) => Number(a.version) - Number(b.version)).pop() || null;\n}\n// Step 5: compare the value or the change with the line, in its direction; \"inclusive\" says whether landing on it counts.\nfunction past(row, line) {\n  const x = row[line.field];\n  if (typeof x !== 'number') return false;\n  if (line.direction === 'above') return line.inclusive ? x >= line.line : x > line.line;\n  return line.inclusive ? x <= line.line : x < line.line;\n}\n// The optional second-week rule reads the current version of the week before.\nconst seq = v => Number(String(v.id).replace(/\\D/g, '')) || 0;\nconst prev = versions.filter(v => v.status === 'written' && v.week < version.week).sort((a, b) => seq(a) - seq(b)).pop();\nconst prevRows = prev ? all.filter(r => r.version === prev.id) : [];\n\nreturn rows.map(row => {\n  const line = lineFor(row.measure, row.cutoff);\n  const base = { week: row.week, version: row.version, measure: row.measure, value: row.value, change: row.change,\n                 cutoff: row.cutoff, source: row.source, source_link: row.source_link, status: row.status, last_good: row.last_good || null,\n                 line_version: line ? line.version : null, line: line ? line.line : null, field: line ? line.field : null,\n                 direction: line ? line.direction : null, inclusive: line ? !!line.inclusive : null,\n                 measure_owner: line ? line.measure_owner : null, data_owner: line ? line.data_owner : null };\n  let outcome;\n  if (String(row.status).startsWith('fewer than')) outcome = 'not checked';  // Table 12.2: never checked\n  else if (!line) outcome = 'no line';\n  else if (FAILED.includes(row.status)) outcome = 'stale';\n  else if (!past(row, line)) outcome = 'within the line';\n  else if (cfg.second_week_only) {\n    const before = prevRows.find(r => r.measure === row.measure);\n    const prevLine = before ? lineFor(before.measure, before.cutoff) : null;\n    outcome = before && prevLine && past(before, prevLine) ? 'past the line' : 'past the line, first week';\n  } else outcome = 'past the line';\n  return { json: Object.assign(base, { outcome, key: `${row.week}:${row.measure}:${line ? line.version : 'none'}:${outcome}` }) };\n});\n};\nreturn { items: one(__rule()).map(o => Object.assign({}, o, BODIES(o))) };\n",
+        "input": [
+          {
+            "name": "in0_Config",
+            "value": "{{2.result}}"
+          },
+          {
+            "name": "in1_Readtheversion",
+            "value": "{{7.data}}"
+          },
+          {
+            "name": "in2_Readthetablerows",
+            "value": "{{9.data}}"
+          },
+          {
+            "name": "in3_Readthethresholdlist",
+            "value": "{{11.data}}"
+          },
+          {
+            "name": "in4_Readversions",
+            "value": "{{13.data}}"
+          },
+          {
+            "name": "in5_Readearlierrows",
+            "value": "{{15.data}}"
+          },
+          {
+            "name": "run_id",
+            "value": "{{var.scenario.executionId}}"
+          }
+        ]
+      },
+      "metadata": {
+        "designer": {
+          "x": 2400,
+          "y": 0,
+          "name": "Step 2: Rule: each measure's outcome"
+        }
+      }
+    },
+    {
+      "id": 17,
+      "module": "builtin:BasicFeeder",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "array": "{{16.result.items}}"
+      },
+      "metadata": {
+        "designer": {
+          "x": 2700,
+          "y": 0,
+          "name": "Each measure"
+        }
+      }
+    },
+    {
+      "id": 18,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{2.result.table_api_url}}/rpc/reserve_key",
+        "method": "post",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true,
+        "contentType": "json",
+        "inputMethod": "jsonString",
+        "jsonStringBodyContent": "{{17.reserve_body}}"
+      },
+      "metadata": {
+        "designer": {
+          "x": 3000,
+          "y": 0,
+          "name": "Step 3: Reserve key"
+        }
+      }
+    },
+    {
+      "id": 55,
+      "module": "builtin:BasicRouter",
+      "version": 1,
+      "mapper": null,
+      "routes": [
+        {
+          "flow": [
+            {
+              "id": 19,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.table_api_url}}/decision_log",
+                "method": "post",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{17.log_copy}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 3600,
+                  "y": 0,
+                  "name": "Step 7: Log every check (suppressed)"
+                }
+              },
+              "filter": {
+                "name": "outcome unchanged (a copy)",
+                "conditions": [
+                  [
+                    {
+                      "a": "{{18.data}}",
+                      "b": "false",
+                      "o": "text:equal"
+                    }
+                  ]
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "flow": [
+            {
+              "id": 20,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.chat_url}}/messages",
+                "method": "post",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": false,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{17.post_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 3600,
+                  "y": 300,
+                  "name": "Steps 4 and 6: Post the alert (try 1)"
+                }
+              },
+              "filter": {
+                "name": "new outcome that alerts",
+                "conditions": [
+                  [
+                    {
+                      "a": "{{18.data}}",
+                      "b": "true",
+                      "o": "text:equal"
+                    },
+                    {
+                      "a": "{{17.alert}}",
+                      "b": "yes",
+                      "o": "text:equal"
+                    }
+                  ]
+                ]
+              }
+            },
+            {
+              "id": 53,
+              "module": "builtin:BasicRouter",
+              "version": 1,
+              "mapper": null,
+              "routes": [
+                {
+                  "flow": [
+                    {
+                      "id": 50,
+                      "module": "http:MakeRequest",
+                      "version": 4,
+                      "parameters": {},
+                      "mapper": {
+                        "url": "{{2.result.alert_log_url}}/alerts",
+                        "method": "post",
+                        "timeout": "40",
+                        "parseResponse": false,
+                        "stopOnHttpError": true,
+                        "allowRedirects": true,
+                        "shareCookies": false,
+                        "requestCompressedContent": true,
+                        "contentType": "json",
+                        "inputMethod": "jsonString",
+                        "jsonStringBodyContent": "{{17.alert_log_body}}"
+                      },
+                      "metadata": {
+                        "designer": {
+                          "x": 4200,
+                          "y": 300,
+                          "name": "Steps 4 and 6: Add to the alert log (posted, try 1)"
+                        }
+                      },
+                      "onerror": [
+                        {
+                          "id": 47,
+                          "module": "http:MakeRequest",
+                          "version": 4,
+                          "parameters": {},
+                          "mapper": {
+                            "url": "{{2.result.table_api_url}}/key_log?recipe=eq.R12.3&key=eq.{{17.key_q}}",
+                            "method": "patch",
+                            "timeout": "40",
+                            "parseResponse": false,
+                            "stopOnHttpError": true,
+                            "allowRedirects": true,
+                            "shareCookies": false,
+                            "requestCompressedContent": true,
+                            "contentType": "json",
+                            "inputMethod": "jsonString",
+                            "jsonStringBodyContent": "{{17.failed_key_body}}"
+                          },
+                          "metadata": {
+                            "designer": {
+                              "x": 4200,
+                              "y": 600,
+                              "name": "Steps 4 and 6: Add to the alert log (posted, try 1): mark key failed"
+                            }
+                          }
+                        },
+                        {
+                          "id": 48,
+                          "module": "http:MakeRequest",
+                          "version": 4,
+                          "parameters": {},
+                          "mapper": {
+                            "url": "{{2.result.table_api_url}}/exception_queue",
+                            "method": "post",
+                            "timeout": "40",
+                            "parseResponse": false,
+                            "stopOnHttpError": true,
+                            "allowRedirects": true,
+                            "shareCookies": false,
+                            "requestCompressedContent": true,
+                            "contentType": "json",
+                            "inputMethod": "jsonString",
+                            "jsonStringBodyContent": "{{17.failed_body}}"
+                          },
+                          "metadata": {
+                            "designer": {
+                              "x": 4500,
+                              "y": 600,
+                              "name": "Steps 4 and 6: Add to the alert log (posted, try 1): exception queue"
+                            }
+                          }
+                        },
+                        {
+                          "id": 49,
+                          "module": "builtin:Ignore",
+                          "version": 1,
+                          "metadata": {
+                            "designer": {
+                              "x": 4800,
+                              "y": 600
+                            }
+                          }
+                        }
+                      ],
+                      "filter": {
+                        "name": "posted",
+                        "conditions": [
+                          [
+                            {
+                              "a": "{{20.statusCode}}",
+                              "b": "300",
+                              "o": "number:less"
+                            }
+                          ]
+                        ]
+                      }
+                    },
+                    {
+                      "id": 51,
+                      "module": "http:MakeRequest",
+                      "version": 4,
+                      "parameters": {},
+                      "mapper": {
+                        "url": "{{2.result.table_api_url}}/key_log?recipe=eq.R12.3&key=eq.{{17.key_q}}",
+                        "method": "patch",
+                        "timeout": "40",
+                        "parseResponse": false,
+                        "stopOnHttpError": true,
+                        "allowRedirects": true,
+                        "shareCookies": false,
+                        "requestCompressedContent": true,
+                        "contentType": "json",
+                        "inputMethod": "jsonString",
+                        "jsonStringBodyContent": "{{17.done_body}}"
+                      },
+                      "metadata": {
+                        "designer": {
+                          "x": 4500,
+                          "y": 300,
+                          "name": "Mark key done (posted, try 1)"
+                        }
+                      }
+                    },
+                    {
+                      "id": 52,
+                      "module": "http:MakeRequest",
+                      "version": 4,
+                      "parameters": {},
+                      "mapper": {
+                        "url": "{{2.result.table_api_url}}/decision_log",
+                        "method": "post",
+                        "timeout": "40",
+                        "parseResponse": false,
+                        "stopOnHttpError": true,
+                        "allowRedirects": true,
+                        "shareCookies": false,
+                        "requestCompressedContent": true,
+                        "contentType": "json",
+                        "inputMethod": "jsonString",
+                        "jsonStringBodyContent": "{{17.log_sent}}"
+                      },
+                      "metadata": {
+                        "designer": {
+                          "x": 4800,
+                          "y": 300,
+                          "name": "Step 7: Log every check (posted, try 1)"
+                        }
+                      }
+                    }
+                  ]
+                },
+                {
+                  "flow": [
+                    {
+                      "id": 21,
+                      "module": "http:MakeRequest",
+                      "version": 4,
+                      "parameters": {},
+                      "mapper": {
+                        "url": "{{2.result.chat_url}}/messages",
+                        "method": "post",
+                        "timeout": "40",
+                        "parseResponse": false,
+                        "stopOnHttpError": false,
+                        "allowRedirects": true,
+                        "shareCookies": false,
+                        "requestCompressedContent": true,
+                        "contentType": "json",
+                        "inputMethod": "jsonString",
+                        "jsonStringBodyContent": "{{17.post_body}}"
+                      },
+                      "metadata": {
+                        "designer": {
+                          "x": 4200,
+                          "y": 900,
+                          "name": "Steps 4 and 6: Post the alert (try 2)"
+                        }
+                      },
+                      "filter": {
+                        "name": "post failed",
+                        "conditions": [
+                          [
+                            {
+                              "a": "{{20.statusCode}}",
+                              "b": "300",
+                              "o": "number:greaterorequal"
+                            }
+                          ]
+                        ]
+                      }
+                    },
+                    {
+                      "id": 46,
+                      "module": "builtin:BasicRouter",
+                      "version": 1,
+                      "mapper": null,
+                      "routes": [
+                        {
+                          "flow": [
+                            {
+                              "id": 43,
+                              "module": "http:MakeRequest",
+                              "version": 4,
+                              "parameters": {},
+                              "mapper": {
+                                "url": "{{2.result.alert_log_url}}/alerts",
+                                "method": "post",
+                                "timeout": "40",
+                                "parseResponse": false,
+                                "stopOnHttpError": true,
+                                "allowRedirects": true,
+                                "shareCookies": false,
+                                "requestCompressedContent": true,
+                                "contentType": "json",
+                                "inputMethod": "jsonString",
+                                "jsonStringBodyContent": "{{17.alert_log_body}}"
+                              },
+                              "metadata": {
+                                "designer": {
+                                  "x": 4800,
+                                  "y": 900,
+                                  "name": "Steps 4 and 6: Add to the alert log (posted, try 2)"
+                                }
+                              },
+                              "onerror": [
+                                {
+                                  "id": 40,
+                                  "module": "http:MakeRequest",
+                                  "version": 4,
+                                  "parameters": {},
+                                  "mapper": {
+                                    "url": "{{2.result.table_api_url}}/key_log?recipe=eq.R12.3&key=eq.{{17.key_q}}",
+                                    "method": "patch",
+                                    "timeout": "40",
+                                    "parseResponse": false,
+                                    "stopOnHttpError": true,
+                                    "allowRedirects": true,
+                                    "shareCookies": false,
+                                    "requestCompressedContent": true,
+                                    "contentType": "json",
+                                    "inputMethod": "jsonString",
+                                    "jsonStringBodyContent": "{{17.failed_key_body}}"
+                                  },
+                                  "metadata": {
+                                    "designer": {
+                                      "x": 4800,
+                                      "y": 1200,
+                                      "name": "Steps 4 and 6: Add to the alert log (posted, try 2): mark key failed"
+                                    }
+                                  }
+                                },
+                                {
+                                  "id": 41,
+                                  "module": "http:MakeRequest",
+                                  "version": 4,
+                                  "parameters": {},
+                                  "mapper": {
+                                    "url": "{{2.result.table_api_url}}/exception_queue",
+                                    "method": "post",
+                                    "timeout": "40",
+                                    "parseResponse": false,
+                                    "stopOnHttpError": true,
+                                    "allowRedirects": true,
+                                    "shareCookies": false,
+                                    "requestCompressedContent": true,
+                                    "contentType": "json",
+                                    "inputMethod": "jsonString",
+                                    "jsonStringBodyContent": "{{17.failed_body}}"
+                                  },
+                                  "metadata": {
+                                    "designer": {
+                                      "x": 5100,
+                                      "y": 1200,
+                                      "name": "Steps 4 and 6: Add to the alert log (posted, try 2): exception queue"
+                                    }
+                                  }
+                                },
+                                {
+                                  "id": 42,
+                                  "module": "builtin:Ignore",
+                                  "version": 1,
+                                  "metadata": {
+                                    "designer": {
+                                      "x": 5400,
+                                      "y": 1200
+                                    }
+                                  }
+                                }
+                              ],
+                              "filter": {
+                                "name": "posted",
+                                "conditions": [
+                                  [
+                                    {
+                                      "a": "{{21.statusCode}}",
+                                      "b": "300",
+                                      "o": "number:less"
+                                    }
+                                  ]
+                                ]
+                              }
+                            },
+                            {
+                              "id": 44,
+                              "module": "http:MakeRequest",
+                              "version": 4,
+                              "parameters": {},
+                              "mapper": {
+                                "url": "{{2.result.table_api_url}}/key_log?recipe=eq.R12.3&key=eq.{{17.key_q}}",
+                                "method": "patch",
+                                "timeout": "40",
+                                "parseResponse": false,
+                                "stopOnHttpError": true,
+                                "allowRedirects": true,
+                                "shareCookies": false,
+                                "requestCompressedContent": true,
+                                "contentType": "json",
+                                "inputMethod": "jsonString",
+                                "jsonStringBodyContent": "{{17.done_body}}"
+                              },
+                              "metadata": {
+                                "designer": {
+                                  "x": 5100,
+                                  "y": 900,
+                                  "name": "Mark key done (posted, try 2)"
+                                }
+                              }
+                            },
+                            {
+                              "id": 45,
+                              "module": "http:MakeRequest",
+                              "version": 4,
+                              "parameters": {},
+                              "mapper": {
+                                "url": "{{2.result.table_api_url}}/decision_log",
+                                "method": "post",
+                                "timeout": "40",
+                                "parseResponse": false,
+                                "stopOnHttpError": true,
+                                "allowRedirects": true,
+                                "shareCookies": false,
+                                "requestCompressedContent": true,
+                                "contentType": "json",
+                                "inputMethod": "jsonString",
+                                "jsonStringBodyContent": "{{17.log_sent}}"
+                              },
+                              "metadata": {
+                                "designer": {
+                                  "x": 5400,
+                                  "y": 900,
+                                  "name": "Step 7: Log every check (posted, try 2)"
+                                }
+                              }
+                            }
+                          ]
+                        },
+                        {
+                          "flow": [
+                            {
+                              "id": 22,
+                              "module": "http:MakeRequest",
+                              "version": 4,
+                              "parameters": {},
+                              "mapper": {
+                                "url": "{{2.result.chat_url}}/messages",
+                                "method": "post",
+                                "timeout": "40",
+                                "parseResponse": false,
+                                "stopOnHttpError": false,
+                                "allowRedirects": true,
+                                "shareCookies": false,
+                                "requestCompressedContent": true,
+                                "contentType": "json",
+                                "inputMethod": "jsonString",
+                                "jsonStringBodyContent": "{{17.post_body}}"
+                              },
+                              "metadata": {
+                                "designer": {
+                                  "x": 4800,
+                                  "y": 1500,
+                                  "name": "Steps 4 and 6: Post the alert (try 3)"
+                                }
+                              },
+                              "filter": {
+                                "name": "post failed",
+                                "conditions": [
+                                  [
+                                    {
+                                      "a": "{{21.statusCode}}",
+                                      "b": "300",
+                                      "o": "number:greaterorequal"
+                                    }
+                                  ]
+                                ]
+                              }
+                            },
+                            {
+                              "id": 39,
+                              "module": "builtin:BasicRouter",
+                              "version": 1,
+                              "mapper": null,
+                              "routes": [
+                                {
+                                  "flow": [
+                                    {
+                                      "id": 36,
+                                      "module": "http:MakeRequest",
+                                      "version": 4,
+                                      "parameters": {},
+                                      "mapper": {
+                                        "url": "{{2.result.alert_log_url}}/alerts",
+                                        "method": "post",
+                                        "timeout": "40",
+                                        "parseResponse": false,
+                                        "stopOnHttpError": true,
+                                        "allowRedirects": true,
+                                        "shareCookies": false,
+                                        "requestCompressedContent": true,
+                                        "contentType": "json",
+                                        "inputMethod": "jsonString",
+                                        "jsonStringBodyContent": "{{17.alert_log_body}}"
+                                      },
+                                      "metadata": {
+                                        "designer": {
+                                          "x": 5400,
+                                          "y": 1500,
+                                          "name": "Steps 4 and 6: Add to the alert log (posted, try 3)"
+                                        }
+                                      },
+                                      "onerror": [
+                                        {
+                                          "id": 33,
+                                          "module": "http:MakeRequest",
+                                          "version": 4,
+                                          "parameters": {},
+                                          "mapper": {
+                                            "url": "{{2.result.table_api_url}}/key_log?recipe=eq.R12.3&key=eq.{{17.key_q}}",
+                                            "method": "patch",
+                                            "timeout": "40",
+                                            "parseResponse": false,
+                                            "stopOnHttpError": true,
+                                            "allowRedirects": true,
+                                            "shareCookies": false,
+                                            "requestCompressedContent": true,
+                                            "contentType": "json",
+                                            "inputMethod": "jsonString",
+                                            "jsonStringBodyContent": "{{17.failed_key_body}}"
+                                          },
+                                          "metadata": {
+                                            "designer": {
+                                              "x": 5400,
+                                              "y": 1800,
+                                              "name": "Steps 4 and 6: Add to the alert log (posted, try 3): mark key failed"
+                                            }
+                                          }
+                                        },
+                                        {
+                                          "id": 34,
+                                          "module": "http:MakeRequest",
+                                          "version": 4,
+                                          "parameters": {},
+                                          "mapper": {
+                                            "url": "{{2.result.table_api_url}}/exception_queue",
+                                            "method": "post",
+                                            "timeout": "40",
+                                            "parseResponse": false,
+                                            "stopOnHttpError": true,
+                                            "allowRedirects": true,
+                                            "shareCookies": false,
+                                            "requestCompressedContent": true,
+                                            "contentType": "json",
+                                            "inputMethod": "jsonString",
+                                            "jsonStringBodyContent": "{{17.failed_body}}"
+                                          },
+                                          "metadata": {
+                                            "designer": {
+                                              "x": 5700,
+                                              "y": 1800,
+                                              "name": "Steps 4 and 6: Add to the alert log (posted, try 3): exception queue"
+                                            }
+                                          }
+                                        },
+                                        {
+                                          "id": 35,
+                                          "module": "builtin:Ignore",
+                                          "version": 1,
+                                          "metadata": {
+                                            "designer": {
+                                              "x": 6000,
+                                              "y": 1800
+                                            }
+                                          }
+                                        }
+                                      ],
+                                      "filter": {
+                                        "name": "posted",
+                                        "conditions": [
+                                          [
+                                            {
+                                              "a": "{{22.statusCode}}",
+                                              "b": "300",
+                                              "o": "number:less"
+                                            }
+                                          ]
+                                        ]
+                                      }
+                                    },
+                                    {
+                                      "id": 37,
+                                      "module": "http:MakeRequest",
+                                      "version": 4,
+                                      "parameters": {},
+                                      "mapper": {
+                                        "url": "{{2.result.table_api_url}}/key_log?recipe=eq.R12.3&key=eq.{{17.key_q}}",
+                                        "method": "patch",
+                                        "timeout": "40",
+                                        "parseResponse": false,
+                                        "stopOnHttpError": true,
+                                        "allowRedirects": true,
+                                        "shareCookies": false,
+                                        "requestCompressedContent": true,
+                                        "contentType": "json",
+                                        "inputMethod": "jsonString",
+                                        "jsonStringBodyContent": "{{17.done_body}}"
+                                      },
+                                      "metadata": {
+                                        "designer": {
+                                          "x": 5700,
+                                          "y": 1500,
+                                          "name": "Mark key done (posted, try 3)"
+                                        }
+                                      }
+                                    },
+                                    {
+                                      "id": 38,
+                                      "module": "http:MakeRequest",
+                                      "version": 4,
+                                      "parameters": {},
+                                      "mapper": {
+                                        "url": "{{2.result.table_api_url}}/decision_log",
+                                        "method": "post",
+                                        "timeout": "40",
+                                        "parseResponse": false,
+                                        "stopOnHttpError": true,
+                                        "allowRedirects": true,
+                                        "shareCookies": false,
+                                        "requestCompressedContent": true,
+                                        "contentType": "json",
+                                        "inputMethod": "jsonString",
+                                        "jsonStringBodyContent": "{{17.log_sent}}"
+                                      },
+                                      "metadata": {
+                                        "designer": {
+                                          "x": 6000,
+                                          "y": 1500,
+                                          "name": "Step 7: Log every check (posted, try 3)"
+                                        }
+                                      }
+                                    }
+                                  ]
+                                },
+                                {
+                                  "flow": [
+                                    {
+                                      "id": 26,
+                                      "module": "http:MakeRequest",
+                                      "version": 4,
+                                      "parameters": {},
+                                      "mapper": {
+                                        "url": "{{2.result.email_url}}/messages",
+                                        "method": "post",
+                                        "timeout": "40",
+                                        "parseResponse": false,
+                                        "stopOnHttpError": true,
+                                        "allowRedirects": true,
+                                        "shareCookies": false,
+                                        "requestCompressedContent": true,
+                                        "contentType": "json",
+                                        "inputMethod": "jsonString",
+                                        "jsonStringBodyContent": "{{17.post_body}}"
+                                      },
+                                      "metadata": {
+                                        "designer": {
+                                          "x": 5400,
+                                          "y": 2100,
+                                          "name": "Steps 4 and 6: Email the alert"
+                                        }
+                                      },
+                                      "onerror": [
+                                        {
+                                          "id": 23,
+                                          "module": "http:MakeRequest",
+                                          "version": 4,
+                                          "parameters": {},
+                                          "mapper": {
+                                            "url": "{{2.result.table_api_url}}/key_log?recipe=eq.R12.3&key=eq.{{17.key_q}}",
+                                            "method": "patch",
+                                            "timeout": "40",
+                                            "parseResponse": false,
+                                            "stopOnHttpError": true,
+                                            "allowRedirects": true,
+                                            "shareCookies": false,
+                                            "requestCompressedContent": true,
+                                            "contentType": "json",
+                                            "inputMethod": "jsonString",
+                                            "jsonStringBodyContent": "{{17.failed_key_body}}"
+                                          },
+                                          "metadata": {
+                                            "designer": {
+                                              "x": 5400,
+                                              "y": 2400,
+                                              "name": "Steps 4 and 6: Email the alert: mark key failed"
+                                            }
+                                          }
+                                        },
+                                        {
+                                          "id": 24,
+                                          "module": "http:MakeRequest",
+                                          "version": 4,
+                                          "parameters": {},
+                                          "mapper": {
+                                            "url": "{{2.result.table_api_url}}/exception_queue",
+                                            "method": "post",
+                                            "timeout": "40",
+                                            "parseResponse": false,
+                                            "stopOnHttpError": true,
+                                            "allowRedirects": true,
+                                            "shareCookies": false,
+                                            "requestCompressedContent": true,
+                                            "contentType": "json",
+                                            "inputMethod": "jsonString",
+                                            "jsonStringBodyContent": "{{17.failed_body}}"
+                                          },
+                                          "metadata": {
+                                            "designer": {
+                                              "x": 5700,
+                                              "y": 2400,
+                                              "name": "Steps 4 and 6: Email the alert: exception queue"
+                                            }
+                                          }
+                                        },
+                                        {
+                                          "id": 25,
+                                          "module": "builtin:Ignore",
+                                          "version": 1,
+                                          "metadata": {
+                                            "designer": {
+                                              "x": 6000,
+                                              "y": 2400
+                                            }
+                                          }
+                                        }
+                                      ],
+                                      "filter": {
+                                        "name": "post failed",
+                                        "conditions": [
+                                          [
+                                            {
+                                              "a": "{{22.statusCode}}",
+                                              "b": "300",
+                                              "o": "number:greaterorequal"
+                                            }
+                                          ]
+                                        ]
+                                      }
+                                    },
+                                    {
+                                      "id": 30,
+                                      "module": "http:MakeRequest",
+                                      "version": 4,
+                                      "parameters": {},
+                                      "mapper": {
+                                        "url": "{{2.result.alert_log_url}}/alerts",
+                                        "method": "post",
+                                        "timeout": "40",
+                                        "parseResponse": false,
+                                        "stopOnHttpError": true,
+                                        "allowRedirects": true,
+                                        "shareCookies": false,
+                                        "requestCompressedContent": true,
+                                        "contentType": "json",
+                                        "inputMethod": "jsonString",
+                                        "jsonStringBodyContent": "{{17.alert_log_body}}"
+                                      },
+                                      "metadata": {
+                                        "designer": {
+                                          "x": 5700,
+                                          "y": 2100,
+                                          "name": "Steps 4 and 6: Add to the alert log (emailed)"
+                                        }
+                                      },
+                                      "onerror": [
+                                        {
+                                          "id": 27,
+                                          "module": "http:MakeRequest",
+                                          "version": 4,
+                                          "parameters": {},
+                                          "mapper": {
+                                            "url": "{{2.result.table_api_url}}/key_log?recipe=eq.R12.3&key=eq.{{17.key_q}}",
+                                            "method": "patch",
+                                            "timeout": "40",
+                                            "parseResponse": false,
+                                            "stopOnHttpError": true,
+                                            "allowRedirects": true,
+                                            "shareCookies": false,
+                                            "requestCompressedContent": true,
+                                            "contentType": "json",
+                                            "inputMethod": "jsonString",
+                                            "jsonStringBodyContent": "{{17.failed_key_body}}"
+                                          },
+                                          "metadata": {
+                                            "designer": {
+                                              "x": 5700,
+                                              "y": 2400,
+                                              "name": "Steps 4 and 6: Add to the alert log (emailed): mark key failed"
+                                            }
+                                          }
+                                        },
+                                        {
+                                          "id": 28,
+                                          "module": "http:MakeRequest",
+                                          "version": 4,
+                                          "parameters": {},
+                                          "mapper": {
+                                            "url": "{{2.result.table_api_url}}/exception_queue",
+                                            "method": "post",
+                                            "timeout": "40",
+                                            "parseResponse": false,
+                                            "stopOnHttpError": true,
+                                            "allowRedirects": true,
+                                            "shareCookies": false,
+                                            "requestCompressedContent": true,
+                                            "contentType": "json",
+                                            "inputMethod": "jsonString",
+                                            "jsonStringBodyContent": "{{17.failed_body}}"
+                                          },
+                                          "metadata": {
+                                            "designer": {
+                                              "x": 6000,
+                                              "y": 2400,
+                                              "name": "Steps 4 and 6: Add to the alert log (emailed): exception queue"
+                                            }
+                                          }
+                                        },
+                                        {
+                                          "id": 29,
+                                          "module": "builtin:Ignore",
+                                          "version": 1,
+                                          "metadata": {
+                                            "designer": {
+                                              "x": 6300,
+                                              "y": 2400
+                                            }
+                                          }
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "id": 31,
+                                      "module": "http:MakeRequest",
+                                      "version": 4,
+                                      "parameters": {},
+                                      "mapper": {
+                                        "url": "{{2.result.table_api_url}}/key_log?recipe=eq.R12.3&key=eq.{{17.key_q}}",
+                                        "method": "patch",
+                                        "timeout": "40",
+                                        "parseResponse": false,
+                                        "stopOnHttpError": true,
+                                        "allowRedirects": true,
+                                        "shareCookies": false,
+                                        "requestCompressedContent": true,
+                                        "contentType": "json",
+                                        "inputMethod": "jsonString",
+                                        "jsonStringBodyContent": "{{17.done_body}}"
+                                      },
+                                      "metadata": {
+                                        "designer": {
+                                          "x": 6000,
+                                          "y": 2100,
+                                          "name": "Mark key done (emailed)"
+                                        }
+                                      }
+                                    },
+                                    {
+                                      "id": 32,
+                                      "module": "http:MakeRequest",
+                                      "version": 4,
+                                      "parameters": {},
+                                      "mapper": {
+                                        "url": "{{2.result.table_api_url}}/decision_log",
+                                        "method": "post",
+                                        "timeout": "40",
+                                        "parseResponse": false,
+                                        "stopOnHttpError": true,
+                                        "allowRedirects": true,
+                                        "shareCookies": false,
+                                        "requestCompressedContent": true,
+                                        "contentType": "json",
+                                        "inputMethod": "jsonString",
+                                        "jsonStringBodyContent": "{{17.log_sent}}"
+                                      },
+                                      "metadata": {
+                                        "designer": {
+                                          "x": 6300,
+                                          "y": 2100,
+                                          "name": "Step 7: Log every check (emailed)"
+                                        }
+                                      }
+                                    }
+                                  ]
+                                }
+                              ],
+                              "metadata": {
+                                "designer": {
+                                  "x": 5100,
+                                  "y": 1500,
+                                  "name": "Posted? (try 3)"
+                                }
+                              }
+                            }
+                          ]
+                        }
+                      ],
+                      "metadata": {
+                        "designer": {
+                          "x": 4500,
+                          "y": 900,
+                          "name": "Posted? (try 2)"
+                        }
+                      }
+                    }
+                  ]
+                }
+              ],
+              "metadata": {
+                "designer": {
+                  "x": 3900,
+                  "y": 300,
+                  "name": "Posted? (try 1)"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "flow": [
+            {
+              "id": 54,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.table_api_url}}/decision_log",
+                "method": "post",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{17.log_none}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 3600,
+                  "y": 2700,
+                  "name": "Step 7: Log every check (no alert)"
+                }
+              },
+              "filter": {
+                "name": "new outcome, no alert",
+                "conditions": [
+                  [
+                    {
+                      "a": "{{18.data}}",
+                      "b": "true",
+                      "o": "text:equal"
+                    },
+                    {
+                      "a": "{{17.alert}}",
+                      "b": "no",
+                      "o": "text:equal"
+                    }
+                  ]
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "designer": {
+          "x": 3300,
+          "y": 0,
+          "name": "Outcome"
+        }
+      }
+    }
+  ],
+  "metadata": {
+    "instant": true,
+    "version": 1,
+    "designer": {
+      "orphans": []
+    },
+    "scenario": {
+      "dlq": true,
+      "slots": null,
+      "dataloss": false,
+      "maxErrors": 3,
+      "autoCommit": true,
+      "roundtrips": 1,
+      "sequential": false,
+      "confidential": false,
+      "freshVariables": false,
+      "autoCommitTriggerLast": true
+    }
+  }
+}

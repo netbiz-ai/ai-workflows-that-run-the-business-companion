@@ -1,0 +1,653 @@
+{
+  "name": "R11.3 Route purchase approval: new accounting export",
+  "flow": [
+    {
+      "id": 1,
+      "module": "gateway:CustomWebHook",
+      "version": 1,
+      "parameters": {
+        "hook": null,
+        "maxResults": 1
+      },
+      "mapper": {},
+      "metadata": {
+        "designer": {
+          "x": 0,
+          "y": 0,
+          "name": "Step 12: New accounting export"
+        }
+      }
+    },
+    {
+      "id": 2,
+      "module": "code:ExecuteCode",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "language": "javascript",
+        "inputFormat": "editor",
+        "dependencies": [],
+        "codeEditorJavascript": "// Config: edit these values for your company; nothing else in the scenario hard-codes them.\nreturn {\n  \"stop_flag_url\": \"https://<your stop list API>/stop_flags/R11.3\",\n  \"table_api_url\": \"https://<your table API for the key log, decision log and exception queue>\",\n  \"workflow_owner\": \"<your workflow owner>\",\n  \"requests_url\": \"https://<your request list API>\",\n  \"budget_url\": \"https://<your budget list API>\",\n  \"approvals_url\": \"https://<your approvals API>\",\n  \"vendors_url\": \"https://<your vendor-record export API>\",\n  \"policy_url\": \"https://<your policy list API>\",\n  \"ledger_url\": \"https://<your accounting platform export API>\",\n  \"messaging_url\": \"https://<your messaging API>\",\n  \"budget_export_max_days\": 7,\n  \"senior_limit\": 10000,\n  \"release_margin_working_days\": 2,\n  \"remind_working_days\": 2,\n  \"standin_working_days\": 3,\n  \"bill_tolerance\": \"<your bill tolerance, in dollars>\",\n  \"approver\": \"<your approver up to the limit>\",\n  \"senior_approver\": \"<your senior approver>\",\n  \"payment_approver\": \"<your payment approver>\",\n  \"budget_owner\": \"<your budget owner>\",\n  \"buyer\": \"<your buyer>\",\n  \"editor\": \"<your workflow editor>\"\n};",
+        "input": []
+      },
+      "metadata": {
+        "designer": {
+          "x": 300,
+          "y": 0,
+          "name": "Config"
+        }
+      }
+    },
+    {
+      "id": 5,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{2.result.stop_flag_url}}",
+        "method": "get",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true
+      },
+      "metadata": {
+        "designer": {
+          "x": 600,
+          "y": 0,
+          "name": "Stop flag: read"
+        }
+      },
+      "onerror": [
+        {
+          "id": 3,
+          "module": "http:MakeRequest",
+          "version": 4,
+          "parameters": {},
+          "mapper": {
+            "url": "{{2.result.table_api_url}}/exception_queue",
+            "method": "post",
+            "timeout": "40",
+            "parseResponse": false,
+            "stopOnHttpError": true,
+            "allowRedirects": true,
+            "shareCookies": false,
+            "requestCompressedContent": true,
+            "contentType": "json",
+            "inputMethod": "jsonString",
+            "jsonStringBodyContent": "{\"recipe\": \"R11.3\", \"item\": \"run {{var.scenario.executionId}}\", \"reason\": \"stop list unreadable\", \"detail\": \"The stop list could not be read, so the run stopped\", \"owner\": \"{{2.result.workflow_owner}}\"}"
+          },
+          "metadata": {
+            "designer": {
+              "x": 600,
+              "y": 300,
+              "name": "Stop flag: list unreadable"
+            }
+          }
+        },
+        {
+          "id": 4,
+          "module": "builtin:Ignore",
+          "version": 1,
+          "metadata": {
+            "designer": {
+              "x": 900,
+              "y": 300
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{2.result.ledger_url}}/bills",
+        "method": "get",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true,
+        "queryParameters": [
+          {
+            "name": "_wrap",
+            "value": "1"
+          }
+        ]
+      },
+      "metadata": {
+        "designer": {
+          "x": 900,
+          "y": 0,
+          "name": "Read the export's bills"
+        }
+      },
+      "onerror": [
+        {
+          "id": 6,
+          "module": "builtin:Break",
+          "version": 1,
+          "parameters": {},
+          "mapper": {
+            "count": "3",
+            "retry": true,
+            "interval": "1"
+          },
+          "metadata": {
+            "designer": {
+              "x": 900,
+              "y": 300
+            }
+          }
+        }
+      ],
+      "filter": {
+        "name": "stop flag not set",
+        "conditions": [
+          [
+            {
+              "a": "{{5.data.stopped}}",
+              "b": "true",
+              "o": "text:notequal"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "id": 9,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{2.result.budget_url}}/commitments",
+        "method": "get",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true,
+        "queryParameters": [
+          {
+            "name": "_wrap",
+            "value": "1"
+          }
+        ]
+      },
+      "metadata": {
+        "designer": {
+          "x": 1200,
+          "y": 0,
+          "name": "Read commitments for bills"
+        }
+      },
+      "onerror": [
+        {
+          "id": 8,
+          "module": "builtin:Break",
+          "version": 1,
+          "parameters": {},
+          "mapper": {
+            "count": "3",
+            "retry": true,
+            "interval": "1"
+          },
+          "metadata": {
+            "designer": {
+              "x": 1200,
+              "y": 300
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "module": "code:ExecuteCode",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "language": "javascript",
+        "inputFormat": "editor",
+        "dependencies": [],
+        "codeEditorJavascript": "// Adapter: the rule below is the same JavaScript as the recipe's n8n build.\n// $('Step name') answers from this step's inputs: each is that step's output in this scenario.\nconst SOURCES = {\"Read the export's bills\": \"in0_Readtheexportsbills\", \"Read commitments for bills\": \"in1_Readcommitmentsforbills\"};\nconst LISTS = [];\nconst EXECUTED = [];\nconst DATA = {};\nfor (const [node, key] of Object.entries(SOURCES)) {\n  const raw = input[key];\n  let v = raw;\n  if (typeof raw === 'string') { try { v = JSON.parse(raw); } catch (e) { v = raw; } }\n  DATA[node] = LISTS.includes(node) ? (v || []).map(i => (i && i.json !== undefined ? i : { json: i })) : [{ json: v }];\n}\nconst $ = (node) => {\n  const ran = node in DATA || EXECUTED.includes(node);\n  const list = () => { if (!(node in DATA)) throw new Error(`step ${node} has no data in this scenario`); return DATA[node]; };\n  return { isExecuted: ran, first: () => list()[0], last: () => list()[list().length - 1], all: () => list(),\n           get item() { return list()[0]; } };\n};\nconst INPUT = \"Read commitments for bills\";\nconst $input = { all: () => $(INPUT).all(), first: () => $(INPUT).first(), last: () => $(INPUT).last(), get item() { return $(INPUT).first(); } };\nconst $execution = { id: input.run_id };\nconst BODIES = (out) => ({\"reserve_body\": JSON.stringify({ p_recipe: 'R11.3', p_keys: String(out.keys || '').split('|').filter(Boolean) })});\nconst one = (r) => (Array.isArray(r) ? r : [r]).filter(Boolean).map(i => (i.json !== undefined ? i.json : i));\nconst $json = INPUT && INPUT in DATA ? $input.first().json : {};\nconst __rule = () => {\n// Step 12: only bills against a commitment count; each bill is counted once (key log).\nconst bills = $('Read the export\\'s bills').first().json.items || [];\nconst commitments = new Set(($('Read commitments for bills').first().json.items || []).map(c => c.request_id));\nconst keys = bills.filter(b => commitments.has(b.request_id)).map(b => 'bill:' + b.id);\nreturn keys.length ? [{ json: { keys: keys.join('|') } }] : [];\n};\nconst out = one(__rule())[0] || {};\nreturn Object.assign({}, out, BODIES(out));\n",
+        "input": [
+          {
+            "name": "in0_Readtheexportsbills",
+            "value": "{{7.data}}"
+          },
+          {
+            "name": "in1_Readcommitmentsforbills",
+            "value": "{{9.data}}"
+          },
+          {
+            "name": "run_id",
+            "value": "{{var.scenario.executionId}}"
+          }
+        ]
+      },
+      "metadata": {
+        "designer": {
+          "x": 1500,
+          "y": 0,
+          "name": "Bills against a commitment"
+        }
+      }
+    },
+    {
+      "id": 11,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{2.result.table_api_url}}/rpc/reserve_keys",
+        "method": "post",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true,
+        "contentType": "json",
+        "inputMethod": "jsonString",
+        "jsonStringBodyContent": "{{10.result.reserve_body}}"
+      },
+      "metadata": {
+        "designer": {
+          "x": 1800,
+          "y": 0,
+          "name": "Reserve bill keys"
+        }
+      },
+      "filter": {
+        "name": "bills against a commitment",
+        "conditions": [
+          [
+            {
+              "a": "{{10.result.keys}}",
+              "b": "",
+              "o": "exist"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "id": 12,
+      "module": "code:ExecuteCode",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "language": "javascript",
+        "inputFormat": "editor",
+        "dependencies": [],
+        "codeEditorJavascript": "// Adapter: the rule below is the same JavaScript as the recipe's n8n build.\n// $('Step name') answers from this step's inputs: each is that step's output in this scenario.\nconst SOURCES = {\"Config\": \"in0_Config\", \"Read the export's bills\": \"in1_Readtheexportsbills\", \"Read commitments for bills\": \"in2_Readcommitmentsforbills\", \"Reserve bill keys\": \"in3_Reservebillkeys\"};\nconst LISTS = [];\nconst EXECUTED = [];\nconst DATA = {};\nfor (const [node, key] of Object.entries(SOURCES)) {\n  const raw = input[key];\n  let v = raw;\n  if (typeof raw === 'string') { try { v = JSON.parse(raw); } catch (e) { v = raw; } }\n  DATA[node] = LISTS.includes(node) ? (v || []).map(i => (i && i.json !== undefined ? i : { json: i })) : [{ json: v }];\n}\nconst $ = (node) => {\n  const ran = node in DATA || EXECUTED.includes(node);\n  const list = () => { if (!(node in DATA)) throw new Error(`step ${node} has no data in this scenario`); return DATA[node]; };\n  return { isExecuted: ran, first: () => list()[0], last: () => list()[list().length - 1], all: () => list(),\n           get item() { return list()[0]; } };\n};\nconst INPUT = \"Reserve bill keys\";\nconst $input = { all: () => $(INPUT).all(), first: () => $(INPUT).first(), last: () => $(INPUT).last(), get item() { return $(INPUT).first(); } };\nconst $execution = { id: input.run_id };\n// Reserve bill keys: the function's list of new keys, as the n8n rule reads it: {new_keys: 'a|b'}.\nconst __keys = (DATA['Reserve bill keys'] || [{ json: [] }])[0].json;\nDATA['Reserve bill keys'] = [{ json: { new_keys: (Array.isArray(__keys) ? __keys : [])\n  .map(k => (k && typeof k === 'object' ? Object.values(k)[0] : k)).filter(Boolean).join('|') } }];\nconst BODIES = (out) => ({\"commitment_q\": encodeURIComponent(out.commitment), \"reduce_body\": JSON.stringify({ billed: out.billed, remaining: out.remaining }), \"over_body\": JSON.stringify({ recipe: 'R11.3', item: out.request_id, reason: 'bill over commitment', detail: out.detail, owner: $('Config').first().json.budget_owner }), \"owner_message\": JSON.stringify({ to: $('Config').first().json.budget_owner, subject: 'Bill over its commitment: request ' + out.request_id, text: out.detail }), \"done_keys_body\": JSON.stringify({ p_recipe: 'R11.3', p_keys: out.keys.split('|'), p_status: 'done', p_result: 'billed ' + out.billed + ', remaining ' + out.remaining }), \"failed_keys_body\": JSON.stringify({ p_recipe: 'R11.3', p_keys: out.keys.split('|'), p_status: 'failed', p_result: 'write failed' }), \"failed_body\": JSON.stringify({ recipe: 'R11.3', item: out.request_id, reason: 'write failed', detail: 'Commitment write failed; check the budget list before rerunning', owner: $('Config').first().json.editor }), \"log_body\": JSON.stringify({ recipe: 'R11.3', item: out.commitment, decision: out.over ? 'bill over commitment' : 'commitment reduced by bills', rules: { amount: out.amount, billed: out.billed, remaining: out.remaining, bills: out.bills } })});\nconst one = (r) => (Array.isArray(r) ? r : [r]).filter(Boolean).map(i => (i.json !== undefined ? i.json : i));\nconst $json = INPUT && INPUT in DATA ? $input.first().json : {};\nconst __rule = () => {\n// Step 12: reduce each commitment by its new bills; a bill over its commitment by more than the tolerance goes to the budget owner.\nconst cfg = $('Config').first().json;\nconst tolerance = Number(cfg.bill_tolerance);\nif (!Number.isFinite(tolerance)) throw new Error('Set bill_tolerance in Config to a number of dollars');\nconst fresh = new Set(String($('Reserve bill keys').first().json.new_keys || '').split('|').filter(Boolean));\nconst bills = ($('Read the export\\'s bills').first().json.items || []).filter(b => fresh.has('bill:' + b.id));\nconst out = [];\nfor (const c of $('Read commitments for bills').first().json.items || []) {\n  const mine = bills.filter(b => b.request_id === c.request_id);\n  if (!mine.length) continue;\n  const billed = Number(c.billed || 0) + mine.reduce((s, b) => s + Number(b.amount), 0);\n  const remaining = Math.max(0, Number(c.amount) - billed);\n  const over = billed > Number(c.amount) + tolerance;\n  out.push({ json: { commitment: c.id, request_id: c.request_id, amount: Number(c.amount), billed, remaining, over,\n    bills: mine.map(b => b.id), keys: mine.map(b => 'bill:' + b.id).join('|'),\n    detail: `Commitment ${c.id}: ${c.amount}; billed ${billed} (${mine.map(b => b.id).join(', ')}); tolerance ${tolerance}` } });\n}\nreturn out;\n};\nreturn { items: one(__rule()).map(o => Object.assign({}, o, BODIES(o))) };\n",
+        "input": [
+          {
+            "name": "in0_Config",
+            "value": "{{2.result}}"
+          },
+          {
+            "name": "in1_Readtheexportsbills",
+            "value": "{{7.data}}"
+          },
+          {
+            "name": "in2_Readcommitmentsforbills",
+            "value": "{{9.data}}"
+          },
+          {
+            "name": "in3_Reservebillkeys",
+            "value": "{{11.data}}"
+          },
+          {
+            "name": "run_id",
+            "value": "{{var.scenario.executionId}}"
+          }
+        ]
+      },
+      "metadata": {
+        "designer": {
+          "x": 2100,
+          "y": 0,
+          "name": "Step 12: Rule: reduce commitments by bills"
+        }
+      }
+    },
+    {
+      "id": 13,
+      "module": "builtin:BasicFeeder",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "array": "{{12.result.items}}"
+      },
+      "metadata": {
+        "designer": {
+          "x": 2400,
+          "y": 0,
+          "name": "Each commitment billed"
+        }
+      }
+    },
+    {
+      "id": 17,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{2.result.budget_url}}/commitments/{{13.commitment_q}}",
+        "method": "patch",
+        "timeout": "40",
+        "parseResponse": false,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true,
+        "contentType": "json",
+        "inputMethod": "jsonString",
+        "jsonStringBodyContent": "{{13.reduce_body}}"
+      },
+      "metadata": {
+        "designer": {
+          "x": 2700,
+          "y": 0,
+          "name": "Step 12: Reduce the commitment"
+        }
+      },
+      "onerror": [
+        {
+          "id": 14,
+          "module": "http:MakeRequest",
+          "version": 4,
+          "parameters": {},
+          "mapper": {
+            "url": "{{2.result.table_api_url}}/rpc/finish_keys",
+            "method": "post",
+            "timeout": "40",
+            "parseResponse": true,
+            "stopOnHttpError": true,
+            "allowRedirects": true,
+            "shareCookies": false,
+            "requestCompressedContent": true,
+            "contentType": "json",
+            "inputMethod": "jsonString",
+            "jsonStringBodyContent": "{{13.failed_keys_body}}"
+          },
+          "metadata": {
+            "designer": {
+              "x": 2700,
+              "y": 300,
+              "name": "Mark bill keys failed"
+            }
+          }
+        },
+        {
+          "id": 15,
+          "module": "http:MakeRequest",
+          "version": 4,
+          "parameters": {},
+          "mapper": {
+            "url": "{{2.result.table_api_url}}/exception_queue",
+            "method": "post",
+            "timeout": "40",
+            "parseResponse": false,
+            "stopOnHttpError": true,
+            "allowRedirects": true,
+            "shareCookies": false,
+            "requestCompressedContent": true,
+            "contentType": "json",
+            "inputMethod": "jsonString",
+            "jsonStringBodyContent": "{{13.failed_body}}"
+          },
+          "metadata": {
+            "designer": {
+              "x": 3000,
+              "y": 300,
+              "name": "Exception queue: commitment write failed"
+            }
+          }
+        },
+        {
+          "id": 16,
+          "module": "builtin:Ignore",
+          "version": 1,
+          "metadata": {
+            "designer": {
+              "x": 3300,
+              "y": 300
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 24,
+      "module": "builtin:BasicRouter",
+      "version": 1,
+      "mapper": null,
+      "routes": [
+        {
+          "flow": [
+            {
+              "id": 18,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.table_api_url}}/exception_queue",
+                "method": "post",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{13.over_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 3300,
+                  "y": 0,
+                  "name": "Step 12: Exception queue: bill over commitment"
+                }
+              },
+              "filter": {
+                "name": "over tolerance",
+                "conditions": [
+                  [
+                    {
+                      "a": "{{13.over}}",
+                      "b": "true",
+                      "o": "text:equal"
+                    }
+                  ]
+                ]
+              }
+            },
+            {
+              "id": 19,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.messaging_url}}/messages",
+                "method": "post",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{13.owner_message}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 3600,
+                  "y": 0,
+                  "name": "Step 12: Tell the budget owner"
+                }
+              }
+            },
+            {
+              "id": 20,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.table_api_url}}/rpc/finish_keys",
+                "method": "post",
+                "timeout": "40",
+                "parseResponse": true,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{13.done_keys_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 3900,
+                  "y": 0,
+                  "name": "Mark bill keys done (over tolerance)"
+                }
+              }
+            },
+            {
+              "id": 21,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.table_api_url}}/decision_log",
+                "method": "post",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{13.log_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 4200,
+                  "y": 0,
+                  "name": "Decision log: commitment (over tolerance)"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "flow": [
+            {
+              "id": 22,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.table_api_url}}/rpc/finish_keys",
+                "method": "post",
+                "timeout": "40",
+                "parseResponse": true,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{13.done_keys_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 3300,
+                  "y": 300,
+                  "name": "Mark bill keys done (within tolerance)"
+                }
+              },
+              "filter": {
+                "name": "within tolerance",
+                "conditions": [
+                  [
+                    {
+                      "a": "{{13.over}}",
+                      "b": "true",
+                      "o": "text:notequal"
+                    }
+                  ]
+                ]
+              }
+            },
+            {
+              "id": 23,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.table_api_url}}/decision_log",
+                "method": "post",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{13.log_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 3600,
+                  "y": 300,
+                  "name": "Decision log: commitment (within tolerance)"
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "designer": {
+          "x": 3000,
+          "y": 0,
+          "name": "Over tolerance?"
+        }
+      }
+    }
+  ],
+  "metadata": {
+    "instant": true,
+    "version": 1,
+    "designer": {
+      "orphans": []
+    },
+    "scenario": {
+      "dlq": true,
+      "slots": null,
+      "dataloss": false,
+      "maxErrors": 3,
+      "autoCommit": true,
+      "roundtrips": 1,
+      "sequential": false,
+      "confidential": false,
+      "freshVariables": false,
+      "autoCommitTriggerLast": true
+    }
+  }
+}

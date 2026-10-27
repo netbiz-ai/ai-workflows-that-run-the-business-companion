@@ -1,0 +1,860 @@
+{
+  "name": "R7.3 Stop and verify any change to a supplier's bank details: call-back logged",
+  "flow": [
+    {
+      "id": 1,
+      "module": "gateway:CustomWebHook",
+      "version": 1,
+      "parameters": {
+        "hook": null,
+        "maxResults": 1
+      },
+      "mapper": {},
+      "metadata": {
+        "designer": {
+          "x": 0,
+          "y": 0,
+          "name": "Step 7: Call-back logged"
+        }
+      }
+    },
+    {
+      "id": 2,
+      "module": "code:ExecuteCode",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "language": "javascript",
+        "inputFormat": "editor",
+        "dependencies": [],
+        "codeEditorJavascript": "// Config: edit these values for your company; nothing else in the scenario hard-codes them.\nreturn {\n  \"stop_flag_url\": \"https://<your stop list API>/stop_flags/R7.3\",\n  \"table_api_url\": \"https://<your table API for the key log, decision log and exception queue>\",\n  \"workflow_owner\": \"<your workflow owner>\",\n  \"review_url\": \"https://<your review list API>\",\n  \"mailbox_url\": \"https://<your AP mailbox API>\",\n  \"exports_url\": \"https://<your supplier export library API>\",\n  \"suppliers_url\": \"https://<your supplier list API>\",\n  \"register_url\": \"https://<your bank register API>\",\n  \"checks_url\": \"https://<your R7.3 check list API>\",\n  \"tasks_url\": \"https://<your task list API>\",\n  \"messaging_url\": \"https://<your messaging API>\",\n  \"change_phrases\": [\n    \"new bank\",\n    \"<your change-request phrases>\"\n  ],\n  \"bank_caller\": \"<your caller, not a payment approver>\",\n  \"finance_assistant\": \"<your bank-change enterer, not a payment approver>\",\n  \"fraud_report_to\": \"<who you report suspected fraud to>\",\n  \"pre_run_reviewer\": \"<your AP owner>\",\n  \"kill_switch_alert\": \"<who is alerted when R7.3 is off>\"\n};",
+        "input": []
+      },
+      "metadata": {
+        "designer": {
+          "x": 300,
+          "y": 0,
+          "name": "Config"
+        }
+      }
+    },
+    {
+      "id": 5,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{2.result.stop_flag_url}}",
+        "method": "get",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true
+      },
+      "metadata": {
+        "designer": {
+          "x": 600,
+          "y": 0,
+          "name": "Stop flag: read"
+        }
+      },
+      "onerror": [
+        {
+          "id": 3,
+          "module": "http:MakeRequest",
+          "version": 4,
+          "parameters": {},
+          "mapper": {
+            "url": "{{2.result.table_api_url}}/exception_queue",
+            "method": "post",
+            "timeout": "40",
+            "parseResponse": false,
+            "stopOnHttpError": true,
+            "allowRedirects": true,
+            "shareCookies": false,
+            "requestCompressedContent": true,
+            "contentType": "json",
+            "inputMethod": "jsonString",
+            "jsonStringBodyContent": "{\"recipe\": \"R7.3\", \"item\": \"run {{var.scenario.executionId}}\", \"reason\": \"stop list unreadable\", \"detail\": \"The stop list could not be read, so the run stopped\", \"owner\": \"{{2.result.workflow_owner}}\"}"
+          },
+          "metadata": {
+            "designer": {
+              "x": 600,
+              "y": 300,
+              "name": "Stop flag: list unreadable"
+            }
+          }
+        },
+        {
+          "id": 4,
+          "module": "builtin:Ignore",
+          "version": 1,
+          "metadata": {
+            "designer": {
+              "x": 900,
+              "y": 300
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{2.result.register_url}}/register",
+        "method": "get",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true,
+        "queryParameters": [
+          {
+            "name": "_wrap",
+            "value": "1"
+          },
+          {
+            "name": "supplier_id",
+            "value": "{{1.supplier_id}}"
+          }
+        ]
+      },
+      "metadata": {
+        "designer": {
+          "x": 900,
+          "y": 0,
+          "name": "Step 7: Read the register entry"
+        }
+      },
+      "onerror": [
+        {
+          "id": 6,
+          "module": "builtin:Break",
+          "version": 1,
+          "parameters": {},
+          "mapper": {
+            "count": "3",
+            "retry": true,
+            "interval": "1"
+          },
+          "metadata": {
+            "designer": {
+              "x": 900,
+              "y": 300
+            }
+          }
+        }
+      ],
+      "filter": {
+        "name": "stop flag not set",
+        "conditions": [
+          [
+            {
+              "a": "{{5.data.stopped}}",
+              "b": "true",
+              "o": "text:notequal"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "id": 8,
+      "module": "code:ExecuteCode",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "language": "javascript",
+        "inputFormat": "editor",
+        "dependencies": [],
+        "codeEditorJavascript": "// Adapter: the rule below is the same JavaScript as the recipe's n8n build.\n// $('Step name') answers from this step's inputs: each is that step's output in this scenario.\nconst SOURCES = {\"Config\": \"in0_Config\", \"Step 7: Read the register entry\": \"in1_Step7Readtheregisterentr\"};\nconst LISTS = [];\nconst EXECUTED = [];\nconst DATA = {};\nfor (const [node, key] of Object.entries(SOURCES)) {\n  const raw = input[key];\n  let v = raw;\n  if (typeof raw === 'string') { try { v = JSON.parse(raw); } catch (e) { v = raw; } }\n  DATA[node] = LISTS.includes(node) ? (v || []).map(i => (i && i.json !== undefined ? i : { json: i })) : [{ json: v }];\n}\nconst $ = (node) => {\n  const ran = node in DATA || EXECUTED.includes(node);\n  const list = () => { if (!(node in DATA)) throw new Error(`step ${node} has no data in this scenario`); return DATA[node]; };\n  return { isExecuted: ran, first: () => list()[0], last: () => list()[list().length - 1], all: () => list(),\n           get item() { return list()[0]; } };\n};\nconst INPUT = \"Step 7: Read the register entry\";\nconst $input = { all: () => $(INPUT).all(), first: () => $(INPUT).first(), last: () => $(INPUT).last(), get item() { return $(INPUT).first(); } };\nconst $execution = { id: input.run_id };\n// The webhook's fields, as n8n's Webhook node gives them.\nDATA['Step 7: Call-back logged'] = [{ json: { body: Object.fromEntries(Object.entries({ supplier_id: input.tr_supplier_id, task_id: input.tr_task_id, number_dialed: input.tr_number_dialed, outcome: input.tr_outcome, new_bank_account: input.tr_new_bank_account, new_phone: input.tr_new_phone, logged_by: input.tr_logged_by }).filter(([, v]) => v !== undefined && v !== null && v !== '')) } }];\nconst BODIES = (out) => ({\"entry_body\": JSON.stringify(out.entry), \"register_q\": encodeURIComponent(out.register_id), \"enter_task\": JSON.stringify({ assignee: $('Config').first().json.finance_assistant, supplier_id: $('Step 7: Call-back logged').first().json.body.supplier_id, status: 'open', instruction: 'The caller confirmed a bank-detail change on the number on file. Enter it in the ledger; the hold lifts when the next export shows it.' }), \"release_task\": JSON.stringify({ assignee: $('Config').first().json.finance_assistant, supplier_id: $('Step 7: Call-back logged').first().json.body.supplier_id, status: 'open', instruction: 'The caller confirmed no change on the number on file. Release the hold.' }), \"release_keys_body\": JSON.stringify({ p_recipe: 'R7.3', p_item: $('Step 7: Call-back logged').first().json.body.supplier_id }), \"fraud_message\": JSON.stringify({ to: $('Config').first().json.fraud_report_to, subject: 'Suspected payment fraud: supplier ' + $('Step 7: Call-back logged').first().json.body.supplier_id, text: 'A bank-detail change was not confirmed on the number on file. The hold stays.' }), \"fraud_exception\": JSON.stringify({ recipe: 'R7.3', item: $('Step 7: Call-back logged').first().json.body.supplier_id, reason: 'suspected fraud', detail: 'Change not confirmed on the number on file; hold stays', owner: $('Config').first().json.fraud_report_to }), \"wrong_number_exception\": JSON.stringify({ recipe: 'R7.3', item: $('Step 7: Call-back logged').first().json.body.supplier_id, reason: 'call to another number', detail: 'Logged number differs from the register; hold stays; ring the register number', owner: $('Config').first().json.bank_caller }), \"failed_body\": JSON.stringify({ recipe: 'R7.3', item: $('Step 7: Call-back logged').first().json.body.supplier_id, reason: 'write failed', detail: 'A register, hold, task or report write failed after a call-back, never retried; finish it by hand', owner: $('Config').first().json.workflow_owner }), \"log_body\": JSON.stringify({ recipe: 'R7.3', item: $('Step 7: Call-back logged').first().json.body.supplier_id, decision: 'call-back: ' + out.route, rules: out.rules })});\nconst one = (r) => (Array.isArray(r) ? r : [r]).filter(Boolean).map(i => (i.json !== undefined ? i.json : i));\nconst $json = INPUT && INPUT in DATA ? $input.first().json : {};\nconst __rule = () => {\n// Step 7: the caller logged the number dialed and the outcome; only the register's number counts.\nconst b = $('Step 7: Call-back logged').first().json.body;\nconst reg = ($('Step 7: Read the register entry').first().json.items || [])[0] || null;\nconst digits = s => String(s || '').replace(/\\D/g, '');\nconst onFile = reg && reg.phone ? digits(reg.phone) : null;\nconst rules = { outcome: b.outcome, number_on_file: !!onFile };\nlet route;\nif (onFile && digits(b.number_dialed) !== onFile) route = 'wrong number';\nelse if (b.outcome !== 'confirmed') route = 'not confirmed';\nelse if (b.new_bank_account || b.new_phone) route = 'change';\nelse route = 'no change';\nrules.route = route;\nconst entry = Object.assign({}, reg || { id: b.supplier_id, supplier_id: b.supplier_id });\nif (b.new_bank_account) entry.bank_account = b.new_bank_account;\nif (b.new_phone) entry.phone = b.new_phone;\nentry.verified_on = new Date().toISOString().slice(0, 10);\nentry.verified_by = b.logged_by || null;\nreturn [{ json: { route, rules, entry, register_id: entry.id } }];\n};\nconst out = one(__rule())[0] || {};\nreturn Object.assign({}, out, BODIES(out));\n",
+        "input": [
+          {
+            "name": "in0_Config",
+            "value": "{{2.result}}"
+          },
+          {
+            "name": "in1_Step7Readtheregisterentr",
+            "value": "{{7.data}}"
+          },
+          {
+            "name": "run_id",
+            "value": "{{var.scenario.executionId}}"
+          },
+          {
+            "name": "tr_supplier_id",
+            "value": "{{1.supplier_id}}"
+          },
+          {
+            "name": "tr_task_id",
+            "value": "{{1.task_id}}"
+          },
+          {
+            "name": "tr_number_dialed",
+            "value": "{{1.number_dialed}}"
+          },
+          {
+            "name": "tr_outcome",
+            "value": "{{1.outcome}}"
+          },
+          {
+            "name": "tr_new_bank_account",
+            "value": "{{1.new_bank_account}}"
+          },
+          {
+            "name": "tr_new_phone",
+            "value": "{{1.new_phone}}"
+          },
+          {
+            "name": "tr_logged_by",
+            "value": "{{1.logged_by}}"
+          }
+        ]
+      },
+      "metadata": {
+        "designer": {
+          "x": 1200,
+          "y": 0,
+          "name": "Step 7: Rule: call-back outcome"
+        }
+      }
+    },
+    {
+      "id": 32,
+      "module": "builtin:BasicRouter",
+      "version": 1,
+      "mapper": null,
+      "routes": [
+        {
+          "flow": [
+            {
+              "id": 11,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.register_url}}/register/{{8.result.register_q}}",
+                "method": "put",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{8.result.entry_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 1800,
+                  "y": 0,
+                  "name": "Step 8: Save the confirmed details to the register"
+                }
+              },
+              "onerror": [
+                {
+                  "id": 9,
+                  "module": "http:MakeRequest",
+                  "version": 4,
+                  "parameters": {},
+                  "mapper": {
+                    "url": "{{2.result.table_api_url}}/exception_queue",
+                    "method": "post",
+                    "timeout": "40",
+                    "parseResponse": false,
+                    "stopOnHttpError": true,
+                    "allowRedirects": true,
+                    "shareCookies": false,
+                    "requestCompressedContent": true,
+                    "contentType": "json",
+                    "inputMethod": "jsonString",
+                    "jsonStringBodyContent": "{{8.result.failed_body}}"
+                  },
+                  "metadata": {
+                    "designer": {
+                      "x": 1800,
+                      "y": 300,
+                      "name": "Step 8: Save the confirmed details to the register: exception queue"
+                    }
+                  }
+                },
+                {
+                  "id": 10,
+                  "module": "builtin:Ignore",
+                  "version": 1,
+                  "metadata": {
+                    "designer": {
+                      "x": 2100,
+                      "y": 300
+                    }
+                  }
+                }
+              ],
+              "filter": {
+                "name": "confirmed change",
+                "conditions": [
+                  [
+                    {
+                      "a": "{{8.result.route}}",
+                      "b": "change",
+                      "o": "text:equal"
+                    }
+                  ]
+                ]
+              }
+            },
+            {
+              "id": 14,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.suppliers_url}}/suppliers/{{encodeURL(1.supplier_id)}}",
+                "method": "patch",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{\"hold\": true, \"hold_reason\": \"confirmed change; awaiting export\"}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 2100,
+                  "y": 0,
+                  "name": "Step 8: Hold until the export shows it"
+                }
+              },
+              "onerror": [
+                {
+                  "id": 12,
+                  "module": "http:MakeRequest",
+                  "version": 4,
+                  "parameters": {},
+                  "mapper": {
+                    "url": "{{2.result.table_api_url}}/exception_queue",
+                    "method": "post",
+                    "timeout": "40",
+                    "parseResponse": false,
+                    "stopOnHttpError": true,
+                    "allowRedirects": true,
+                    "shareCookies": false,
+                    "requestCompressedContent": true,
+                    "contentType": "json",
+                    "inputMethod": "jsonString",
+                    "jsonStringBodyContent": "{{8.result.failed_body}}"
+                  },
+                  "metadata": {
+                    "designer": {
+                      "x": 2100,
+                      "y": 300,
+                      "name": "Step 8: Hold until the export shows it: exception queue"
+                    }
+                  }
+                },
+                {
+                  "id": 13,
+                  "module": "builtin:Ignore",
+                  "version": 1,
+                  "metadata": {
+                    "designer": {
+                      "x": 2400,
+                      "y": 300
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "id": 17,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.tasks_url}}/tasks",
+                "method": "post",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{8.result.enter_task}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 2400,
+                  "y": 0,
+                  "name": "Step 8: Ask the finance assistant to enter it"
+                }
+              },
+              "onerror": [
+                {
+                  "id": 15,
+                  "module": "http:MakeRequest",
+                  "version": 4,
+                  "parameters": {},
+                  "mapper": {
+                    "url": "{{2.result.table_api_url}}/exception_queue",
+                    "method": "post",
+                    "timeout": "40",
+                    "parseResponse": false,
+                    "stopOnHttpError": true,
+                    "allowRedirects": true,
+                    "shareCookies": false,
+                    "requestCompressedContent": true,
+                    "contentType": "json",
+                    "inputMethod": "jsonString",
+                    "jsonStringBodyContent": "{{8.result.failed_body}}"
+                  },
+                  "metadata": {
+                    "designer": {
+                      "x": 2400,
+                      "y": 300,
+                      "name": "Step 8: Ask the finance assistant to enter it: exception queue"
+                    }
+                  }
+                },
+                {
+                  "id": 16,
+                  "module": "builtin:Ignore",
+                  "version": 1,
+                  "metadata": {
+                    "designer": {
+                      "x": 2700,
+                      "y": 300
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "id": 18,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.table_api_url}}/rpc/release_keys_for",
+                "method": "post",
+                "timeout": "40",
+                "parseResponse": true,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{8.result.release_keys_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 2700,
+                  "y": 0,
+                  "name": "Step 8: Close the hold's keys (change)"
+                }
+              }
+            },
+            {
+              "id": 19,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.table_api_url}}/decision_log",
+                "method": "post",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{8.result.log_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 3000,
+                  "y": 0,
+                  "name": "Step 7: Decision log (change)"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "flow": [
+            {
+              "id": 22,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.tasks_url}}/tasks",
+                "method": "post",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{8.result.release_task}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 1800,
+                  "y": 600,
+                  "name": "Step 8: Ask the finance assistant to release"
+                }
+              },
+              "onerror": [
+                {
+                  "id": 20,
+                  "module": "http:MakeRequest",
+                  "version": 4,
+                  "parameters": {},
+                  "mapper": {
+                    "url": "{{2.result.table_api_url}}/exception_queue",
+                    "method": "post",
+                    "timeout": "40",
+                    "parseResponse": false,
+                    "stopOnHttpError": true,
+                    "allowRedirects": true,
+                    "shareCookies": false,
+                    "requestCompressedContent": true,
+                    "contentType": "json",
+                    "inputMethod": "jsonString",
+                    "jsonStringBodyContent": "{{8.result.failed_body}}"
+                  },
+                  "metadata": {
+                    "designer": {
+                      "x": 1800,
+                      "y": 900,
+                      "name": "Step 8: Ask the finance assistant to release: exception queue"
+                    }
+                  }
+                },
+                {
+                  "id": 21,
+                  "module": "builtin:Ignore",
+                  "version": 1,
+                  "metadata": {
+                    "designer": {
+                      "x": 2100,
+                      "y": 900
+                    }
+                  }
+                }
+              ],
+              "filter": {
+                "name": "confirmed, no change",
+                "conditions": [
+                  [
+                    {
+                      "a": "{{8.result.route}}",
+                      "b": "no change",
+                      "o": "text:equal"
+                    }
+                  ]
+                ]
+              }
+            },
+            {
+              "id": 23,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.table_api_url}}/rpc/release_keys_for",
+                "method": "post",
+                "timeout": "40",
+                "parseResponse": true,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{8.result.release_keys_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 2100,
+                  "y": 600,
+                  "name": "Step 8: Close the hold's keys (no change)"
+                }
+              }
+            },
+            {
+              "id": 24,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.table_api_url}}/decision_log",
+                "method": "post",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{8.result.log_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 2400,
+                  "y": 600,
+                  "name": "Step 7: Decision log (no change)"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "flow": [
+            {
+              "id": 27,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.messaging_url}}/messages",
+                "method": "post",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{8.result.fraud_message}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 1800,
+                  "y": 1200,
+                  "name": "Step 9: Report suspected fraud"
+                }
+              },
+              "onerror": [
+                {
+                  "id": 25,
+                  "module": "http:MakeRequest",
+                  "version": 4,
+                  "parameters": {},
+                  "mapper": {
+                    "url": "{{2.result.table_api_url}}/exception_queue",
+                    "method": "post",
+                    "timeout": "40",
+                    "parseResponse": false,
+                    "stopOnHttpError": true,
+                    "allowRedirects": true,
+                    "shareCookies": false,
+                    "requestCompressedContent": true,
+                    "contentType": "json",
+                    "inputMethod": "jsonString",
+                    "jsonStringBodyContent": "{{8.result.failed_body}}"
+                  },
+                  "metadata": {
+                    "designer": {
+                      "x": 1800,
+                      "y": 1500,
+                      "name": "Step 9: Report suspected fraud: exception queue"
+                    }
+                  }
+                },
+                {
+                  "id": 26,
+                  "module": "builtin:Ignore",
+                  "version": 1,
+                  "metadata": {
+                    "designer": {
+                      "x": 2100,
+                      "y": 1500
+                    }
+                  }
+                }
+              ],
+              "filter": {
+                "name": "not confirmed",
+                "conditions": [
+                  [
+                    {
+                      "a": "{{8.result.route}}",
+                      "b": "not confirmed",
+                      "o": "text:equal"
+                    }
+                  ]
+                ]
+              }
+            },
+            {
+              "id": 28,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.table_api_url}}/exception_queue",
+                "method": "post",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{8.result.fraud_exception}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 2100,
+                  "y": 1200,
+                  "name": "Step 9: Exception queue: hold stays"
+                }
+              }
+            },
+            {
+              "id": 29,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.table_api_url}}/decision_log",
+                "method": "post",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{8.result.log_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 2400,
+                  "y": 1200,
+                  "name": "Step 7: Decision log (not confirmed)"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "flow": [
+            {
+              "id": 30,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.table_api_url}}/exception_queue",
+                "method": "post",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{8.result.wrong_number_exception}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 1800,
+                  "y": 1800,
+                  "name": "Exception queue: call to another number"
+                }
+              },
+              "filter": {
+                "name": "wrong number",
+                "conditions": [
+                  [
+                    {
+                      "a": "{{8.result.route}}",
+                      "b": "wrong number",
+                      "o": "text:equal"
+                    }
+                  ]
+                ]
+              }
+            },
+            {
+              "id": 31,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.table_api_url}}/decision_log",
+                "method": "post",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{8.result.log_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 2100,
+                  "y": 1800,
+                  "name": "Step 7: Decision log (wrong number)"
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "designer": {
+          "x": 1500,
+          "y": 0,
+          "name": "Call-back outcome"
+        }
+      }
+    }
+  ],
+  "metadata": {
+    "instant": true,
+    "version": 1,
+    "designer": {
+      "orphans": []
+    },
+    "scenario": {
+      "dlq": true,
+      "slots": null,
+      "dataloss": false,
+      "maxErrors": 3,
+      "autoCommit": true,
+      "roundtrips": 1,
+      "sequential": false,
+      "confidential": false,
+      "freshVariables": false,
+      "autoCommitTriggerLast": true
+    }
+  }
+}

@@ -1,0 +1,3 @@
+- Added Make builds for the remaining rules-only recipes: R7.3, R8.1, R9.4, R11.3, R12.3, R13.2 and R15.3, each passing its whole golden set on Make (cloud service, Core plan); every recipe with no AI step now has a tested Make build.
+- Fixed text in a Make Config step that holds merge fields, such as R8.1's reminder templates and R8.2's statement subject: Make reads `{{...}}` in a Code step as its own mapping and blanked them, so a brace followed by a brace is now written as `\u007b`, which reads back as the same text. R8.2's Make build was rerun and passes; its earlier blueprints sent statements with an empty subject.
+- Reran R11.2's Make golden set on the current builder: all 8 cases pass.

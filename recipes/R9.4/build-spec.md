@@ -11,7 +11,7 @@ It never decides who leaves, deletes a mailbox or files, or closes a case with a
 |---|---|---|
 | Tool-neutral | `build-spec.md` | Available |
 | n8n | [`n8n/workflow.json`](n8n/workflow.json) | Available: golden set passed on n8n 2.42.7, 2026-10-19 ([report](n8n/test-report.md)) |
-| Make | `make/blueprint.json` | Not yet available |
+| Make | [`make/blueprint.json`](make/blueprint.json) and [`make/close.blueprint.json`](make/close.blueprint.json) and [`make/daily.blueprint.json`](make/daily.blueprint.json) and [`make/tick.blueprint.json`](make/tick.blueprint.json) | Available: golden set passed on Make (Core plan), 2026-10-26 ([report](make/test-report.md)) |
 | Power Automate | `power-automate/` | Not yet available |
 | Zapier | `zapier.md` | Not yet available |
 

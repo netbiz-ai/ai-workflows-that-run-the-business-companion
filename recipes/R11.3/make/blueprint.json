@@ -1,0 +1,1251 @@
+{
+  "name": "R11.3 Route purchase approval: request to approval",
+  "flow": [
+    {
+      "id": 1,
+      "module": "gateway:CustomWebHook",
+      "version": 1,
+      "parameters": {
+        "hook": null,
+        "maxResults": 1
+      },
+      "mapper": {},
+      "metadata": {
+        "designer": {
+          "x": 0,
+          "y": 0,
+          "name": "Step 1: Status set to checked; to approval"
+        }
+      }
+    },
+    {
+      "id": 2,
+      "module": "code:ExecuteCode",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "language": "javascript",
+        "inputFormat": "editor",
+        "dependencies": [],
+        "codeEditorJavascript": "// Config: edit these values for your company; nothing else in the scenario hard-codes them.\nreturn {\n  \"stop_flag_url\": \"https://<your stop list API>/stop_flags/R11.3\",\n  \"table_api_url\": \"https://<your table API for the key log, decision log and exception queue>\",\n  \"workflow_owner\": \"<your workflow owner>\",\n  \"requests_url\": \"https://<your request list API>\",\n  \"budget_url\": \"https://<your budget list API>\",\n  \"approvals_url\": \"https://<your approvals API>\",\n  \"vendors_url\": \"https://<your vendor-record export API>\",\n  \"policy_url\": \"https://<your policy list API>\",\n  \"ledger_url\": \"https://<your accounting platform export API>\",\n  \"messaging_url\": \"https://<your messaging API>\",\n  \"budget_export_max_days\": 7,\n  \"senior_limit\": 10000,\n  \"release_margin_working_days\": 2,\n  \"remind_working_days\": 2,\n  \"standin_working_days\": 3,\n  \"bill_tolerance\": \"<your bill tolerance, in dollars>\",\n  \"approver\": \"<your approver up to the limit>\",\n  \"senior_approver\": \"<your senior approver>\",\n  \"payment_approver\": \"<your payment approver>\",\n  \"budget_owner\": \"<your budget owner>\",\n  \"buyer\": \"<your buyer>\",\n  \"editor\": \"<your workflow editor>\"\n};",
+        "input": []
+      },
+      "metadata": {
+        "designer": {
+          "x": 300,
+          "y": 0,
+          "name": "Config"
+        }
+      }
+    },
+    {
+      "id": 5,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{2.result.stop_flag_url}}",
+        "method": "get",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true
+      },
+      "metadata": {
+        "designer": {
+          "x": 600,
+          "y": 0,
+          "name": "Stop flag: read"
+        }
+      },
+      "onerror": [
+        {
+          "id": 3,
+          "module": "http:MakeRequest",
+          "version": 4,
+          "parameters": {},
+          "mapper": {
+            "url": "{{2.result.table_api_url}}/exception_queue",
+            "method": "post",
+            "timeout": "40",
+            "parseResponse": false,
+            "stopOnHttpError": true,
+            "allowRedirects": true,
+            "shareCookies": false,
+            "requestCompressedContent": true,
+            "contentType": "json",
+            "inputMethod": "jsonString",
+            "jsonStringBodyContent": "{\"recipe\": \"R11.3\", \"item\": \"run {{var.scenario.executionId}}\", \"reason\": \"stop list unreadable\", \"detail\": \"The stop list could not be read, so the run stopped\", \"owner\": \"{{2.result.workflow_owner}}\"}"
+          },
+          "metadata": {
+            "designer": {
+              "x": 600,
+              "y": 300,
+              "name": "Stop flag: list unreadable"
+            }
+          }
+        },
+        {
+          "id": 4,
+          "module": "builtin:Ignore",
+          "version": 1,
+          "metadata": {
+            "designer": {
+              "x": 900,
+              "y": 300
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{2.result.requests_url}}/requests/{{encodeURL(1.request_id)}}",
+        "method": "get",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true
+      },
+      "metadata": {
+        "designer": {
+          "x": 900,
+          "y": 0,
+          "name": "Read request"
+        }
+      },
+      "onerror": [
+        {
+          "id": 6,
+          "module": "builtin:Break",
+          "version": 1,
+          "parameters": {},
+          "mapper": {
+            "count": "3",
+            "retry": true,
+            "interval": "1"
+          },
+          "metadata": {
+            "designer": {
+              "x": 900,
+              "y": 300
+            }
+          }
+        }
+      ],
+      "filter": {
+        "name": "stop flag not set",
+        "conditions": [
+          [
+            {
+              "a": "{{5.data.stopped}}",
+              "b": "true",
+              "o": "text:notequal"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "id": 8,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{2.result.table_api_url}}/rpc/reserve_key",
+        "method": "post",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true,
+        "contentType": "json",
+        "inputMethod": "jsonString",
+        "jsonStringBodyContent": "{\"p_recipe\": \"R11.3\", \"p_key\": \"{{1.request_id}}:{{1.version}}\"}"
+      },
+      "metadata": {
+        "designer": {
+          "x": 1200,
+          "y": 0,
+          "name": "Step 2: Reserve key"
+        }
+      }
+    },
+    {
+      "id": 10,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{2.result.budget_url}}/lines/{{encodeURL(7.data.budget_line)}}",
+        "method": "get",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true
+      },
+      "metadata": {
+        "designer": {
+          "x": 1500,
+          "y": 0,
+          "name": "Read budget line"
+        }
+      },
+      "onerror": [
+        {
+          "id": 9,
+          "module": "builtin:Break",
+          "version": 1,
+          "parameters": {},
+          "mapper": {
+            "count": "3",
+            "retry": true,
+            "interval": "1"
+          },
+          "metadata": {
+            "designer": {
+              "x": 1500,
+              "y": 300
+            }
+          }
+        }
+      ],
+      "filter": {
+        "name": "new key (not a copy)",
+        "conditions": [
+          [
+            {
+              "a": "{{8.data}}",
+              "b": "true",
+              "o": "text:equal"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "id": 12,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{2.result.budget_url}}/commitments",
+        "method": "get",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true,
+        "queryParameters": [
+          {
+            "name": "_wrap",
+            "value": "1"
+          },
+          {
+            "name": "budget_line",
+            "value": "{{7.data.budget_line}}"
+          }
+        ]
+      },
+      "metadata": {
+        "designer": {
+          "x": 1800,
+          "y": 0,
+          "name": "Read commitments"
+        }
+      },
+      "onerror": [
+        {
+          "id": 11,
+          "module": "builtin:Break",
+          "version": 1,
+          "parameters": {},
+          "mapper": {
+            "count": "3",
+            "retry": true,
+            "interval": "1"
+          },
+          "metadata": {
+            "designer": {
+              "x": 1800,
+              "y": 300
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 13,
+      "module": "code:ExecuteCode",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "language": "javascript",
+        "inputFormat": "editor",
+        "dependencies": [],
+        "codeEditorJavascript": "// Adapter: the rule below is the same JavaScript as the recipe's n8n build.\n// $('Step name') answers from this step's inputs: each is that step's output in this scenario.\nconst SOURCES = {\"Config\": \"in0_Config\", \"Read request\": \"in1_Readrequest\", \"Read budget line\": \"in2_Readbudgetline\", \"Read commitments\": \"in3_Readcommitments\"};\nconst LISTS = [];\nconst EXECUTED = [];\nconst DATA = {};\nfor (const [node, key] of Object.entries(SOURCES)) {\n  const raw = input[key];\n  let v = raw;\n  if (typeof raw === 'string') { try { v = JSON.parse(raw); } catch (e) { v = raw; } }\n  DATA[node] = LISTS.includes(node) ? (v || []).map(i => (i && i.json !== undefined ? i : { json: i })) : [{ json: v }];\n}\nconst $ = (node) => {\n  const ran = node in DATA || EXECUTED.includes(node);\n  const list = () => { if (!(node in DATA)) throw new Error(`step ${node} has no data in this scenario`); return DATA[node]; };\n  return { isExecuted: ran, first: () => list()[0], last: () => list()[list().length - 1], all: () => list(),\n           get item() { return list()[0]; } };\n};\nconst INPUT = \"Read commitments\";\nconst $input = { all: () => $(INPUT).all(), first: () => $(INPUT).first(), last: () => $(INPUT).last(), get item() { return $(INPUT).first(); } };\nconst $execution = { id: input.run_id };\n// The webhook's fields, as the rule reads them in n8n: $('Step 1: Status set to checked; to approval').first().json.body.\nDATA[\"Step 1: Status set to checked; to approval\"] = [{ json: { body: { \"request_id\": input.t_request_id, \"version\": input.t_version } } }];\nconst BODIES = (out) => ({\"key_q\": encodeURIComponent($('Step 1: Status set to checked; to approval').first().json.body.request_id + ':' + $('Step 1: Status set to checked; to approval').first().json.body.version), \"approval_body\": JSON.stringify(out.approval || {}), \"copy_message\": (out.approval ? JSON.stringify({ to: $('Config').first().json.budget_owner, subject: 'Over budget: request ' + $('Step 1: Status set to checked; to approval').first().json.body.request_id, text: 'Sent to ' + out.approval.approver + ': ' + out.approval.amount + ' against ' + out.approval.budget_before + ' remaining on ' + out.approval.budget_line }) : null), \"stale_body\": JSON.stringify({ recipe: 'R11.3', item: $('Step 1: Status set to checked; to approval').first().json.body.request_id, reason: 'budget export stale', detail: out.detail, owner: $('Config').first().json.budget_owner }), \"stale_message\": JSON.stringify({ to: $('Config').first().json.budget_owner, subject: 'Refresh the budget export', text: out.detail }), \"edit_message\": JSON.stringify({ to: $('Read request').first().json.requester, subject: 'Request ' + $('Step 1: Status set to checked; to approval').first().json.body.request_id + ' is approved and locked', text: 'Edit refused: this request was approved and released. Raise a new request for the change.' }), \"no_approver_body\": JSON.stringify({ recipe: 'R11.3', item: $('Step 1: Status set to checked; to approval').first().json.body.request_id, reason: 'no eligible approver', detail: out.detail, owner: $('Config').first().json.senior_approver }), \"release_body\": JSON.stringify({ p_recipe: 'R11.3', p_key: $('Step 1: Status set to checked; to approval').first().json.body.request_id + ':' + $('Step 1: Status set to checked; to approval').first().json.body.version }), \"done_body\": JSON.stringify({ status: 'done', result: out.decision }), \"log_body\": JSON.stringify({ recipe: 'R11.3', item: $('Step 1: Status set to checked; to approval').first().json.body.request_id + ' v' + $('Step 1: Status set to checked; to approval').first().json.body.version, decision: out.decision, rules: out.rules }), \"failed_body\": JSON.stringify({ recipe: 'R11.3', item: $('Step 1: Status set to checked; to approval').first().json.body.request_id, reason: 'write failed', detail: 'Approval write failed; check the request list, then rerun it', owner: $('Config').first().json.editor })});\nconst one = (r) => (Array.isArray(r) ? r : [r]).filter(Boolean).map(i => (i.json !== undefined ? i.json : i));\nconst $json = INPUT && INPUT in DATA ? $input.first().json : {};\nconst __rule = () => {\nconst iso = d => d.toISOString().slice(0, 10);\nconst day = s => new Date(String(s).slice(0, 10) + 'T00:00:00Z');\nconst today = day(iso(new Date()));\nconst addWorkingDays = (d, n) => { let x = new Date(d), k = 0; while (k < n) { x = new Date(x.getTime() + 86400000); if (x.getUTCDay() % 6 !== 0) k++; } return x; };\nconst same = (a, b) => String(a || '').trim().toLowerCase() === String(b || '').trim().toLowerCase();\n\n// Steps 3 to 5 of the book's R11.3, in Table 11.2's order.\nconst cfg = $('Config').first().json;\nconst ev = $('Step 1: Status set to checked; to approval').first().json.body;\nconst req = $('Read request').first().json;\nconst line = $('Read budget line').first().json;\nconst commitments = $('Read commitments').first().json.items || [];\nconst amount = Number(req.amount);\nconst total = Number(req.total != null ? req.total : req.amount);\n\n// Step 10's lock: a released request is never approved again; an edit needs a new request.\nif (req.locked) {\n  return [{ json: { route: 'edit_refused', decision: 'edit refused; new request needed',\n    rules: { locked: true, approved_version: req.approved_version, version: ev.version } } }];\n}\n\n// Step 3: remaining budget is budget less spent and committed; an export over the limit waits for the budget owner.\nconst committed = commitments.reduce((s, c) => s + Number(c.remaining || 0), 0);\nconst remaining = Number(line.budget) - Number(line.spent) - committed;\nconst age = line.export_date ? Math.round((today - day(line.export_date)) / 86400000) : null;\nconst rules = { export_date: line.export_date || null, export_age_days: age, budget: Number(line.budget), spent: Number(line.spent),\n  committed, budget_before: remaining, amount, total };\nif (age === null || !(age <= cfg.budget_export_max_days)) {\n  return [{ json: { route: 'held', decision: 'held: budget export stale', rules,\n    detail: `Budget export for ${req.budget_line} is ${age === null ? 'missing' : age + ' days old'}; refresh it, then rerun request ${req.id}` } }];\n}\n\n// Step 4: over remaining budget on this request alone (budget owner copied), or over the limit on R11.2's split total, goes to the senior approver.\nconst overBudget = amount > remaining;\nconst overLimit = total > cfg.senior_limit;\nrules.over_budget = overBudget;\nrules.over_limit = overLimit;\nconst chain = overBudget || overLimit ? [cfg.senior_approver, cfg.approver] : [cfg.approver, cfg.senior_approver];\n\n// Step 5: skip any approver or stand-in who is the requester or the payment approver; the senior approver's own go to the approver.\nconst barred = p => same(p, req.requester) || same(p, cfg.payment_approver);\nconst eligible = chain.filter(p => !barred(p));\nrules.skipped = chain.filter(barred);\nif (!eligible.length) {\n  return [{ json: { route: 'no_approver', decision: 'no eligible approver', rules,\n    detail: `Every approver and stand-in for request ${req.id} is the requester or the payment approver` } }];\n}\nconst approval = {\n  id: `${req.id}-v${ev.version}`, request_id: req.id, version: ev.version, status: 'open',\n  approver: eligible[0], standin: eligible[1] || null, requester: req.requester,\n  amount, total, valid_until: (req.quote && req.quote.valid_until) || null, waiver: !!req.waiver,\n  comparison_link: (req.comparison && req.comparison.link) || null,\n  budget_line: req.budget_line, budget_before: remaining, budget_after: remaining - amount,\n  created: iso(today),\n  remind_on: iso(addWorkingDays(today, cfg.remind_working_days)),\n  standin_on: iso(addWorkingDays(today, cfg.standin_working_days)),\n};\nrules.approver = approval.approver;\nrules.standin = approval.standin;\nrules.budget_after = approval.budget_after;\nreturn [{ json: { route: 'approval', decision: `sent to ${approval.approver}`, copy_budget_owner: overBudget, approval, rules } }];\n};\nconst out = one(__rule())[0] || {};\nreturn Object.assign({}, out, BODIES(out));\n",
+        "input": [
+          {
+            "name": "t_request_id",
+            "value": "{{1.request_id}}"
+          },
+          {
+            "name": "t_version",
+            "value": "{{1.version}}"
+          },
+          {
+            "name": "in0_Config",
+            "value": "{{2.result}}"
+          },
+          {
+            "name": "in1_Readrequest",
+            "value": "{{7.data}}"
+          },
+          {
+            "name": "in2_Readbudgetline",
+            "value": "{{10.data}}"
+          },
+          {
+            "name": "in3_Readcommitments",
+            "value": "{{12.data}}"
+          },
+          {
+            "name": "run_id",
+            "value": "{{var.scenario.executionId}}"
+          }
+        ]
+      },
+      "metadata": {
+        "designer": {
+          "x": 2100,
+          "y": 0,
+          "name": "Rules: steps 3 to 5"
+        }
+      }
+    },
+    {
+      "id": 47,
+      "module": "builtin:BasicRouter",
+      "version": 1,
+      "mapper": null,
+      "routes": [
+        {
+          "flow": [
+            {
+              "id": 17,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.approvals_url}}/approvals",
+                "method": "post",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{13.result.approval_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 2700,
+                  "y": 0,
+                  "name": "Step 6: Start one approval"
+                }
+              },
+              "onerror": [
+                {
+                  "id": 14,
+                  "module": "http:MakeRequest",
+                  "version": 4,
+                  "parameters": {},
+                  "mapper": {
+                    "url": "{{2.result.table_api_url}}/key_log?recipe=eq.R11.3&key=eq.{{13.result.key_q}}",
+                    "method": "patch",
+                    "timeout": "40",
+                    "parseResponse": false,
+                    "stopOnHttpError": true,
+                    "allowRedirects": true,
+                    "shareCookies": false,
+                    "requestCompressedContent": true,
+                    "contentType": "json",
+                    "inputMethod": "jsonString",
+                    "jsonStringBodyContent": "{\"status\": \"failed\", \"result\": \"write failed\"}"
+                  },
+                  "metadata": {
+                    "designer": {
+                      "x": 2700,
+                      "y": 300,
+                      "name": "Step 6: Start one approval: mark key failed"
+                    }
+                  }
+                },
+                {
+                  "id": 15,
+                  "module": "http:MakeRequest",
+                  "version": 4,
+                  "parameters": {},
+                  "mapper": {
+                    "url": "{{2.result.table_api_url}}/exception_queue",
+                    "method": "post",
+                    "timeout": "40",
+                    "parseResponse": false,
+                    "stopOnHttpError": true,
+                    "allowRedirects": true,
+                    "shareCookies": false,
+                    "requestCompressedContent": true,
+                    "contentType": "json",
+                    "inputMethod": "jsonString",
+                    "jsonStringBodyContent": "{{13.result.failed_body}}"
+                  },
+                  "metadata": {
+                    "designer": {
+                      "x": 3000,
+                      "y": 300,
+                      "name": "Step 6: Start one approval: exception queue"
+                    }
+                  }
+                },
+                {
+                  "id": 16,
+                  "module": "builtin:Ignore",
+                  "version": 1,
+                  "metadata": {
+                    "designer": {
+                      "x": 3300,
+                      "y": 300
+                    }
+                  }
+                }
+              ],
+              "filter": {
+                "name": "route is approval",
+                "conditions": [
+                  [
+                    {
+                      "a": "{{13.result.route}}",
+                      "b": "approval",
+                      "o": "text:equal"
+                    }
+                  ]
+                ]
+              }
+            },
+            {
+              "id": 26,
+              "module": "builtin:BasicRouter",
+              "version": 1,
+              "mapper": null,
+              "routes": [
+                {
+                  "flow": [
+                    {
+                      "id": 21,
+                      "module": "http:MakeRequest",
+                      "version": 4,
+                      "parameters": {},
+                      "mapper": {
+                        "url": "{{2.result.messaging_url}}/messages",
+                        "method": "post",
+                        "timeout": "40",
+                        "parseResponse": false,
+                        "stopOnHttpError": true,
+                        "allowRedirects": true,
+                        "shareCookies": false,
+                        "requestCompressedContent": true,
+                        "contentType": "json",
+                        "inputMethod": "jsonString",
+                        "jsonStringBodyContent": "{{13.result.copy_message}}"
+                      },
+                      "metadata": {
+                        "designer": {
+                          "x": 3300,
+                          "y": 0,
+                          "name": "Step 4: Copy the budget owner"
+                        }
+                      },
+                      "onerror": [
+                        {
+                          "id": 18,
+                          "module": "http:MakeRequest",
+                          "version": 4,
+                          "parameters": {},
+                          "mapper": {
+                            "url": "{{2.result.table_api_url}}/key_log?recipe=eq.R11.3&key=eq.{{13.result.key_q}}",
+                            "method": "patch",
+                            "timeout": "40",
+                            "parseResponse": false,
+                            "stopOnHttpError": true,
+                            "allowRedirects": true,
+                            "shareCookies": false,
+                            "requestCompressedContent": true,
+                            "contentType": "json",
+                            "inputMethod": "jsonString",
+                            "jsonStringBodyContent": "{\"status\": \"failed\", \"result\": \"write failed\"}"
+                          },
+                          "metadata": {
+                            "designer": {
+                              "x": 3300,
+                              "y": 300,
+                              "name": "Step 4: Copy the budget owner: mark key failed"
+                            }
+                          }
+                        },
+                        {
+                          "id": 19,
+                          "module": "http:MakeRequest",
+                          "version": 4,
+                          "parameters": {},
+                          "mapper": {
+                            "url": "{{2.result.table_api_url}}/exception_queue",
+                            "method": "post",
+                            "timeout": "40",
+                            "parseResponse": false,
+                            "stopOnHttpError": true,
+                            "allowRedirects": true,
+                            "shareCookies": false,
+                            "requestCompressedContent": true,
+                            "contentType": "json",
+                            "inputMethod": "jsonString",
+                            "jsonStringBodyContent": "{{13.result.failed_body}}"
+                          },
+                          "metadata": {
+                            "designer": {
+                              "x": 3600,
+                              "y": 300,
+                              "name": "Step 4: Copy the budget owner: exception queue"
+                            }
+                          }
+                        },
+                        {
+                          "id": 20,
+                          "module": "builtin:Ignore",
+                          "version": 1,
+                          "metadata": {
+                            "designer": {
+                              "x": 3900,
+                              "y": 300
+                            }
+                          }
+                        }
+                      ],
+                      "filter": {
+                        "name": "over budget",
+                        "conditions": [
+                          [
+                            {
+                              "a": "{{13.result.copy_budget_owner}}",
+                              "b": "true",
+                              "o": "text:equal"
+                            }
+                          ]
+                        ]
+                      }
+                    },
+                    {
+                      "id": 22,
+                      "module": "http:MakeRequest",
+                      "version": 4,
+                      "parameters": {},
+                      "mapper": {
+                        "url": "{{2.result.table_api_url}}/key_log?recipe=eq.R11.3&key=eq.{{13.result.key_q}}",
+                        "method": "patch",
+                        "timeout": "40",
+                        "parseResponse": false,
+                        "stopOnHttpError": true,
+                        "allowRedirects": true,
+                        "shareCookies": false,
+                        "requestCompressedContent": true,
+                        "contentType": "json",
+                        "inputMethod": "jsonString",
+                        "jsonStringBodyContent": "{{13.result.done_body}}"
+                      },
+                      "metadata": {
+                        "designer": {
+                          "x": 3600,
+                          "y": 0,
+                          "name": "Mark key done (over budget)"
+                        }
+                      }
+                    },
+                    {
+                      "id": 23,
+                      "module": "http:MakeRequest",
+                      "version": 4,
+                      "parameters": {},
+                      "mapper": {
+                        "url": "{{2.result.table_api_url}}/decision_log",
+                        "method": "post",
+                        "timeout": "40",
+                        "parseResponse": false,
+                        "stopOnHttpError": true,
+                        "allowRedirects": true,
+                        "shareCookies": false,
+                        "requestCompressedContent": true,
+                        "contentType": "json",
+                        "inputMethod": "jsonString",
+                        "jsonStringBodyContent": "{{13.result.log_body}}"
+                      },
+                      "metadata": {
+                        "designer": {
+                          "x": 3900,
+                          "y": 0,
+                          "name": "Decision log (over budget)"
+                        }
+                      }
+                    }
+                  ]
+                },
+                {
+                  "flow": [
+                    {
+                      "id": 24,
+                      "module": "http:MakeRequest",
+                      "version": 4,
+                      "parameters": {},
+                      "mapper": {
+                        "url": "{{2.result.table_api_url}}/key_log?recipe=eq.R11.3&key=eq.{{13.result.key_q}}",
+                        "method": "patch",
+                        "timeout": "40",
+                        "parseResponse": false,
+                        "stopOnHttpError": true,
+                        "allowRedirects": true,
+                        "shareCookies": false,
+                        "requestCompressedContent": true,
+                        "contentType": "json",
+                        "inputMethod": "jsonString",
+                        "jsonStringBodyContent": "{{13.result.done_body}}"
+                      },
+                      "metadata": {
+                        "designer": {
+                          "x": 3300,
+                          "y": 600,
+                          "name": "Mark key done (approval)"
+                        }
+                      },
+                      "filter": {
+                        "name": "within budget",
+                        "conditions": [
+                          [
+                            {
+                              "a": "{{13.result.copy_budget_owner}}",
+                              "b": "true",
+                              "o": "text:notequal"
+                            }
+                          ]
+                        ]
+                      }
+                    },
+                    {
+                      "id": 25,
+                      "module": "http:MakeRequest",
+                      "version": 4,
+                      "parameters": {},
+                      "mapper": {
+                        "url": "{{2.result.table_api_url}}/decision_log",
+                        "method": "post",
+                        "timeout": "40",
+                        "parseResponse": false,
+                        "stopOnHttpError": true,
+                        "allowRedirects": true,
+                        "shareCookies": false,
+                        "requestCompressedContent": true,
+                        "contentType": "json",
+                        "inputMethod": "jsonString",
+                        "jsonStringBodyContent": "{{13.result.log_body}}"
+                      },
+                      "metadata": {
+                        "designer": {
+                          "x": 3600,
+                          "y": 600,
+                          "name": "Decision log (approval)"
+                        }
+                      }
+                    }
+                  ]
+                }
+              ],
+              "metadata": {
+                "designer": {
+                  "x": 3000,
+                  "y": 0,
+                  "name": "Over budget?"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "flow": [
+            {
+              "id": 27,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.table_api_url}}/exception_queue",
+                "method": "post",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{13.result.stale_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 2700,
+                  "y": 900,
+                  "name": "Step 3: Exception queue: budget export stale"
+                }
+              },
+              "filter": {
+                "name": "route is held",
+                "conditions": [
+                  [
+                    {
+                      "a": "{{13.result.route}}",
+                      "b": "held",
+                      "o": "text:equal"
+                    }
+                  ]
+                ]
+              }
+            },
+            {
+              "id": 31,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.messaging_url}}/messages",
+                "method": "post",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{13.result.stale_message}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 3000,
+                  "y": 900,
+                  "name": "Step 3: Tell the budget owner"
+                }
+              },
+              "onerror": [
+                {
+                  "id": 28,
+                  "module": "http:MakeRequest",
+                  "version": 4,
+                  "parameters": {},
+                  "mapper": {
+                    "url": "{{2.result.table_api_url}}/key_log?recipe=eq.R11.3&key=eq.{{13.result.key_q}}",
+                    "method": "patch",
+                    "timeout": "40",
+                    "parseResponse": false,
+                    "stopOnHttpError": true,
+                    "allowRedirects": true,
+                    "shareCookies": false,
+                    "requestCompressedContent": true,
+                    "contentType": "json",
+                    "inputMethod": "jsonString",
+                    "jsonStringBodyContent": "{\"status\": \"failed\", \"result\": \"write failed\"}"
+                  },
+                  "metadata": {
+                    "designer": {
+                      "x": 3000,
+                      "y": 1200,
+                      "name": "Step 3: Tell the budget owner: mark key failed"
+                    }
+                  }
+                },
+                {
+                  "id": 29,
+                  "module": "http:MakeRequest",
+                  "version": 4,
+                  "parameters": {},
+                  "mapper": {
+                    "url": "{{2.result.table_api_url}}/exception_queue",
+                    "method": "post",
+                    "timeout": "40",
+                    "parseResponse": false,
+                    "stopOnHttpError": true,
+                    "allowRedirects": true,
+                    "shareCookies": false,
+                    "requestCompressedContent": true,
+                    "contentType": "json",
+                    "inputMethod": "jsonString",
+                    "jsonStringBodyContent": "{{13.result.failed_body}}"
+                  },
+                  "metadata": {
+                    "designer": {
+                      "x": 3300,
+                      "y": 1200,
+                      "name": "Step 3: Tell the budget owner: exception queue"
+                    }
+                  }
+                },
+                {
+                  "id": 30,
+                  "module": "builtin:Ignore",
+                  "version": 1,
+                  "metadata": {
+                    "designer": {
+                      "x": 3600,
+                      "y": 1200
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "id": 32,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.table_api_url}}/rpc/release_key",
+                "method": "post",
+                "timeout": "40",
+                "parseResponse": true,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{13.result.release_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 3300,
+                  "y": 900,
+                  "name": "Release key: no approval open (held)"
+                }
+              }
+            },
+            {
+              "id": 33,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.table_api_url}}/decision_log",
+                "method": "post",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{13.result.log_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 3600,
+                  "y": 900,
+                  "name": "Decision log (held)"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "flow": [
+            {
+              "id": 37,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.requests_url}}/requests/{{encodeURL(1.request_id)}}",
+                "method": "patch",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{\"status\": \"approved\", \"edit_refused\": \"new request needed\"}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 2700,
+                  "y": 1500,
+                  "name": "Step 10: Keep it approved; edit refused"
+                }
+              },
+              "onerror": [
+                {
+                  "id": 34,
+                  "module": "http:MakeRequest",
+                  "version": 4,
+                  "parameters": {},
+                  "mapper": {
+                    "url": "{{2.result.table_api_url}}/key_log?recipe=eq.R11.3&key=eq.{{13.result.key_q}}",
+                    "method": "patch",
+                    "timeout": "40",
+                    "parseResponse": false,
+                    "stopOnHttpError": true,
+                    "allowRedirects": true,
+                    "shareCookies": false,
+                    "requestCompressedContent": true,
+                    "contentType": "json",
+                    "inputMethod": "jsonString",
+                    "jsonStringBodyContent": "{\"status\": \"failed\", \"result\": \"write failed\"}"
+                  },
+                  "metadata": {
+                    "designer": {
+                      "x": 2700,
+                      "y": 1800,
+                      "name": "Step 10: Keep it approved; edit refused: mark key failed"
+                    }
+                  }
+                },
+                {
+                  "id": 35,
+                  "module": "http:MakeRequest",
+                  "version": 4,
+                  "parameters": {},
+                  "mapper": {
+                    "url": "{{2.result.table_api_url}}/exception_queue",
+                    "method": "post",
+                    "timeout": "40",
+                    "parseResponse": false,
+                    "stopOnHttpError": true,
+                    "allowRedirects": true,
+                    "shareCookies": false,
+                    "requestCompressedContent": true,
+                    "contentType": "json",
+                    "inputMethod": "jsonString",
+                    "jsonStringBodyContent": "{{13.result.failed_body}}"
+                  },
+                  "metadata": {
+                    "designer": {
+                      "x": 3000,
+                      "y": 1800,
+                      "name": "Step 10: Keep it approved; edit refused: exception queue"
+                    }
+                  }
+                },
+                {
+                  "id": 36,
+                  "module": "builtin:Ignore",
+                  "version": 1,
+                  "metadata": {
+                    "designer": {
+                      "x": 3300,
+                      "y": 1800
+                    }
+                  }
+                }
+              ],
+              "filter": {
+                "name": "route is edit_refused",
+                "conditions": [
+                  [
+                    {
+                      "a": "{{13.result.route}}",
+                      "b": "edit_refused",
+                      "o": "text:equal"
+                    }
+                  ]
+                ]
+              }
+            },
+            {
+              "id": 41,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.messaging_url}}/messages",
+                "method": "post",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{13.result.edit_message}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 3000,
+                  "y": 1500,
+                  "name": "Step 10: Tell the requester a new request is needed"
+                }
+              },
+              "onerror": [
+                {
+                  "id": 38,
+                  "module": "http:MakeRequest",
+                  "version": 4,
+                  "parameters": {},
+                  "mapper": {
+                    "url": "{{2.result.table_api_url}}/key_log?recipe=eq.R11.3&key=eq.{{13.result.key_q}}",
+                    "method": "patch",
+                    "timeout": "40",
+                    "parseResponse": false,
+                    "stopOnHttpError": true,
+                    "allowRedirects": true,
+                    "shareCookies": false,
+                    "requestCompressedContent": true,
+                    "contentType": "json",
+                    "inputMethod": "jsonString",
+                    "jsonStringBodyContent": "{\"status\": \"failed\", \"result\": \"write failed\"}"
+                  },
+                  "metadata": {
+                    "designer": {
+                      "x": 3000,
+                      "y": 1800,
+                      "name": "Step 10: Tell the requester a new request is needed: mark key failed"
+                    }
+                  }
+                },
+                {
+                  "id": 39,
+                  "module": "http:MakeRequest",
+                  "version": 4,
+                  "parameters": {},
+                  "mapper": {
+                    "url": "{{2.result.table_api_url}}/exception_queue",
+                    "method": "post",
+                    "timeout": "40",
+                    "parseResponse": false,
+                    "stopOnHttpError": true,
+                    "allowRedirects": true,
+                    "shareCookies": false,
+                    "requestCompressedContent": true,
+                    "contentType": "json",
+                    "inputMethod": "jsonString",
+                    "jsonStringBodyContent": "{{13.result.failed_body}}"
+                  },
+                  "metadata": {
+                    "designer": {
+                      "x": 3300,
+                      "y": 1800,
+                      "name": "Step 10: Tell the requester a new request is needed: exception queue"
+                    }
+                  }
+                },
+                {
+                  "id": 40,
+                  "module": "builtin:Ignore",
+                  "version": 1,
+                  "metadata": {
+                    "designer": {
+                      "x": 3600,
+                      "y": 1800
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "id": 42,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.table_api_url}}/key_log?recipe=eq.R11.3&key=eq.{{13.result.key_q}}",
+                "method": "patch",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{13.result.done_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 3300,
+                  "y": 1500,
+                  "name": "Mark key done (edit refused)"
+                }
+              }
+            },
+            {
+              "id": 43,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.table_api_url}}/decision_log",
+                "method": "post",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{13.result.log_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 3600,
+                  "y": 1500,
+                  "name": "Decision log (edit refused)"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "flow": [
+            {
+              "id": 44,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.table_api_url}}/exception_queue",
+                "method": "post",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{13.result.no_approver_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 2700,
+                  "y": 2100,
+                  "name": "Exception queue: no eligible approver"
+                }
+              },
+              "filter": {
+                "name": "route is no_approver",
+                "conditions": [
+                  [
+                    {
+                      "a": "{{13.result.route}}",
+                      "b": "no_approver",
+                      "o": "text:equal"
+                    }
+                  ]
+                ]
+              }
+            },
+            {
+              "id": 45,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.table_api_url}}/rpc/release_key",
+                "method": "post",
+                "timeout": "40",
+                "parseResponse": true,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{13.result.release_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 3000,
+                  "y": 2100,
+                  "name": "Release key: no approval open (no approver)"
+                }
+              }
+            },
+            {
+              "id": 46,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.table_api_url}}/decision_log",
+                "method": "post",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{13.result.log_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 3300,
+                  "y": 2100,
+                  "name": "Decision log (no approver)"
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "designer": {
+          "x": 2400,
+          "y": 0,
+          "name": "Route"
+        }
+      }
+    }
+  ],
+  "metadata": {
+    "instant": true,
+    "version": 1,
+    "designer": {
+      "orphans": []
+    },
+    "scenario": {
+      "dlq": true,
+      "slots": null,
+      "dataloss": false,
+      "maxErrors": 3,
+      "autoCommit": true,
+      "roundtrips": 1,
+      "sequential": false,
+      "confidential": false,
+      "freshVariables": false,
+      "autoCommitTriggerLast": true
+    }
+  }
+}

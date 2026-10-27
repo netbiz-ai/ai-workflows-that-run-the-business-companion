@@ -43,6 +43,14 @@ from pathlib import Path
 HOOK_PLACEHOLDER = None  # the reader creates their own webhook on import
 
 
+def settings_js(values: dict) -> str:
+    """The settings object as JavaScript source for a Code step. Make reads any {{...}} in a Code
+    step's script as its own mapping and blanks it before the code runs, so a brace followed by a
+    brace (merge fields such as {{invoice}} in a template) is written as \\u007b, which JavaScript
+    and JSON both read back as the same text."""
+    return re.sub(r"\{(?=\{)", r"\\u007b", json.dumps(values, indent=2))
+
+
 class Scenario:
     def __init__(self, recipe: str, name: str, trigger: str, *, test_key: str, schedule: str | None = None):
         """trigger: 'webhook' or 'schedule'. test_key: the webhook path or schedule node name the
@@ -74,6 +82,9 @@ class Scenario:
                 "parameters": {"hook": HOOK_PLACEHOLDER, "maxResults": 1}, "mapper": {}, "metadata": self._meta(name, x, y)}
 
     def code(self, name: str, js: str, inputs: dict[str, str] | None = None, x=0, y=0) -> dict:
+        if "{{" in js:
+            raise ValueError(f"{name}: Make would read the {{{{...}}}} in this Code step's script as a mapping; "
+                             "pass data as inputs, or write the text with settings_js()")
         return {"id": self._id(name), "module": "code:ExecuteCode", "version": 1, "parameters": {},
                 "mapper": {"language": "javascript", "inputFormat": "editor", "dependencies": [],
                            "codeEditorJavascript": js,
@@ -87,7 +98,7 @@ class Scenario:
         when = (f"// Schedule: set this scenario to run {self.schedule}; Make keeps the schedule outside the blueprint.\n"
                 if self.schedule else "")
         js = ("// Config: edit these values for your company; nothing else in the scenario hard-codes them.\n" + when +
-              "return " + json.dumps(values, indent=2) + ";")
+              "return " + settings_js(values) + ";")
         return self.code("Config", js, x=x, y=y)
 
     def http(self, name: str, method: str, url: str, *, body: str | None = None, parse: bool = True,
