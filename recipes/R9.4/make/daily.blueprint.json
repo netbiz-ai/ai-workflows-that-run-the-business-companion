@@ -836,7 +836,7 @@
                                           "metadata": {
                                             "designer": {
                                               "x": 4800,
-                                              "y": 900,
+                                              "y": 1200,
                                               "name": "Step 4: End its sessions: mark key failed"
                                             }
                                           }
@@ -862,7 +862,7 @@
                                           "metadata": {
                                             "designer": {
                                               "x": 5100,
-                                              "y": 900,
+                                              "y": 1200,
                                               "name": "Step 4: End its sessions: IT ticket: removal failed"
                                             }
                                           }
@@ -888,7 +888,7 @@
                                           "metadata": {
                                             "designer": {
                                               "x": 5400,
-                                              "y": 900,
+                                              "y": 1200,
                                               "name": "Step 4: End its sessions: alert Owen: removal failed"
                                             }
                                           }
@@ -914,7 +914,7 @@
                                           "metadata": {
                                             "designer": {
                                               "x": 5700,
-                                              "y": 900,
+                                              "y": 1200,
                                               "name": "Step 4: End its sessions: exception queue: removal failed"
                                             }
                                           }
@@ -926,7 +926,7 @@
                                           "metadata": {
                                             "designer": {
                                               "x": 6000,
-                                              "y": 900
+                                              "y": 1200
                                             }
                                           }
                                         }
@@ -979,7 +979,7 @@
                                           "metadata": {
                                             "designer": {
                                               "x": 5100,
-                                              "y": 900,
+                                              "y": 1500,
                                               "name": "Step 4: Evidence: SSO disabled: mark key failed"
                                             }
                                           }
@@ -1005,7 +1005,7 @@
                                           "metadata": {
                                             "designer": {
                                               "x": 5400,
-                                              "y": 900,
+                                              "y": 1500,
                                               "name": "Step 4: Evidence: SSO disabled: IT ticket: removal failed"
                                             }
                                           }
@@ -1031,7 +1031,7 @@
                                           "metadata": {
                                             "designer": {
                                               "x": 5700,
-                                              "y": 900,
+                                              "y": 1500,
                                               "name": "Step 4: Evidence: SSO disabled: alert Owen: removal failed"
                                             }
                                           }
@@ -1057,7 +1057,7 @@
                                           "metadata": {
                                             "designer": {
                                               "x": 6000,
-                                              "y": 900,
+                                              "y": 1500,
                                               "name": "Step 4: Evidence: SSO disabled: exception queue: removal failed"
                                             }
                                           }
@@ -1069,7 +1069,7 @@
                                           "metadata": {
                                             "designer": {
                                               "x": 6300,
-                                              "y": 900
+                                              "y": 1500
                                             }
                                           }
                                         }
@@ -1292,7 +1292,7 @@
                                       "metadata": {
                                         "designer": {
                                           "x": 4500,
-                                          "y": 1200,
+                                          "y": 1500,
                                           "name": "Step 5: Remove from the app"
                                         }
                                       },
@@ -1318,7 +1318,7 @@
                                           "metadata": {
                                             "designer": {
                                               "x": 4500,
-                                              "y": 1500,
+                                              "y": 1800,
                                               "name": "Step 5: Remove from the app: mark key failed"
                                             }
                                           }
@@ -1344,7 +1344,7 @@
                                           "metadata": {
                                             "designer": {
                                               "x": 4800,
-                                              "y": 1500,
+                                              "y": 1800,
                                               "name": "Step 5: Remove from the app: IT ticket: removal failed"
                                             }
                                           }
@@ -1370,7 +1370,7 @@
                                           "metadata": {
                                             "designer": {
                                               "x": 5100,
-                                              "y": 1500,
+                                              "y": 1800,
                                               "name": "Step 5: Remove from the app: alert Owen: removal failed"
                                             }
                                           }
@@ -1396,7 +1396,7 @@
                                           "metadata": {
                                             "designer": {
                                               "x": 5400,
-                                              "y": 1500,
+                                              "y": 1800,
                                               "name": "Step 5: Remove from the app: exception queue: removal failed"
                                             }
                                           }
@@ -1408,7 +1408,7 @@
                                           "metadata": {
                                             "designer": {
                                               "x": 5700,
-                                              "y": 1500
+                                              "y": 1800
                                             }
                                           }
                                         }
@@ -1447,7 +1447,7 @@
                                       "metadata": {
                                         "designer": {
                                           "x": 4800,
-                                          "y": 1200,
+                                          "y": 1500,
                                           "name": "Step 5: Evidence: removed"
                                         }
                                       },
@@ -1473,7 +1473,7 @@
                                           "metadata": {
                                             "designer": {
                                               "x": 4800,
-                                              "y": 1500,
+                                              "y": 2100,
                                               "name": "Step 5: Evidence: removed: mark key failed"
                                             }
                                           }
@@ -1499,7 +1499,7 @@
                                           "metadata": {
                                             "designer": {
                                               "x": 5100,
-                                              "y": 1500,
+                                              "y": 2100,
                                               "name": "Step 5: Evidence: removed: IT ticket: removal failed"
                                             }
                                           }
@@ -1525,7 +1525,7 @@
                                           "metadata": {
                                             "designer": {
                                               "x": 5400,
-                                              "y": 1500,
+                                              "y": 2100,
                                               "name": "Step 5: Evidence: removed: alert Owen: removal failed"
                                             }
                                           }
@@ -1551,7 +1551,7 @@
                                           "metadata": {
                                             "designer": {
                                               "x": 5700,
-                                              "y": 1500,
+                                              "y": 2100,
                                               "name": "Step 5: Evidence: removed: exception queue: removal failed"
                                             }
                                           }
@@ -1563,7 +1563,7 @@
                                           "metadata": {
                                             "designer": {
                                               "x": 6000,
-                                              "y": 1500
+                                              "y": 2100
                                             }
                                           }
                                         }
@@ -1594,7 +1594,7 @@
                                       "metadata": {
                                         "designer": {
                                           "x": 4500,
-                                          "y": 1800,
+                                          "y": 2400,
                                           "name": "Steps 5 and 6: Task a person"
                                         }
                                       },
@@ -1620,7 +1620,7 @@
                                           "metadata": {
                                             "designer": {
                                               "x": 4500,
-                                              "y": 2100,
+                                              "y": 2700,
                                               "name": "Steps 5 and 6: Task a person: mark key failed"
                                             }
                                           }
@@ -1646,7 +1646,7 @@
                                           "metadata": {
                                             "designer": {
                                               "x": 4800,
-                                              "y": 2100,
+                                              "y": 2700,
                                               "name": "Steps 5 and 6: Task a person: IT ticket: removal failed"
                                             }
                                           }
@@ -1672,7 +1672,7 @@
                                           "metadata": {
                                             "designer": {
                                               "x": 5100,
-                                              "y": 2100,
+                                              "y": 2700,
                                               "name": "Steps 5 and 6: Task a person: alert Owen: removal failed"
                                             }
                                           }
@@ -1698,7 +1698,7 @@
                                           "metadata": {
                                             "designer": {
                                               "x": 5400,
-                                              "y": 2100,
+                                              "y": 2700,
                                               "name": "Steps 5 and 6: Task a person: exception queue: removal failed"
                                             }
                                           }
@@ -1710,7 +1710,7 @@
                                           "metadata": {
                                             "designer": {
                                               "x": 5700,
-                                              "y": 2100
+                                              "y": 2700
                                             }
                                           }
                                         }
@@ -1749,7 +1749,7 @@
                                       "metadata": {
                                         "designer": {
                                           "x": 4800,
-                                          "y": 1800,
+                                          "y": 2400,
                                           "name": "Steps 5 and 6: Evidence: task open"
                                         }
                                       },
@@ -1775,7 +1775,7 @@
                                           "metadata": {
                                             "designer": {
                                               "x": 4800,
-                                              "y": 2100,
+                                              "y": 3000,
                                               "name": "Steps 5 and 6: Evidence: task open: mark key failed"
                                             }
                                           }
@@ -1801,7 +1801,7 @@
                                           "metadata": {
                                             "designer": {
                                               "x": 5100,
-                                              "y": 2100,
+                                              "y": 3000,
                                               "name": "Steps 5 and 6: Evidence: task open: IT ticket: removal failed"
                                             }
                                           }
@@ -1827,7 +1827,7 @@
                                           "metadata": {
                                             "designer": {
                                               "x": 5400,
-                                              "y": 2100,
+                                              "y": 3000,
                                               "name": "Steps 5 and 6: Evidence: task open: alert Owen: removal failed"
                                             }
                                           }
@@ -1853,7 +1853,7 @@
                                           "metadata": {
                                             "designer": {
                                               "x": 5700,
-                                              "y": 2100,
+                                              "y": 3000,
                                               "name": "Steps 5 and 6: Evidence: task open: exception queue: removal failed"
                                             }
                                           }
@@ -1865,7 +1865,7 @@
                                           "metadata": {
                                             "designer": {
                                               "x": 6000,
-                                              "y": 2100
+                                              "y": 3000
                                             }
                                           }
                                         }
@@ -1910,7 +1910,7 @@
                               "metadata": {
                                 "designer": {
                                   "x": 3600,
-                                  "y": 2400,
+                                  "y": 3300,
                                   "name": "Step 7: Case to check"
                                 }
                               },
@@ -1955,7 +1955,7 @@
                               "metadata": {
                                 "designer": {
                                   "x": 3900,
-                                  "y": 2400,
+                                  "y": 3300,
                                   "name": "Step 7: Read the case"
                                 }
                               },
@@ -1973,7 +1973,7 @@
                                   "metadata": {
                                     "designer": {
                                       "x": 3900,
-                                      "y": 2700
+                                      "y": 3600
                                     }
                                   }
                                 }
@@ -2007,7 +2007,7 @@
                               "metadata": {
                                 "designer": {
                                   "x": 4200,
-                                  "y": 2400,
+                                  "y": 3300,
                                   "name": "Step 7: Read the case evidence"
                                 }
                               },
@@ -2025,7 +2025,7 @@
                                   "metadata": {
                                     "designer": {
                                       "x": 4200,
-                                      "y": 2700
+                                      "y": 3600
                                     }
                                   }
                                 }
@@ -2067,7 +2067,7 @@
                               "metadata": {
                                 "designer": {
                                   "x": 4500,
-                                  "y": 2400,
+                                  "y": 3300,
                                   "name": "Step 7: Rule: every item confirmed?"
                                 }
                               }
@@ -2093,7 +2093,7 @@
                               "metadata": {
                                 "designer": {
                                   "x": 4800,
-                                  "y": 2400,
+                                  "y": 3300,
                                   "name": "Step 9: Log the case"
                                 }
                               }
@@ -2119,7 +2119,7 @@
                               "metadata": {
                                 "designer": {
                                   "x": 5100,
-                                  "y": 2400,
+                                  "y": 3300,
                                   "name": "Step 9: Ask Owen to check and close"
                                 }
                               },
@@ -2157,7 +2157,7 @@
                               "metadata": {
                                 "designer": {
                                   "x": 5400,
-                                  "y": 2400,
+                                  "y": 3300,
                                   "name": "Step 9: Decision log: all confirmed"
                                 }
                               }
@@ -2216,7 +2216,7 @@
               "metadata": {
                 "designer": {
                   "x": 900,
-                  "y": 3000,
+                  "y": 900,
                   "name": "Step 8: Read open cases"
                 }
               },
@@ -2234,7 +2234,7 @@
                   "metadata": {
                     "designer": {
                       "x": 900,
-                      "y": 3300
+                      "y": 1200
                     }
                   }
                 }
@@ -2280,7 +2280,7 @@
               "metadata": {
                 "designer": {
                   "x": 1200,
-                  "y": 3000,
+                  "y": 900,
                   "name": "Step 8: Rule: past the deadline?"
                 }
               }
@@ -2296,7 +2296,7 @@
               "metadata": {
                 "designer": {
                   "x": 1500,
-                  "y": 3000,
+                  "y": 900,
                   "name": "Each case past the deadline"
                 }
               }
@@ -2322,7 +2322,7 @@
               "metadata": {
                 "designer": {
                   "x": 1800,
-                  "y": 3000,
+                  "y": 900,
                   "name": "Step 8: IT ticket: unconfirmed at the deadline"
                 }
               }
@@ -2348,7 +2348,7 @@
               "metadata": {
                 "designer": {
                   "x": 2100,
-                  "y": 3000,
+                  "y": 900,
                   "name": "Step 8: Alert Owen"
                 }
               }
@@ -2374,7 +2374,7 @@
               "metadata": {
                 "designer": {
                   "x": 2400,
-                  "y": 3000,
+                  "y": 900,
                   "name": "Step 8: Mark the case ticketed"
                 }
               }

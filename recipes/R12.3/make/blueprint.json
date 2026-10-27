@@ -136,7 +136,7 @@
           "metadata": {
             "designer": {
               "x": 900,
-              "y": 300
+              "y": 600
             }
           }
         }
@@ -1261,7 +1261,7 @@
                                           "metadata": {
                                             "designer": {
                                               "x": 5700,
-                                              "y": 2400,
+                                              "y": 2700,
                                               "name": "Steps 4 and 6: Add to the alert log (emailed): mark key failed"
                                             }
                                           }
@@ -1287,7 +1287,7 @@
                                           "metadata": {
                                             "designer": {
                                               "x": 6000,
-                                              "y": 2400,
+                                              "y": 2700,
                                               "name": "Steps 4 and 6: Add to the alert log (emailed): exception queue"
                                             }
                                           }
@@ -1299,7 +1299,7 @@
                                           "metadata": {
                                             "designer": {
                                               "x": 6300,
-                                              "y": 2400
+                                              "y": 2700
                                             }
                                           }
                                         }
@@ -1415,7 +1415,7 @@
               "metadata": {
                 "designer": {
                   "x": 3600,
-                  "y": 2700,
+                  "y": 600,
                   "name": "Step 7: Log every check (no alert)"
                 }
               },

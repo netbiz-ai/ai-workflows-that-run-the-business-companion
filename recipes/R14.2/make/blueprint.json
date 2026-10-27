@@ -146,7 +146,7 @@
           "metadata": {
             "designer": {
               "x": 900,
-              "y": 300
+              "y": 600
             }
           }
         }
@@ -821,7 +821,7 @@
                           "metadata": {
                             "designer": {
                               "x": 3300,
-                              "y": 1500,
+                              "y": 1800,
                               "name": "Step 9: Exception queue: task system error (search, outside owner)"
                             }
                           }
@@ -847,7 +847,7 @@
                           "metadata": {
                             "designer": {
                               "x": 3600,
-                              "y": 1500,
+                              "y": 1800,
                               "name": "Step 9: Tell the chair (search, outside owner)"
                             }
                           },
@@ -873,7 +873,7 @@
                               "metadata": {
                                 "designer": {
                                   "x": 3600,
-                                  "y": 1800,
+                                  "y": 2100,
                                   "name": "Step 9: Tell the chair (search, outside owner): exception queue"
                                 }
                               }
@@ -885,7 +885,7 @@
                               "metadata": {
                                 "designer": {
                                   "x": 3900,
-                                  "y": 1800
+                                  "y": 2100
                                 }
                               }
                             }
@@ -898,7 +898,7 @@
                           "metadata": {
                             "designer": {
                               "x": 3900,
-                              "y": 1500
+                              "y": 1800
                             }
                           }
                         }
@@ -1040,7 +1040,7 @@
                               "metadata": {
                                 "designer": {
                                   "x": 3900,
-                                  "y": 1800,
+                                  "y": 2400,
                                   "name": "Step 7: Create the task (outside owner)"
                                 }
                               },
@@ -1086,7 +1086,7 @@
                                       "metadata": {
                                         "designer": {
                                           "x": 4500,
-                                          "y": 1800,
+                                          "y": 2400,
                                           "name": "Step 8: Write task ID back (outside owner)"
                                         }
                                       },
@@ -1112,7 +1112,7 @@
                                           "metadata": {
                                             "designer": {
                                               "x": 4500,
-                                              "y": 2100,
+                                              "y": 2700,
                                               "name": "Step 8: Write task ID back (outside owner): exception queue"
                                             }
                                           }
@@ -1124,7 +1124,7 @@
                                           "metadata": {
                                             "designer": {
                                               "x": 4800,
-                                              "y": 2100
+                                              "y": 2700
                                             }
                                           }
                                         }
@@ -1163,7 +1163,7 @@
                                       "metadata": {
                                         "designer": {
                                           "x": 4800,
-                                          "y": 1800,
+                                          "y": 2400,
                                           "name": "Decision log: task created (outside owner)"
                                         }
                                       }
@@ -1193,7 +1193,7 @@
                                       "metadata": {
                                         "designer": {
                                           "x": 4500,
-                                          "y": 2400,
+                                          "y": 3000,
                                           "name": "Step 7: Create the task, second try (outside owner)"
                                         }
                                       },
@@ -1219,7 +1219,7 @@
                                           "metadata": {
                                             "designer": {
                                               "x": 4500,
-                                              "y": 2700,
+                                              "y": 3300,
                                               "name": "Step 9: Exception queue: task system error (create, outside owner)"
                                             }
                                           }
@@ -1245,7 +1245,7 @@
                                           "metadata": {
                                             "designer": {
                                               "x": 4800,
-                                              "y": 2700,
+                                              "y": 3300,
                                               "name": "Step 9: Tell the chair (create, outside owner)"
                                             }
                                           },
@@ -1271,7 +1271,7 @@
                                               "metadata": {
                                                 "designer": {
                                                   "x": 4800,
-                                                  "y": 3000,
+                                                  "y": 3600,
                                                   "name": "Step 9: Tell the chair (create, outside owner): exception queue"
                                                 }
                                               }
@@ -1283,7 +1283,7 @@
                                               "metadata": {
                                                 "designer": {
                                                   "x": 5100,
-                                                  "y": 3000
+                                                  "y": 3600
                                                 }
                                               }
                                             }
@@ -1296,7 +1296,7 @@
                                           "metadata": {
                                             "designer": {
                                               "x": 5100,
-                                              "y": 2700
+                                              "y": 3300
                                             }
                                           }
                                         }
@@ -1335,7 +1335,7 @@
                                       "metadata": {
                                         "designer": {
                                           "x": 4800,
-                                          "y": 2400,
+                                          "y": 3000,
                                           "name": "Step 8: Write task ID back (outside owner, second try)"
                                         }
                                       },
@@ -1361,7 +1361,7 @@
                                           "metadata": {
                                             "designer": {
                                               "x": 4800,
-                                              "y": 2700,
+                                              "y": 3900,
                                               "name": "Step 8: Write task ID back (outside owner, second try): exception queue"
                                             }
                                           }
@@ -1373,7 +1373,7 @@
                                           "metadata": {
                                             "designer": {
                                               "x": 5100,
-                                              "y": 2700
+                                              "y": 3900
                                             }
                                           }
                                         }
@@ -1400,7 +1400,7 @@
                                       "metadata": {
                                         "designer": {
                                           "x": 5100,
-                                          "y": 2400,
+                                          "y": 3000,
                                           "name": "Decision log: task created (outside owner, second try)"
                                         }
                                       }
@@ -1411,7 +1411,7 @@
                               "metadata": {
                                 "designer": {
                                   "x": 4200,
-                                  "y": 1800,
+                                  "y": 2400,
                                   "name": "Created? (outside owner)"
                                 }
                               }
@@ -1459,7 +1459,7 @@
                       "metadata": {
                         "designer": {
                           "x": 3000,
-                          "y": 3300,
+                          "y": 4200,
                           "name": "Step 6: Search tasks for the item ID (staff owner)"
                         }
                       },
@@ -1485,7 +1485,7 @@
                           "metadata": {
                             "designer": {
                               "x": 3000,
-                              "y": 3600,
+                              "y": 4500,
                               "name": "Step 9: Exception queue: task system error (search, staff owner)"
                             }
                           }
@@ -1511,7 +1511,7 @@
                           "metadata": {
                             "designer": {
                               "x": 3300,
-                              "y": 3600,
+                              "y": 4500,
                               "name": "Step 9: Tell the chair (search, staff owner)"
                             }
                           },
@@ -1537,7 +1537,7 @@
                               "metadata": {
                                 "designer": {
                                   "x": 3300,
-                                  "y": 3900,
+                                  "y": 4800,
                                   "name": "Step 9: Tell the chair (search, staff owner): exception queue"
                                 }
                               }
@@ -1549,7 +1549,7 @@
                               "metadata": {
                                 "designer": {
                                   "x": 3600,
-                                  "y": 3900
+                                  "y": 4800
                                 }
                               }
                             }
@@ -1562,7 +1562,7 @@
                           "metadata": {
                             "designer": {
                               "x": 3600,
-                              "y": 3600
+                              "y": 4500
                             }
                           }
                         }
@@ -1609,7 +1609,7 @@
                               "metadata": {
                                 "designer": {
                                   "x": 3600,
-                                  "y": 3300,
+                                  "y": 4200,
                                   "name": "Step 6: Write the found task ID back (staff owner)"
                                 }
                               },
@@ -1635,7 +1635,7 @@
                                   "metadata": {
                                     "designer": {
                                       "x": 3600,
-                                      "y": 3600,
+                                      "y": 5100,
                                       "name": "Step 6: Write the found task ID back (staff owner): exception queue"
                                     }
                                   }
@@ -1647,7 +1647,7 @@
                                   "metadata": {
                                     "designer": {
                                       "x": 3900,
-                                      "y": 3600
+                                      "y": 5100
                                     }
                                   }
                                 }
@@ -1686,7 +1686,7 @@
                               "metadata": {
                                 "designer": {
                                   "x": 3900,
-                                  "y": 3300,
+                                  "y": 4200,
                                   "name": "Decision log: task found (staff owner)"
                                 }
                               }
@@ -1716,7 +1716,7 @@
                               "metadata": {
                                 "designer": {
                                   "x": 3600,
-                                  "y": 3900,
+                                  "y": 5400,
                                   "name": "Step 7: Create the task (staff owner)"
                                 }
                               },
@@ -1762,7 +1762,7 @@
                                       "metadata": {
                                         "designer": {
                                           "x": 4200,
-                                          "y": 3900,
+                                          "y": 5400,
                                           "name": "Step 8: Write task ID back (staff owner)"
                                         }
                                       },
@@ -1788,7 +1788,7 @@
                                           "metadata": {
                                             "designer": {
                                               "x": 4200,
-                                              "y": 4200,
+                                              "y": 5700,
                                               "name": "Step 8: Write task ID back (staff owner): exception queue"
                                             }
                                           }
@@ -1800,7 +1800,7 @@
                                           "metadata": {
                                             "designer": {
                                               "x": 4500,
-                                              "y": 4200
+                                              "y": 5700
                                             }
                                           }
                                         }
@@ -1839,7 +1839,7 @@
                                       "metadata": {
                                         "designer": {
                                           "x": 4500,
-                                          "y": 3900,
+                                          "y": 5400,
                                           "name": "Decision log: task created (staff owner)"
                                         }
                                       }
@@ -1869,7 +1869,7 @@
                                       "metadata": {
                                         "designer": {
                                           "x": 4200,
-                                          "y": 4500,
+                                          "y": 6000,
                                           "name": "Step 7: Create the task, second try (staff owner)"
                                         }
                                       },
@@ -1895,7 +1895,7 @@
                                           "metadata": {
                                             "designer": {
                                               "x": 4200,
-                                              "y": 4800,
+                                              "y": 6300,
                                               "name": "Step 9: Exception queue: task system error (create, staff owner)"
                                             }
                                           }
@@ -1921,7 +1921,7 @@
                                           "metadata": {
                                             "designer": {
                                               "x": 4500,
-                                              "y": 4800,
+                                              "y": 6300,
                                               "name": "Step 9: Tell the chair (create, staff owner)"
                                             }
                                           },
@@ -1947,7 +1947,7 @@
                                               "metadata": {
                                                 "designer": {
                                                   "x": 4500,
-                                                  "y": 5100,
+                                                  "y": 6600,
                                                   "name": "Step 9: Tell the chair (create, staff owner): exception queue"
                                                 }
                                               }
@@ -1959,7 +1959,7 @@
                                               "metadata": {
                                                 "designer": {
                                                   "x": 4800,
-                                                  "y": 5100
+                                                  "y": 6600
                                                 }
                                               }
                                             }
@@ -1972,7 +1972,7 @@
                                           "metadata": {
                                             "designer": {
                                               "x": 4800,
-                                              "y": 4800
+                                              "y": 6300
                                             }
                                           }
                                         }
@@ -2011,7 +2011,7 @@
                                       "metadata": {
                                         "designer": {
                                           "x": 4500,
-                                          "y": 4500,
+                                          "y": 6000,
                                           "name": "Step 8: Write task ID back (staff owner, second try)"
                                         }
                                       },
@@ -2037,7 +2037,7 @@
                                           "metadata": {
                                             "designer": {
                                               "x": 4500,
-                                              "y": 4800,
+                                              "y": 6900,
                                               "name": "Step 8: Write task ID back (staff owner, second try): exception queue"
                                             }
                                           }
@@ -2049,7 +2049,7 @@
                                           "metadata": {
                                             "designer": {
                                               "x": 4800,
-                                              "y": 4800
+                                              "y": 6900
                                             }
                                           }
                                         }
@@ -2076,7 +2076,7 @@
                                       "metadata": {
                                         "designer": {
                                           "x": 4800,
-                                          "y": 4500,
+                                          "y": 6000,
                                           "name": "Decision log: task created (staff owner, second try)"
                                         }
                                       }
@@ -2087,7 +2087,7 @@
                               "metadata": {
                                 "designer": {
                                   "x": 3900,
-                                  "y": 3900,
+                                  "y": 5400,
                                   "name": "Created? (staff owner)"
                                 }
                               }
@@ -2098,7 +2098,7 @@
                       "metadata": {
                         "designer": {
                           "x": 3300,
-                          "y": 3300,
+                          "y": 4200,
                           "name": "Task found? (staff owner)"
                         }
                       }
@@ -2146,7 +2146,7 @@
               "metadata": {
                 "designer": {
                   "x": 2400,
-                  "y": 5400,
+                  "y": 2100,
                   "name": "Step 8: Read the list again"
                 }
               },
@@ -2164,7 +2164,7 @@
                   "metadata": {
                     "designer": {
                       "x": 2400,
-                      "y": 5700
+                      "y": 2400
                     }
                   }
                 }
@@ -2215,7 +2215,7 @@
               "metadata": {
                 "designer": {
                   "x": 2700,
-                  "y": 5400,
+                  "y": 2100,
                   "name": "Step 8: One message per owner"
                 }
               }
@@ -2231,7 +2231,7 @@
               "metadata": {
                 "designer": {
                   "x": 3000,
-                  "y": 5400,
+                  "y": 2100,
                   "name": "Each owner"
                 }
               }
@@ -2257,7 +2257,7 @@
               "metadata": {
                 "designer": {
                   "x": 3300,
-                  "y": 5400,
+                  "y": 2100,
                   "name": "Step 8: Tell each owner"
                 }
               },
@@ -2283,7 +2283,7 @@
                   "metadata": {
                     "designer": {
                       "x": 3300,
-                      "y": 5700,
+                      "y": 2400,
                       "name": "Exception queue: write failed (owner message)"
                     }
                   }
@@ -2295,7 +2295,7 @@
                   "metadata": {
                     "designer": {
                       "x": 3600,
-                      "y": 5700
+                      "y": 2400
                     }
                   }
                 }

@@ -125,7 +125,7 @@
           "metadata": {
             "designer": {
               "x": 600,
-              "y": 300
+              "y": 600
             }
           }
         }
@@ -563,7 +563,7 @@
                   "metadata": {
                     "designer": {
                       "x": 3600,
-                      "y": 300,
+                      "y": 600,
                       "name": "Step 4: Alert the register admin: mark key failed"
                     }
                   }
@@ -589,7 +589,7 @@
                   "metadata": {
                     "designer": {
                       "x": 3900,
-                      "y": 300,
+                      "y": 600,
                       "name": "Step 4: Alert the register admin: exception queue"
                     }
                   }
@@ -601,7 +601,7 @@
                   "metadata": {
                     "designer": {
                       "x": 4200,
-                      "y": 300
+                      "y": 600
                     }
                   }
                 }
@@ -684,7 +684,7 @@
               "metadata": {
                 "designer": {
                   "x": 3300,
-                  "y": 600,
+                  "y": 900,
                   "name": "Step 5: Exception queue: reassign the owner"
                 }
               },
@@ -727,7 +727,7 @@
               "metadata": {
                 "designer": {
                   "x": 3600,
-                  "y": 600,
+                  "y": 900,
                   "name": "Step 5: Tell the register admin to reassign"
                 }
               },
@@ -753,7 +753,7 @@
                   "metadata": {
                     "designer": {
                       "x": 3600,
-                      "y": 900,
+                      "y": 1200,
                       "name": "Step 5: Tell the register admin to reassign: mark key failed"
                     }
                   }
@@ -779,7 +779,7 @@
                   "metadata": {
                     "designer": {
                       "x": 3900,
-                      "y": 900,
+                      "y": 1200,
                       "name": "Step 5: Tell the register admin to reassign: exception queue"
                     }
                   }
@@ -791,7 +791,7 @@
                   "metadata": {
                     "designer": {
                       "x": 4200,
-                      "y": 900
+                      "y": 1200
                     }
                   }
                 }
@@ -818,7 +818,7 @@
               "metadata": {
                 "designer": {
                   "x": 3900,
-                  "y": 600,
+                  "y": 900,
                   "name": "Mark key done (reassign)"
                 }
               }
@@ -844,7 +844,7 @@
               "metadata": {
                 "designer": {
                   "x": 4200,
-                  "y": 600,
+                  "y": 900,
                   "name": "Step 11: Decision log (reassign)"
                 }
               }
@@ -874,7 +874,7 @@
               "metadata": {
                 "designer": {
                   "x": 3300,
-                  "y": 1200,
+                  "y": 1500,
                   "name": "Step 6: Remind the owner, with the pull date"
                 }
               },
@@ -900,7 +900,7 @@
                   "metadata": {
                     "designer": {
                       "x": 3300,
-                      "y": 1500,
+                      "y": 1800,
                       "name": "Step 6: Remind the owner, with the pull date: mark key failed"
                     }
                   }
@@ -926,7 +926,7 @@
                   "metadata": {
                     "designer": {
                       "x": 3600,
-                      "y": 1500,
+                      "y": 1800,
                       "name": "Step 6: Remind the owner, with the pull date: exception queue"
                     }
                   }
@@ -938,7 +938,7 @@
                   "metadata": {
                     "designer": {
                       "x": 3900,
-                      "y": 1500
+                      "y": 1800
                     }
                   }
                 }
@@ -982,7 +982,7 @@
               "metadata": {
                 "designer": {
                   "x": 3600,
-                  "y": 1200,
+                  "y": 1500,
                   "name": "Mark key done (remind)"
                 }
               }
@@ -1008,7 +1008,7 @@
               "metadata": {
                 "designer": {
                   "x": 3900,
-                  "y": 1200,
+                  "y": 1500,
                   "name": "Step 11: Decision log (remind)"
                 }
               }
@@ -1038,7 +1038,7 @@
               "metadata": {
                 "designer": {
                   "x": 3300,
-                  "y": 1800,
+                  "y": 2100,
                   "name": "Step 7: Set withdrawn"
                 }
               },
@@ -1064,7 +1064,7 @@
                   "metadata": {
                     "designer": {
                       "x": 3300,
-                      "y": 2100,
+                      "y": 2400,
                       "name": "Step 7: Set withdrawn: mark key failed"
                     }
                   }
@@ -1090,7 +1090,7 @@
                   "metadata": {
                     "designer": {
                       "x": 3600,
-                      "y": 2100,
+                      "y": 2400,
                       "name": "Step 7: Set withdrawn: exception queue"
                     }
                   }
@@ -1102,7 +1102,7 @@
                   "metadata": {
                     "designer": {
                       "x": 3900,
-                      "y": 2100
+                      "y": 2400
                     }
                   }
                 }
@@ -1146,7 +1146,7 @@
               "metadata": {
                 "designer": {
                   "x": 3600,
-                  "y": 1800,
+                  "y": 2100,
                   "name": "Step 7: Archive the file"
                 }
               },
@@ -1172,7 +1172,7 @@
                   "metadata": {
                     "designer": {
                       "x": 3600,
-                      "y": 2100,
+                      "y": 2700,
                       "name": "Step 7: Archive the file: mark key failed"
                     }
                   }
@@ -1198,7 +1198,7 @@
                   "metadata": {
                     "designer": {
                       "x": 3900,
-                      "y": 2100,
+                      "y": 2700,
                       "name": "Step 7: Archive the file: exception queue"
                     }
                   }
@@ -1210,7 +1210,7 @@
                   "metadata": {
                     "designer": {
                       "x": 4200,
-                      "y": 2100
+                      "y": 2700
                     }
                   }
                 }
@@ -1237,7 +1237,7 @@
               "metadata": {
                 "designer": {
                   "x": 3900,
-                  "y": 1800,
+                  "y": 2100,
                   "name": "Step 7: Tell the owner and the register admin"
                 }
               },
@@ -1263,7 +1263,7 @@
                   "metadata": {
                     "designer": {
                       "x": 3900,
-                      "y": 2100,
+                      "y": 3000,
                       "name": "Step 7: Tell the owner and the register admin: mark key failed"
                     }
                   }
@@ -1289,7 +1289,7 @@
                   "metadata": {
                     "designer": {
                       "x": 4200,
-                      "y": 2100,
+                      "y": 3000,
                       "name": "Step 7: Tell the owner and the register admin: exception queue"
                     }
                   }
@@ -1301,7 +1301,7 @@
                   "metadata": {
                     "designer": {
                       "x": 4500,
-                      "y": 2100
+                      "y": 3000
                     }
                   }
                 }
@@ -1328,7 +1328,7 @@
               "metadata": {
                 "designer": {
                   "x": 4200,
-                  "y": 1800,
+                  "y": 2100,
                   "name": "Mark key done (withdrawn, expired)"
                 }
               }
@@ -1354,7 +1354,7 @@
               "metadata": {
                 "designer": {
                   "x": 4500,
-                  "y": 1800,
+                  "y": 2100,
                   "name": "Step 11: Decision log (withdrawn, expired)"
                 }
               }
@@ -1384,7 +1384,7 @@
               "metadata": {
                 "designer": {
                   "x": 3300,
-                  "y": 2400,
+                  "y": 3300,
                   "name": "Step 10: Exception queue: mismatch"
                 }
               },
@@ -1427,7 +1427,7 @@
               "metadata": {
                 "designer": {
                   "x": 3600,
-                  "y": 2400,
+                  "y": 3300,
                   "name": "Step 10: Tell the register admin"
                 }
               },
@@ -1453,7 +1453,7 @@
                   "metadata": {
                     "designer": {
                       "x": 3600,
-                      "y": 2700,
+                      "y": 3600,
                       "name": "Step 10: Tell the register admin: mark key failed"
                     }
                   }
@@ -1479,7 +1479,7 @@
                   "metadata": {
                     "designer": {
                       "x": 3900,
-                      "y": 2700,
+                      "y": 3600,
                       "name": "Step 10: Tell the register admin: exception queue"
                     }
                   }
@@ -1491,7 +1491,7 @@
                   "metadata": {
                     "designer": {
                       "x": 4200,
-                      "y": 2700
+                      "y": 3600
                     }
                   }
                 }
@@ -1518,7 +1518,7 @@
               "metadata": {
                 "designer": {
                   "x": 3900,
-                  "y": 2400,
+                  "y": 3300,
                   "name": "Mark key done (mismatch)"
                 }
               }
@@ -1544,7 +1544,7 @@
               "metadata": {
                 "designer": {
                   "x": 4200,
-                  "y": 2400,
+                  "y": 3300,
                   "name": "Step 11: Decision log (mismatch)"
                 }
               }

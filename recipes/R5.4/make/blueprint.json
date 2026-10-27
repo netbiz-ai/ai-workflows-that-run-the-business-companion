@@ -482,7 +482,7 @@
                   "metadata": {
                     "designer": {
                       "x": 3000,
-                      "y": 300,
+                      "y": 600,
                       "name": "Step 6: Return the quote, locked"
                     }
                   },
@@ -508,7 +508,7 @@
                       "metadata": {
                         "designer": {
                           "x": 3000,
-                          "y": 600,
+                          "y": 900,
                           "name": "Step 6: Return the quote, locked: mark key failed"
                         }
                       }
@@ -534,7 +534,7 @@
                       "metadata": {
                         "designer": {
                           "x": 3300,
-                          "y": 600,
+                          "y": 900,
                           "name": "Step 6: Return the quote, locked: exception queue"
                         }
                       }
@@ -546,7 +546,7 @@
                       "metadata": {
                         "designer": {
                           "x": 3600,
-                          "y": 600
+                          "y": 900
                         }
                       }
                     }
@@ -573,7 +573,7 @@
                   "metadata": {
                     "designer": {
                       "x": 3300,
-                      "y": 300,
+                      "y": 600,
                       "name": "Step 6: Tell Owen"
                     }
                   },
@@ -599,7 +599,7 @@
                       "metadata": {
                         "designer": {
                           "x": 3300,
-                          "y": 600,
+                          "y": 1200,
                           "name": "Step 6: Tell Owen: mark key failed"
                         }
                       }
@@ -625,7 +625,7 @@
                       "metadata": {
                         "designer": {
                           "x": 3600,
-                          "y": 600,
+                          "y": 1200,
                           "name": "Step 6: Tell Owen: exception queue"
                         }
                       }
@@ -637,7 +637,7 @@
                       "metadata": {
                         "designer": {
                           "x": 3900,
-                          "y": 600
+                          "y": 1200
                         }
                       }
                     }
@@ -679,7 +679,7 @@
                   "metadata": {
                     "designer": {
                       "x": 3600,
-                      "y": 300,
+                      "y": 600,
                       "name": "Routing summary (returned)"
                     }
                   }
@@ -705,7 +705,7 @@
                   "metadata": {
                     "designer": {
                       "x": 3900,
-                      "y": 300,
+                      "y": 600,
                       "name": "Mark key done (returned)"
                     }
                   }
@@ -731,7 +731,7 @@
                   "metadata": {
                     "designer": {
                       "x": 4200,
-                      "y": 300,
+                      "y": 600,
                       "name": "Decision log (returned)"
                     }
                   }
@@ -743,7 +743,7 @@
                   "metadata": {
                     "designer": {
                       "x": 4500,
-                      "y": 300
+                      "y": 600
                     }
                   }
                 }
@@ -867,7 +867,7 @@
               "metadata": {
                 "designer": {
                   "x": 2400,
-                  "y": 900,
+                  "y": 1500,
                   "name": "Step 4: Send back to R5.3"
                 }
               },
@@ -893,7 +893,7 @@
                   "metadata": {
                     "designer": {
                       "x": 2400,
-                      "y": 1200,
+                      "y": 1800,
                       "name": "Step 4: Send back to R5.3: mark key failed"
                     }
                   }
@@ -919,7 +919,7 @@
                   "metadata": {
                     "designer": {
                       "x": 2700,
-                      "y": 1200,
+                      "y": 1800,
                       "name": "Step 4: Send back to R5.3: exception queue"
                     }
                   }
@@ -931,7 +931,7 @@
                   "metadata": {
                     "designer": {
                       "x": 3000,
-                      "y": 1200
+                      "y": 1800
                     }
                   }
                 }
@@ -970,7 +970,7 @@
               "metadata": {
                 "designer": {
                   "x": 2700,
-                  "y": 900,
+                  "y": 1500,
                   "name": "Step 4: Tell the salesperson"
                 }
               },
@@ -996,7 +996,7 @@
                   "metadata": {
                     "designer": {
                       "x": 2700,
-                      "y": 1200,
+                      "y": 2100,
                       "name": "Step 4: Tell the salesperson: mark key failed"
                     }
                   }
@@ -1022,7 +1022,7 @@
                   "metadata": {
                     "designer": {
                       "x": 3000,
-                      "y": 1200,
+                      "y": 2100,
                       "name": "Step 4: Tell the salesperson: exception queue"
                     }
                   }
@@ -1034,7 +1034,7 @@
                   "metadata": {
                     "designer": {
                       "x": 3300,
-                      "y": 1200
+                      "y": 2100
                     }
                   }
                 }
@@ -1072,7 +1072,7 @@
               "metadata": {
                 "designer": {
                   "x": 3000,
-                  "y": 900,
+                  "y": 1500,
                   "name": "Routing summary (back)"
                 }
               }
@@ -1098,7 +1098,7 @@
               "metadata": {
                 "designer": {
                   "x": 3300,
-                  "y": 900,
+                  "y": 1500,
                   "name": "Mark key done (back)"
                 }
               }
@@ -1124,7 +1124,7 @@
               "metadata": {
                 "designer": {
                   "x": 3600,
-                  "y": 900,
+                  "y": 1500,
                   "name": "Decision log (back)"
                 }
               }

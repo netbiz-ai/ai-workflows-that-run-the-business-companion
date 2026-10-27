@@ -17,6 +17,7 @@ stack's public test route. Environment:
     TABLE_API_URL      the key log, decision log and exception queue over PostgREST
                        (default MOCKS_PUBLIC_URL + /db)
     MAKE_PLAN (default Core)  the plan the report is stamped with (Make has no versions)
+    MAKE_AI_CONNECTION    the team's Anthropic "API key" connection, for recipes with an AI step
     MAKE_ADOPT_SCENARIOS  existing scenario IDs to take over as test slots (see slots())
     MAKE_ORG_ID  MAKE_MIN_CREDITS (default 1500): refuse to start below this many credits left
     MOCKS_URL, PG_CONTAINER as for tools/n8n/golden.py (the runner's own view)
@@ -164,6 +165,24 @@ def slots(n: int) -> list[tuple[int, str, dict]]:
     return out
 
 
+def walk(flow: list[dict]):
+    for m in flow:
+        yield m
+        for e in m.get("onerror", []):
+            yield from walk([e])
+        for r in m.get("routes", []):
+            yield from walk(r["flow"])
+
+
+def set_ai_connection(bp: dict) -> None:
+    """The test copy's AI calls use the team's Anthropic connection; the reader's copy chooses none."""
+    calls = [m for m in walk(bp["flow"]) if (m.get("parameters") or {}).get("authenticationType") == "apiKeyConnection"]
+    if calls and not os.environ.get("MAKE_AI_CONNECTION"):
+        raise SystemExit("this recipe has an AI step: set MAKE_AI_CONNECTION to your Anthropic API key connection's ID")
+    for m in calls:
+        m["parameters"]["apiKeyAccount"] = int(os.environ["MAKE_AI_CONNECTION"])
+
+
 def load(sid: int, slot_name: str, bp: dict, scheduling: dict) -> None:
     """Replace a slot's blueprint; Make validates it as an import would. The blueprint keeps the
     slot's name, so the slot is found again on the next run."""
@@ -229,6 +248,7 @@ def deploy(builds, tests: dict) -> tuple[dict, list[int]]:
         load(sid, slot, reader, {"type": "on-demand"})
         bp = copy.deepcopy(s.blueprint())
         set_config(bp, cfg)
+        set_ai_connection(bp)
         if s.trigger == "webhook":
             bp["flow"][0]["parameters"]["hook"] = hook["id"]
             load(sid, slot, bp, {"type": "immediately"})

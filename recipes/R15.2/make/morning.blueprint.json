@@ -125,7 +125,7 @@
           "metadata": {
             "designer": {
               "x": 600,
-              "y": 300
+              "y": 600
             }
           }
         }
@@ -751,7 +751,7 @@
                   "metadata": {
                     "designer": {
                       "x": 3300,
-                      "y": 1200,
+                      "y": 1500,
                       "name": "Steps 2, 6 and 8: Tell Tom, Ben or Owen (told): mark key failed"
                     }
                   }
@@ -777,7 +777,7 @@
                   "metadata": {
                     "designer": {
                       "x": 3600,
-                      "y": 1200,
+                      "y": 1500,
                       "name": "Steps 2, 6 and 8: Tell Tom, Ben or Owen (told): exception queue"
                     }
                   }
@@ -789,7 +789,7 @@
                   "metadata": {
                     "designer": {
                       "x": 3900,
-                      "y": 1200
+                      "y": 1500
                     }
                   }
                 }
@@ -872,7 +872,7 @@
               "metadata": {
                 "designer": {
                   "x": 3000,
-                  "y": 1500,
+                  "y": 1800,
                   "name": "Steps 5, 6 and 8: Set capacity status (queued)"
                 }
               },
@@ -898,7 +898,7 @@
                   "metadata": {
                     "designer": {
                       "x": 3000,
-                      "y": 1800,
+                      "y": 2100,
                       "name": "Steps 5, 6 and 8: Set capacity status (queued): mark key failed"
                     }
                   }
@@ -924,7 +924,7 @@
                   "metadata": {
                     "designer": {
                       "x": 3300,
-                      "y": 1800,
+                      "y": 2100,
                       "name": "Steps 5, 6 and 8: Set capacity status (queued): exception queue"
                     }
                   }
@@ -936,7 +936,7 @@
                   "metadata": {
                     "designer": {
                       "x": 3600,
-                      "y": 1800
+                      "y": 2100
                     }
                   }
                 }
@@ -980,7 +980,7 @@
               "metadata": {
                 "designer": {
                   "x": 3300,
-                  "y": 1500,
+                  "y": 1800,
                   "name": "Exception queue: held for a person (queued)"
                 }
               }
@@ -1006,7 +1006,7 @@
               "metadata": {
                 "designer": {
                   "x": 3600,
-                  "y": 1500,
+                  "y": 1800,
                   "name": "Mark key done (queued)"
                 }
               }
@@ -1032,7 +1032,7 @@
               "metadata": {
                 "designer": {
                   "x": 3900,
-                  "y": 1500,
+                  "y": 1800,
                   "name": "Decision log (queued)"
                 }
               }
@@ -1062,7 +1062,7 @@
               "metadata": {
                 "designer": {
                   "x": 3000,
-                  "y": 2100,
+                  "y": 2400,
                   "name": "Steps 5, 6 and 8: Set capacity status (told, queued)"
                 }
               },
@@ -1088,7 +1088,7 @@
                   "metadata": {
                     "designer": {
                       "x": 3000,
-                      "y": 2400,
+                      "y": 2700,
                       "name": "Steps 5, 6 and 8: Set capacity status (told, queued): mark key failed"
                     }
                   }
@@ -1114,7 +1114,7 @@
                   "metadata": {
                     "designer": {
                       "x": 3300,
-                      "y": 2400,
+                      "y": 2700,
                       "name": "Steps 5, 6 and 8: Set capacity status (told, queued): exception queue"
                     }
                   }
@@ -1126,7 +1126,7 @@
                   "metadata": {
                     "designer": {
                       "x": 3600,
-                      "y": 2400
+                      "y": 2700
                     }
                   }
                 }
@@ -1170,7 +1170,7 @@
               "metadata": {
                 "designer": {
                   "x": 3300,
-                  "y": 2100,
+                  "y": 2400,
                   "name": "Steps 2, 6 and 8: Tell Tom, Ben or Owen (told, queued)"
                 }
               },
@@ -1196,7 +1196,7 @@
                   "metadata": {
                     "designer": {
                       "x": 3300,
-                      "y": 2400,
+                      "y": 3000,
                       "name": "Steps 2, 6 and 8: Tell Tom, Ben or Owen (told, queued): mark key failed"
                     }
                   }
@@ -1222,7 +1222,7 @@
                   "metadata": {
                     "designer": {
                       "x": 3600,
-                      "y": 2400,
+                      "y": 3000,
                       "name": "Steps 2, 6 and 8: Tell Tom, Ben or Owen (told, queued): exception queue"
                     }
                   }
@@ -1234,7 +1234,7 @@
                   "metadata": {
                     "designer": {
                       "x": 3900,
-                      "y": 2400
+                      "y": 3000
                     }
                   }
                 }
@@ -1261,7 +1261,7 @@
               "metadata": {
                 "designer": {
                   "x": 3600,
-                  "y": 2100,
+                  "y": 2400,
                   "name": "Exception queue: held for a person (told, queued)"
                 }
               }
@@ -1287,7 +1287,7 @@
               "metadata": {
                 "designer": {
                   "x": 3900,
-                  "y": 2100,
+                  "y": 2400,
                   "name": "Mark key done (told, queued)"
                 }
               }
@@ -1313,7 +1313,7 @@
               "metadata": {
                 "designer": {
                   "x": 4200,
-                  "y": 2100,
+                  "y": 2400,
                   "name": "Decision log (told, queued)"
                 }
               }

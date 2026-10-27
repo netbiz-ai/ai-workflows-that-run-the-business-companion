@@ -1861,7 +1861,7 @@
                       "metadata": {
                         "designer": {
                           "x": 5100,
-                          "y": 3000,
+                          "y": 1800,
                           "name": "Step 6: Decision log (not on the list)"
                         }
                       },
@@ -1911,7 +1911,7 @@
                               "metadata": {
                                 "designer": {
                                   "x": 5400,
-                                  "y": 3300,
+                                  "y": 3000,
                                   "name": "Step 7: Suppress the person on the list (list unreachable)"
                                 }
                               },
@@ -1937,7 +1937,7 @@
                                   "metadata": {
                                     "designer": {
                                       "x": 5400,
-                                      "y": 3600,
+                                      "y": 3300,
                                       "name": "Step 7: Mark the list paused (list unreachable)"
                                     }
                                   },
@@ -1974,7 +1974,7 @@
                                       "metadata": {
                                         "designer": {
                                           "x": 5400,
-                                          "y": 3900,
+                                          "y": 3600,
                                           "name": "Step 7: Pause failed (list unreachable)"
                                         }
                                       }
@@ -2000,7 +2000,7 @@
                                       "metadata": {
                                         "designer": {
                                           "x": 5700,
-                                          "y": 3900,
+                                          "y": 3600,
                                           "name": "Exception queue: list did not confirm (pause failed, list unreachable)"
                                         }
                                       }
@@ -2026,7 +2026,7 @@
                                       "metadata": {
                                         "designer": {
                                           "x": 6000,
-                                          "y": 3900,
+                                          "y": 3600,
                                           "name": "Step 7: Tell Owen (pause failed, list unreachable)"
                                         }
                                       }
@@ -2052,7 +2052,7 @@
                                       "metadata": {
                                         "designer": {
                                           "x": 6300,
-                                          "y": 3900,
+                                          "y": 3600,
                                           "name": "Step 7: Decision log (pause failed, list unreachable)"
                                         }
                                       }
@@ -2064,7 +2064,7 @@
                                       "metadata": {
                                         "designer": {
                                           "x": 6600,
-                                          "y": 3900
+                                          "y": 3600
                                         }
                                       }
                                     }
@@ -2102,7 +2102,7 @@
                                   "metadata": {
                                     "designer": {
                                       "x": 5700,
-                                      "y": 3600,
+                                      "y": 3300,
                                       "name": "Step 7: Paused (list unreachable)"
                                     }
                                   }
@@ -2128,7 +2128,7 @@
                                   "metadata": {
                                     "designer": {
                                       "x": 6000,
-                                      "y": 3600,
+                                      "y": 3300,
                                       "name": "Exception queue: list did not confirm (paused, list unreachable)"
                                     }
                                   }
@@ -2154,7 +2154,7 @@
                                   "metadata": {
                                     "designer": {
                                       "x": 6300,
-                                      "y": 3600,
+                                      "y": 3300,
                                       "name": "Step 7: Tell Owen (paused, list unreachable)"
                                     }
                                   }
@@ -2180,7 +2180,7 @@
                                   "metadata": {
                                     "designer": {
                                       "x": 6600,
-                                      "y": 3600,
+                                      "y": 3300,
                                       "name": "Step 7: Decision log (paused, list unreachable)"
                                     }
                                   }
@@ -2192,7 +2192,7 @@
                                   "metadata": {
                                     "designer": {
                                       "x": 6900,
-                                      "y": 3600
+                                      "y": 3300
                                     }
                                   }
                                 }
@@ -2242,7 +2242,7 @@
                               "metadata": {
                                 "designer": {
                                   "x": 5700,
-                                  "y": 3300,
+                                  "y": 3000,
                                   "name": "Step 7: Suppressed (list unreachable)"
                                 }
                               }
@@ -2268,7 +2268,7 @@
                               "metadata": {
                                 "designer": {
                                   "x": 6000,
-                                  "y": 3300,
+                                  "y": 3000,
                                   "name": "Exception queue: list did not confirm (suppressed, list unreachable)"
                                 }
                               }
@@ -2294,7 +2294,7 @@
                               "metadata": {
                                 "designer": {
                                   "x": 6300,
-                                  "y": 3300,
+                                  "y": 3000,
                                   "name": "Step 7: Tell Owen (suppressed, list unreachable)"
                                 }
                               }
@@ -2320,7 +2320,7 @@
                               "metadata": {
                                 "designer": {
                                   "x": 6600,
-                                  "y": 3300,
+                                  "y": 3000,
                                   "name": "Step 7: Decision log (suppressed, list unreachable)"
                                 }
                               }
@@ -2361,7 +2361,7 @@
                               "metadata": {
                                 "designer": {
                                   "x": 5400,
-                                  "y": 4200,
+                                  "y": 3900,
                                   "name": "Step 7: Opt-in not confirmed (list unreachable)"
                                 }
                               },
@@ -2399,7 +2399,7 @@
                               "metadata": {
                                 "designer": {
                                   "x": 5700,
-                                  "y": 4200,
+                                  "y": 3900,
                                   "name": "Exception queue: list did not confirm (opt-in not confirmed, list unreachable)"
                                 }
                               }
@@ -2425,7 +2425,7 @@
                               "metadata": {
                                 "designer": {
                                   "x": 6000,
-                                  "y": 4200,
+                                  "y": 3900,
                                   "name": "Step 7: Tell Owen (opt-in not confirmed, list unreachable)"
                                 }
                               }
@@ -2451,7 +2451,7 @@
                               "metadata": {
                                 "designer": {
                                   "x": 6300,
-                                  "y": 4200,
+                                  "y": 3900,
                                   "name": "Step 7: Decision log (opt-in not confirmed, list unreachable)"
                                 }
                               }
@@ -2462,7 +2462,7 @@
                       "metadata": {
                         "designer": {
                           "x": 5100,
-                          "y": 3300,
+                          "y": 3000,
                           "name": "Step 7: An opt-out? (list unreachable)"
                         }
                       },

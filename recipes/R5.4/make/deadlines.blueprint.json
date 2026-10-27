@@ -129,7 +129,7 @@
           "metadata": {
             "designer": {
               "x": 600,
-              "y": 300
+              "y": 600
             }
           }
         }
@@ -328,7 +328,7 @@
                   "metadata": {
                     "designer": {
                       "x": 2100,
-                      "y": 300,
+                      "y": 600,
                       "name": "Step 7: Record the escalation (remind): exception queue"
                     }
                   }
@@ -340,7 +340,7 @@
                   "metadata": {
                     "designer": {
                       "x": 2400,
-                      "y": 300
+                      "y": 600
                     }
                   }
                 }
@@ -371,7 +371,7 @@
               "metadata": {
                 "designer": {
                   "x": 1800,
-                  "y": 600,
+                  "y": 900,
                   "name": "Step 7: Ask the deputy"
                 }
               },
@@ -397,7 +397,7 @@
                   "metadata": {
                     "designer": {
                       "x": 1800,
-                      "y": 900,
+                      "y": 1200,
                       "name": "Step 7: Ask the deputy: exception queue"
                     }
                   }
@@ -409,7 +409,7 @@
                   "metadata": {
                     "designer": {
                       "x": 2100,
-                      "y": 900
+                      "y": 1200
                     }
                   }
                 }
@@ -448,7 +448,7 @@
               "metadata": {
                 "designer": {
                   "x": 2100,
-                  "y": 600,
+                  "y": 900,
                   "name": "Step 7: Record the escalation (deputy)"
                 }
               },
@@ -474,7 +474,7 @@
                   "metadata": {
                     "designer": {
                       "x": 2100,
-                      "y": 900,
+                      "y": 1500,
                       "name": "Step 7: Record the escalation (deputy): exception queue"
                     }
                   }
@@ -486,7 +486,7 @@
                   "metadata": {
                     "designer": {
                       "x": 2400,
-                      "y": 900
+                      "y": 1500
                     }
                   }
                 }
@@ -517,7 +517,7 @@
               "metadata": {
                 "designer": {
                   "x": 1800,
-                  "y": 1200,
+                  "y": 1800,
                   "name": "Step 7: Return the quote, locked"
                 }
               },
@@ -543,7 +543,7 @@
                   "metadata": {
                     "designer": {
                       "x": 1800,
-                      "y": 1500,
+                      "y": 2100,
                       "name": "Step 7: Return the quote, locked: exception queue"
                     }
                   }
@@ -555,7 +555,7 @@
                   "metadata": {
                     "designer": {
                       "x": 2100,
-                      "y": 1500
+                      "y": 2100
                     }
                   }
                 }
@@ -594,7 +594,7 @@
               "metadata": {
                 "designer": {
                   "x": 2100,
-                  "y": 1200,
+                  "y": 1800,
                   "name": "Step 7: Tell Ben"
                 }
               },
@@ -620,7 +620,7 @@
                   "metadata": {
                     "designer": {
                       "x": 2100,
-                      "y": 1500,
+                      "y": 2400,
                       "name": "Step 7: Tell Ben: exception queue"
                     }
                   }
@@ -632,7 +632,7 @@
                   "metadata": {
                     "designer": {
                       "x": 2400,
-                      "y": 1500
+                      "y": 2400
                     }
                   }
                 }

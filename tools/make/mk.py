@@ -29,6 +29,12 @@ How the book's patterns map onto Make (see AGENTS.md, "Make builds"):
   table API ({{config}}.table_api_url): reserve_key is an RPC that refuses a
   second copy in the same step (patterns/duplicate-check/schema.sql).
 - The stop flag (book Chapter 3) follows Config in every scenario.
+- An AI step is two steps, as in n8n: a Code step builds the Messages API request from the
+  prompt file, and an HTTP step sends it with the reader's Anthropic connection (an HTTP
+  "API key" connection sending x-api-key; none is chosen in the blueprint). A failed call is
+  tried once more in its error route and Make's Resume handler hands that second try's
+  response back, so the rule that follows sees one reply, and a second failure reaches it as
+  a non-200 status, which the rule treats as an AI error.
 Module versions match what Make ran on 2026-10-25 (http:MakeRequest v4,
 code:ExecuteCode v1, builtin:BasicRouter v1, gateway:CustomWebHook v1).
 """
@@ -38,9 +44,11 @@ from __future__ import annotations
 import importlib.util
 import json
 import re
+import sys
 from pathlib import Path
 
 HOOK_PLACEHOLDER = None  # the reader creates their own webhook on import
+AI_CONNECTION_PLACEHOLDER = None  # the reader chooses their Anthropic API key connection on import
 
 
 def settings_js(values: dict) -> str:
@@ -102,18 +110,21 @@ class Scenario:
         return self.code("Config", js, x=x, y=y)
 
     def http(self, name: str, method: str, url: str, *, body: str | None = None, parse: bool = True,
-             onerror: list[dict] | None = None, query: dict | None = None, x=0, y=0) -> dict:
+             onerror: list[dict] | None = None, query: dict | None = None, headers: dict | None = None,
+             parameters: dict | None = None, stop_on_error: bool = True, timeout: int = 40, x=0, y=0) -> dict:
         """A system call. A GET with no error route of its own is a read and gets the Retry handler."""
         if onerror is None and method.upper() == "GET":
             onerror = [self.retry()]
-        mapper = {"url": url, "method": method.lower(), "timeout": "40", "parseResponse": parse,
-                  "stopOnHttpError": True, "allowRedirects": True, "shareCookies": False,
+        mapper = {"url": url, "method": method.lower(), "timeout": str(timeout), "parseResponse": parse,
+                  "stopOnHttpError": stop_on_error, "allowRedirects": True, "shareCookies": False,
                   "requestCompressedContent": True}
+        if headers:
+            mapper["headers"] = [{"name": k, "value": v} for k, v in headers.items()]
         if query:
             mapper["queryParameters"] = [{"name": k, "value": v} for k, v in query.items()]
         if body is not None:
             mapper.update(contentType="json", inputMethod="jsonString", jsonStringBodyContent=body)
-        m = {"id": self._id(name), "module": "http:MakeRequest", "version": 4, "parameters": {},
+        m = {"id": self._id(name), "module": "http:MakeRequest", "version": 4, "parameters": dict(parameters or {}),
              "mapper": mapper, "metadata": self._meta(name, x, y)}
         if onerror:
             m["onerror"] = onerror
@@ -205,6 +216,46 @@ class Scenario:
         return {"id": self._id(name), "module": "builtin:BasicFeeder", "version": 1, "parameters": {},
                 "mapper": {"array": array_expr}, "metadata": self._meta(name, x, y)}
 
+    def ai_step(self, step: str, prompt_path, vars_js: str, sources: dict[str, str], *, max_tokens: int = 1024,
+                tries: int = 2) -> list[dict]:
+        """The book's bounded AI step: [build the request (Code), call the Messages API (HTTP)].
+        vars_js is the n8n build's JavaScript object literal filling the prompt's {{placeholders}};
+        sources are the steps it reads, as for n8n_rule. The call's output is {statusCode, data}:
+        pass {{<call>.data}} to the rule as the AI call's reply and {{<call>.statusCode}} as ai_status."""
+        sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "n8n"))
+        from wf import read_prompt  # the n8n build's prompt reader: same text, same schema line
+        system, template = read_prompt(prompt_path)
+        max_tokens = max(max_tokens, 4096)  # Claude Haiku 5.5 thinks first, and thinking counts against the cap
+        js = (
+            "// The prompt text below is copied from the recipe's prompts/ file.\n"
+            f"const SYSTEM = {_js_text(system)};\n"
+            f"const TEMPLATE = {_js_text(template)};\n"
+            f"const vars = {vars_js};\n"
+            "const cfg = $('Config').first().json;\n"
+            "const fill = t => t.replace(/\\{\\{(\\w+)\\}\\}/g, (m, k) => (k in vars ? String(vars[k]) : m));\n"
+            "const user = fill(TEMPLATE).replace(/\\{\\{(\\w+)\\}\\}/g, '');\n"
+            f"const request = {{ model: cfg.ai_model, max_tokens: {max_tokens}, system: fill(SYSTEM),\n"
+            "  messages: [{ role: 'user', content: user }] };\n"
+            "if (cfg.ai_inference_geo) request.inference_geo = cfg.ai_inference_geo;\n"
+            "return [{ json: { request } }];\n"
+        )
+        code, inputs = n8n_rule(js, sources, bodies={"request_body": "JSON.stringify(out.request)"})
+        build = self.code(f"{step}: Build the AI request", code, inputs)
+        b, c = self.ref(f"{step}: Build the AI request"), self.ref("Config")
+
+        def call(name: str, onerror=None, stop=True) -> dict:
+            return self.http(name, "POST", "{{" + f"{c}.result.ai_url" + "}}", body="{{" + f"{b}.result.request_body" + "}}",
+                             headers={"anthropic-version": "2023-06-01"}, timeout=60, stop_on_error=stop, onerror=onerror,
+                             parameters={"authenticationType": "apiKeyConnection", "apiKeyAccount": AI_CONNECTION_PLACEHOLDER,
+                                         "tlsType": ""})
+        if tries < 2:
+            return [build, call(f"{step}: AI call", stop=False)]
+        second = call(f"{step}: AI call, second try", stop=False)
+        resume = {"id": self._id(f"_resume{self._next}"), "module": "builtin:Resume", "version": 1, "parameters": {},
+                  "mapper": {k: "{{" + f"{second['id']}.{k}" + "}}" for k in ("statusCode", "data", "headers")},
+                  "metadata": {"designer": {}}}
+        return [build, call(f"{step}: AI call", onerror=[second, resume])]
+
     def aggregator(self, name: str, iterator_name: str, fields: dict[str, str], x=0, y=0) -> dict:
         """Gather the bundles an iterator started back into one: {{<this>.array}} is a list of
         {field: value} objects, one per bundle, which a Code step receives as a real array."""
@@ -217,24 +268,40 @@ class Scenario:
 
     # ---- output ----------------------------------------------------------------
     @staticmethod
-    def _layout(flow: list[dict], x: int, y: int) -> int:
-        """Place modules left to right, router routes below each other and error routes under
-        their module, so the scenario opens tidy in Make's editor. Returns the next free row."""
-        bottom = y
-        for m in flow:
-            m.setdefault("metadata", {}).setdefault("designer", {}).update(x=x, y=y)
-            if m.get("onerror"):
-                bottom = max(bottom, Scenario._layout(m["onerror"], x, y + 300))
-            if m.get("routes"):
+    def _span(flow: list[dict]) -> int:
+        """How many columns a route takes: its modules, plus the widest branch after a router."""
+        return sum(1 + (max((Scenario._span(r["flow"]) for r in m["routes"]), default=0) if m.get("routes") else 0)
+                   for m in flow)
+
+    @staticmethod
+    def _layout(flow: list[dict]) -> None:
+        """Place modules left to right; each error route and router branch goes on the first row
+        below where all its columns are free, so no two modules share a spot in Make's editor."""
+        taken: set[tuple[int, int]] = set()
+
+        def free_row(x: int, row: int, flow: list[dict]) -> int:
+            cols = range(x, x + 300 * max(Scenario._span(flow), 1), 300)
+            while any((c, row) in taken for c in cols):
+                row += 300
+            return row
+
+        def place(flow: list[dict], x: int, y: int) -> None:
+            for m in flow:
+                m.setdefault("metadata", {}).setdefault("designer", {}).update(x=x, y=y)
+                taken.add((x, y))
+                if m.get("onerror"):
+                    place(m["onerror"], x, free_row(x, y + 300, m["onerror"]))
                 row = y
-                for r in m["routes"]:
-                    row = Scenario._layout(r["flow"], x + 300, row) + 300
-                bottom = max(bottom, row - 300)
-            x += 300
-        return bottom
+                for r in m.get("routes", []):
+                    row = free_row(x + 300, row, r["flow"])
+                    place(r["flow"], x + 300, row)
+                    row += 300
+                x += 300
+
+        place(flow, 0, 0)
 
     def blueprint(self) -> dict:
-        self._layout(self.flow, 0, 0)
+        self._layout(self.flow)
         return {"name": self.name, "flow": self.flow,
                 "metadata": {"instant": self.trigger == "webhook", "version": 1, "designer": {"orphans": []},
                              "scenario": {"dlq": True, "slots": None, "dataloss": False, "maxErrors": 3,
@@ -242,9 +309,15 @@ class Scenario:
                                           "confidential": False, "freshVariables": False, "autoCommitTriggerLast": True}}}
 
 
+def _js_text(text: str) -> str:
+    """A JavaScript string literal for text that may hold {{placeholders}} (see settings_js)."""
+    return re.sub(r"\{(?=\{)", r"\\u007b", json.dumps(text))
+
+
 def n8n_rule(js: str, sources: dict[str, str], *, bodies: dict[str, str] | None = None, many: bool = False,
              items: tuple[str, ...] = (), input_node: str | None = None, executed: tuple[str, ...] = (),
-             per_item: bool = False, prelude: str = "") -> tuple[str, dict[str, str]]:
+             per_item: bool = False, prelude: str = "", ai_status: str | None = None,
+             on_ai_error: str | None = None) -> tuple[str, dict[str, str]]:
     """Wrap an n8n Code-node rule for a Make Code step, keeping the rule's JavaScript unchanged.
 
     sources: each n8n node name the rule reads with $('...'), mapped to the Make expression for that
@@ -262,6 +335,9 @@ def n8n_rule(js: str, sources: dict[str, str], *, bodies: dict[str, str] | None 
       per_item they are computed into each element.
     prelude: JavaScript run before the rule, for what Make's Code app lacks (it has no Luxon, so a
       rule using $now needs a small shim here).
+    ai_status, on_ai_error: for the rule after an AI step, the call's {{N.statusCode}} and the n8n
+      build's AI-error node code; when the call did not return 200, that code runs instead of the
+      rule, with $json.error.message saying why (n8n sends a failed call to that node).
     $execution.id is the Make run's ID. Returns (code, inputs)."""
     inputs, table = {}, {}
     for i, (node, expr) in enumerate(sources.items()):
@@ -269,6 +345,10 @@ def n8n_rule(js: str, sources: dict[str, str], *, bodies: dict[str, str] | None 
         inputs[key] = expr
         table[node] = key
     inputs["run_id"] = "{{var.scenario.executionId}}"
+    if ai_status:
+        inputs["ai_status"] = ai_status
+    if bool(ai_status) != bool(on_ai_error):
+        raise ValueError("ai_status and on_ai_error go together")
     unknown = set(items) - set(sources) | ({input_node} - set(sources) if input_node else set())
     if unknown:
         raise ValueError(f"not in sources: {sorted(unknown)}")
@@ -305,8 +385,10 @@ def n8n_rule(js: str, sources: dict[str, str], *, bodies: dict[str, str] | None 
         code += ("const __rule = ($json, $item) => {\n" + js.strip() + "\n};\n"
                  "return { items: $input.all().flatMap(it => one(__rule(it.json, it))).map(o => Object.assign({}, o, BODIES(o))) };\n")
     else:
+        guard = ("if (Number(input.ai_status) !== 200) return (($json) => {\n" + on_ai_error.strip() + "\n})"
+                 "({ error: { message: 'AI call returned ' + (input.ai_status || 'no answer') } });\n") if ai_status else ""
         code += ("const $json = INPUT && INPUT in DATA ? $input.first().json : {};\n"
-                 "const __rule = () => {\n" + js.strip() + "\n};\n"
+                 "const __rule = () => {\n" + guard + js.strip() + "\n};\n"
                  + ("return { items: one(__rule()).map(o => Object.assign({}, o, BODIES(o))) };\n" if multi else
                     "const out = one(__rule())[0] || {};\nreturn Object.assign({}, out, BODIES(out));\n"))
     return code, inputs

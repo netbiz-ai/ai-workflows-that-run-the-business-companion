@@ -136,7 +136,7 @@
           "metadata": {
             "designer": {
               "x": 900,
-              "y": 300
+              "y": 600
             }
           }
         }
@@ -613,7 +613,7 @@
                           "metadata": {
                             "designer": {
                               "x": 3600,
-                              "y": 600,
+                              "y": 900,
                               "name": "Step 10: Set approved and lock it: mark key failed"
                             }
                           }
@@ -639,7 +639,7 @@
                           "metadata": {
                             "designer": {
                               "x": 3900,
-                              "y": 600,
+                              "y": 900,
                               "name": "Step 10: Set approved and lock it: exception queue"
                             }
                           }
@@ -651,7 +651,7 @@
                           "metadata": {
                             "designer": {
                               "x": 4200,
-                              "y": 600
+                              "y": 900
                             }
                           }
                         }
@@ -807,7 +807,7 @@
                           "metadata": {
                             "designer": {
                               "x": 4200,
-                              "y": 600,
+                              "y": 1200,
                               "name": "Step 10: Tell the buyer to raise the PO: mark key failed"
                             }
                           }
@@ -833,7 +833,7 @@
                           "metadata": {
                             "designer": {
                               "x": 4500,
-                              "y": 600,
+                              "y": 1200,
                               "name": "Step 10: Tell the buyer to raise the PO: exception queue"
                             }
                           }
@@ -845,7 +845,7 @@
                           "metadata": {
                             "designer": {
                               "x": 4800,
-                              "y": 600
+                              "y": 1200
                             }
                           }
                         }
@@ -928,7 +928,7 @@
                       "metadata": {
                         "designer": {
                           "x": 3600,
-                          "y": 900,
+                          "y": 1500,
                           "name": "Step 9: Set blocked"
                         }
                       },
@@ -954,7 +954,7 @@
                           "metadata": {
                             "designer": {
                               "x": 3600,
-                              "y": 1200,
+                              "y": 1800,
                               "name": "Step 9: Set blocked: mark key failed"
                             }
                           }
@@ -980,7 +980,7 @@
                           "metadata": {
                             "designer": {
                               "x": 3900,
-                              "y": 1200,
+                              "y": 1800,
                               "name": "Step 9: Set blocked: exception queue"
                             }
                           }
@@ -992,7 +992,7 @@
                           "metadata": {
                             "designer": {
                               "x": 4200,
-                              "y": 1200
+                              "y": 1800
                             }
                           }
                         }
@@ -1031,7 +1031,7 @@
                       "metadata": {
                         "designer": {
                           "x": 3900,
-                          "y": 900,
+                          "y": 1500,
                           "name": "Step 9: Tell the requester"
                         }
                       },
@@ -1057,7 +1057,7 @@
                           "metadata": {
                             "designer": {
                               "x": 3900,
-                              "y": 1200,
+                              "y": 2100,
                               "name": "Step 9: Tell the requester: mark key failed"
                             }
                           }
@@ -1083,7 +1083,7 @@
                           "metadata": {
                             "designer": {
                               "x": 4200,
-                              "y": 1200,
+                              "y": 2100,
                               "name": "Step 9: Tell the requester: exception queue"
                             }
                           }
@@ -1095,7 +1095,7 @@
                           "metadata": {
                             "designer": {
                               "x": 4500,
-                              "y": 1200
+                              "y": 2100
                             }
                           }
                         }
@@ -1122,7 +1122,7 @@
                       "metadata": {
                         "designer": {
                           "x": 4200,
-                          "y": 900,
+                          "y": 1500,
                           "name": "Mark answer key done (blocked)"
                         }
                       }
@@ -1148,7 +1148,7 @@
                       "metadata": {
                         "designer": {
                           "x": 4500,
-                          "y": 900,
+                          "y": 1500,
                           "name": "Decision log: answer (blocked)"
                         }
                       }
@@ -1178,7 +1178,7 @@
                       "metadata": {
                         "designer": {
                           "x": 3600,
-                          "y": 1500,
+                          "y": 2400,
                           "name": "Step 11: Record the comment"
                         }
                       },
@@ -1204,7 +1204,7 @@
                           "metadata": {
                             "designer": {
                               "x": 3600,
-                              "y": 1800,
+                              "y": 2700,
                               "name": "Step 11: Record the comment: mark key failed"
                             }
                           }
@@ -1230,7 +1230,7 @@
                           "metadata": {
                             "designer": {
                               "x": 3900,
-                              "y": 1800,
+                              "y": 2700,
                               "name": "Step 11: Record the comment: exception queue"
                             }
                           }
@@ -1242,7 +1242,7 @@
                           "metadata": {
                             "designer": {
                               "x": 4200,
-                              "y": 1800
+                              "y": 2700
                             }
                           }
                         }
@@ -1281,7 +1281,7 @@
                       "metadata": {
                         "designer": {
                           "x": 3900,
-                          "y": 1500,
+                          "y": 2400,
                           "name": "Mark answer key done (rejected)"
                         }
                       }
@@ -1307,7 +1307,7 @@
                       "metadata": {
                         "designer": {
                           "x": 4200,
-                          "y": 1500,
+                          "y": 2400,
                           "name": "Decision log: answer (rejected)"
                         }
                       }

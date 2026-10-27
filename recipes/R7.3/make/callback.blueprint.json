@@ -146,7 +146,7 @@
           "metadata": {
             "designer": {
               "x": 900,
-              "y": 300
+              "y": 600
             }
           }
         }
@@ -357,7 +357,7 @@
                   "metadata": {
                     "designer": {
                       "x": 2100,
-                      "y": 300,
+                      "y": 600,
                       "name": "Step 8: Hold until the export shows it: exception queue"
                     }
                   }
@@ -369,7 +369,7 @@
                   "metadata": {
                     "designer": {
                       "x": 2400,
-                      "y": 300
+                      "y": 600
                     }
                   }
                 }
@@ -517,7 +517,7 @@
               "metadata": {
                 "designer": {
                   "x": 1800,
-                  "y": 600,
+                  "y": 900,
                   "name": "Step 8: Ask the finance assistant to release"
                 }
               },
@@ -543,7 +543,7 @@
                   "metadata": {
                     "designer": {
                       "x": 1800,
-                      "y": 900,
+                      "y": 1200,
                       "name": "Step 8: Ask the finance assistant to release: exception queue"
                     }
                   }
@@ -555,7 +555,7 @@
                   "metadata": {
                     "designer": {
                       "x": 2100,
-                      "y": 900
+                      "y": 1200
                     }
                   }
                 }
@@ -594,7 +594,7 @@
               "metadata": {
                 "designer": {
                   "x": 2100,
-                  "y": 600,
+                  "y": 900,
                   "name": "Step 8: Close the hold's keys (no change)"
                 }
               }
@@ -620,7 +620,7 @@
               "metadata": {
                 "designer": {
                   "x": 2400,
-                  "y": 600,
+                  "y": 900,
                   "name": "Step 7: Decision log (no change)"
                 }
               }
@@ -650,7 +650,7 @@
               "metadata": {
                 "designer": {
                   "x": 1800,
-                  "y": 1200,
+                  "y": 1500,
                   "name": "Step 9: Report suspected fraud"
                 }
               },
@@ -676,7 +676,7 @@
                   "metadata": {
                     "designer": {
                       "x": 1800,
-                      "y": 1500,
+                      "y": 1800,
                       "name": "Step 9: Report suspected fraud: exception queue"
                     }
                   }
@@ -688,7 +688,7 @@
                   "metadata": {
                     "designer": {
                       "x": 2100,
-                      "y": 1500
+                      "y": 1800
                     }
                   }
                 }
@@ -727,7 +727,7 @@
               "metadata": {
                 "designer": {
                   "x": 2100,
-                  "y": 1200,
+                  "y": 1500,
                   "name": "Step 9: Exception queue: hold stays"
                 }
               }
@@ -753,7 +753,7 @@
               "metadata": {
                 "designer": {
                   "x": 2400,
-                  "y": 1200,
+                  "y": 1500,
                   "name": "Step 7: Decision log (not confirmed)"
                 }
               }
@@ -783,7 +783,7 @@
               "metadata": {
                 "designer": {
                   "x": 1800,
-                  "y": 1800,
+                  "y": 2100,
                   "name": "Exception queue: call to another number"
                 }
               },
@@ -821,7 +821,7 @@
               "metadata": {
                 "designer": {
                   "x": 2100,
-                  "y": 1800,
+                  "y": 2100,
                   "name": "Step 7: Decision log (wrong number)"
                 }
               }

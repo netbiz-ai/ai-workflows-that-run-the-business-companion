@@ -129,7 +129,7 @@
           "metadata": {
             "designer": {
               "x": 600,
-              "y": 300
+              "y": 600
             }
           }
         }
@@ -328,7 +328,7 @@
                   "metadata": {
                     "designer": {
                       "x": 2100,
-                      "y": 300,
+                      "y": 600,
                       "name": "Step 6: Mark reminded: exception queue"
                     }
                   }
@@ -340,7 +340,7 @@
                   "metadata": {
                     "designer": {
                       "x": 2400,
-                      "y": 300
+                      "y": 600
                     }
                   }
                 }
@@ -371,7 +371,7 @@
               "metadata": {
                 "designer": {
                   "x": 1800,
-                  "y": 600,
+                  "y": 900,
                   "name": "Step 6: Move it to the stand-in"
                 }
               },
@@ -397,7 +397,7 @@
                   "metadata": {
                     "designer": {
                       "x": 1800,
-                      "y": 900,
+                      "y": 1200,
                       "name": "Step 6: Move it to the stand-in: exception queue"
                     }
                   }
@@ -409,7 +409,7 @@
                   "metadata": {
                     "designer": {
                       "x": 2100,
-                      "y": 900
+                      "y": 1200
                     }
                   }
                 }
@@ -448,7 +448,7 @@
               "metadata": {
                 "designer": {
                   "x": 2100,
-                  "y": 600,
+                  "y": 900,
                   "name": "Step 6: Ask the stand-in"
                 }
               },
@@ -474,7 +474,7 @@
                   "metadata": {
                     "designer": {
                       "x": 2100,
-                      "y": 900,
+                      "y": 1500,
                       "name": "Step 6: Ask the stand-in: exception queue"
                     }
                   }
@@ -486,7 +486,7 @@
                   "metadata": {
                     "designer": {
                       "x": 2400,
-                      "y": 900
+                      "y": 1500
                     }
                   }
                 }
@@ -513,7 +513,7 @@
               "metadata": {
                 "designer": {
                   "x": 2400,
-                  "y": 600,
+                  "y": 900,
                   "name": "Step 6: Tell Aisha"
                 }
               },
@@ -539,7 +539,7 @@
                   "metadata": {
                     "designer": {
                       "x": 2400,
-                      "y": 900,
+                      "y": 1200,
                       "name": "Step 6: Tell Aisha: exception queue"
                     }
                   }
@@ -551,7 +551,7 @@
                   "metadata": {
                     "designer": {
                       "x": 2700,
-                      "y": 900
+                      "y": 1200
                     }
                   }
                 }

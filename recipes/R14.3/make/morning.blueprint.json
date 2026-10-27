@@ -125,7 +125,7 @@
           "metadata": {
             "designer": {
               "x": 600,
-              "y": 300
+              "y": 600
             }
           }
         }
@@ -701,7 +701,7 @@
                   "metadata": {
                     "designer": {
                       "x": 4200,
-                      "y": 300,
+                      "y": 600,
                       "name": "Step 4: Remind the owner: mark key failed"
                     }
                   }
@@ -727,7 +727,7 @@
                   "metadata": {
                     "designer": {
                       "x": 4500,
-                      "y": 300,
+                      "y": 600,
                       "name": "Step 4: Remind the owner: exception queue"
                     }
                   }
@@ -739,7 +739,7 @@
                   "metadata": {
                     "designer": {
                       "x": 4800,
-                      "y": 300
+                      "y": 600
                     }
                   }
                 }
@@ -792,7 +792,7 @@
                   "metadata": {
                     "designer": {
                       "x": 4500,
-                      "y": 300,
+                      "y": 900,
                       "name": "Step 4: Mark it sent: mark key failed"
                     }
                   }
@@ -818,7 +818,7 @@
                   "metadata": {
                     "designer": {
                       "x": 4800,
-                      "y": 300,
+                      "y": 900,
                       "name": "Step 4: Mark it sent: exception queue"
                     }
                   }
@@ -830,7 +830,7 @@
                   "metadata": {
                     "designer": {
                       "x": 5100,
-                      "y": 300
+                      "y": 900
                     }
                   }
                 }
@@ -913,7 +913,7 @@
               "metadata": {
                 "designer": {
                   "x": 3600,
-                  "y": 600,
+                  "y": 300,
                   "name": "Step 4: Pending key: Owen checks"
                 }
               },
@@ -955,7 +955,7 @@
               "metadata": {
                 "designer": {
                   "x": 3600,
-                  "y": 900,
+                  "y": 1200,
                   "name": "Step 6: Reserve agenda key"
                 }
               },
@@ -993,7 +993,7 @@
               "metadata": {
                 "designer": {
                   "x": 3900,
-                  "y": 900,
+                  "y": 1200,
                   "name": "Step 6: Add the agenda item"
                 }
               },
@@ -1019,7 +1019,7 @@
                   "metadata": {
                     "designer": {
                       "x": 3900,
-                      "y": 1200,
+                      "y": 1500,
                       "name": "Step 6: Add the agenda item: mark key failed"
                     }
                   }
@@ -1045,7 +1045,7 @@
                   "metadata": {
                     "designer": {
                       "x": 4200,
-                      "y": 1200,
+                      "y": 1500,
                       "name": "Step 6: Add the agenda item: exception queue"
                     }
                   }
@@ -1057,7 +1057,7 @@
                   "metadata": {
                     "designer": {
                       "x": 4500,
-                      "y": 1200
+                      "y": 1500
                     }
                   }
                 }
@@ -1096,7 +1096,7 @@
               "metadata": {
                 "designer": {
                   "x": 4200,
-                  "y": 900,
+                  "y": 1200,
                   "name": "Mark key done (on agenda)"
                 }
               }
@@ -1122,7 +1122,7 @@
               "metadata": {
                 "designer": {
                   "x": 4500,
-                  "y": 900,
+                  "y": 1200,
                   "name": "Decision log (on agenda)"
                 }
               }
@@ -1152,7 +1152,7 @@
               "metadata": {
                 "designer": {
                   "x": 3600,
-                  "y": 1500,
+                  "y": 1800,
                   "name": "Step 7: Reserve no-meeting key"
                 }
               },
@@ -1190,7 +1190,7 @@
               "metadata": {
                 "designer": {
                   "x": 3900,
-                  "y": 1500,
+                  "y": 1800,
                   "name": "Step 7: Tell the register owner"
                 }
               },
@@ -1216,7 +1216,7 @@
                   "metadata": {
                     "designer": {
                       "x": 3900,
-                      "y": 1800,
+                      "y": 2100,
                       "name": "Step 7: Tell the register owner: mark key failed"
                     }
                   }
@@ -1242,7 +1242,7 @@
                   "metadata": {
                     "designer": {
                       "x": 4200,
-                      "y": 1800,
+                      "y": 2100,
                       "name": "Step 7: Tell the register owner: exception queue"
                     }
                   }
@@ -1254,7 +1254,7 @@
                   "metadata": {
                     "designer": {
                       "x": 4500,
-                      "y": 1800
+                      "y": 2100
                     }
                   }
                 }
@@ -1293,7 +1293,7 @@
               "metadata": {
                 "designer": {
                   "x": 4200,
-                  "y": 1500,
+                  "y": 1800,
                   "name": "Mark key done (no meeting)"
                 }
               }
@@ -1319,7 +1319,7 @@
               "metadata": {
                 "designer": {
                   "x": 4500,
-                  "y": 1500,
+                  "y": 1800,
                   "name": "Decision log (no meeting)"
                 }
               }

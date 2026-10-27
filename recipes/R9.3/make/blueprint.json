@@ -146,7 +146,7 @@
           "metadata": {
             "designer": {
               "x": 900,
-              "y": 300
+              "y": 600
             }
           }
         }
@@ -582,7 +582,7 @@
                   "metadata": {
                     "designer": {
                       "x": 3300,
-                      "y": 300,
+                      "y": 600,
                       "name": "Step 6: Ask the manager: mark key failed"
                     }
                   }
@@ -608,7 +608,7 @@
                   "metadata": {
                     "designer": {
                       "x": 3600,
-                      "y": 300,
+                      "y": 600,
                       "name": "Step 6: Ask the manager: exception queue"
                     }
                   }
@@ -620,7 +620,7 @@
                   "metadata": {
                     "designer": {
                       "x": 3900,
-                      "y": 300
+                      "y": 600
                     }
                   }
                 }
@@ -780,7 +780,7 @@
                   "metadata": {
                     "designer": {
                       "x": 2100,
-                      "y": 900,
+                      "y": 1200,
                       "name": "Step 2: Send it to Aisha: exception queue"
                     }
                   }
@@ -792,7 +792,7 @@
                   "metadata": {
                     "designer": {
                       "x": 2400,
-                      "y": 900
+                      "y": 1200
                     }
                   }
                 }
@@ -849,7 +849,7 @@
               "metadata": {
                 "designer": {
                   "x": 1800,
-                  "y": 1200,
+                  "y": 1500,
                   "name": "Step 2: Exception queue: unlisted requester"
                 }
               },
@@ -887,7 +887,7 @@
               "metadata": {
                 "designer": {
                   "x": 2100,
-                  "y": 1200,
+                  "y": 1500,
                   "name": "Step 2: Tell Aisha"
                 }
               }
@@ -924,7 +924,7 @@
               "metadata": {
                 "designer": {
                   "x": 1800,
-                  "y": 1500,
+                  "y": 1800,
                   "name": "Step 8: Read the request to cancel"
                 }
               },
@@ -942,7 +942,7 @@
                   "metadata": {
                     "designer": {
                       "x": 1800,
-                      "y": 1800
+                      "y": 2100
                     }
                   }
                 }
@@ -1012,7 +1012,7 @@
               "metadata": {
                 "designer": {
                   "x": 2100,
-                  "y": 1500,
+                  "y": 1800,
                   "name": "Step 8: Rule: still cancellable?"
                 }
               }
@@ -1038,7 +1038,7 @@
               "metadata": {
                 "designer": {
                   "x": 2400,
-                  "y": 1500,
+                  "y": 1800,
                   "name": "Step 8: Mark it cancelled"
                 }
               },
@@ -1064,7 +1064,7 @@
                   "metadata": {
                     "designer": {
                       "x": 2400,
-                      "y": 1800,
+                      "y": 2100,
                       "name": "Step 8: Mark it cancelled: exception queue"
                     }
                   }
@@ -1076,7 +1076,7 @@
                   "metadata": {
                     "designer": {
                       "x": 2700,
-                      "y": 1800
+                      "y": 2100
                     }
                   }
                 }
@@ -1115,7 +1115,7 @@
               "metadata": {
                 "designer": {
                   "x": 2700,
-                  "y": 1500,
+                  "y": 1800,
                   "name": "Step 8: Ask Aisha to reverse it"
                 }
               },
@@ -1141,7 +1141,7 @@
                   "metadata": {
                     "designer": {
                       "x": 2700,
-                      "y": 1800,
+                      "y": 2400,
                       "name": "Step 8: Ask Aisha to reverse it: exception queue"
                     }
                   }
@@ -1153,7 +1153,7 @@
                   "metadata": {
                     "designer": {
                       "x": 3000,
-                      "y": 1800
+                      "y": 2400
                     }
                   }
                 }
@@ -1180,7 +1180,7 @@
               "metadata": {
                 "designer": {
                   "x": 3000,
-                  "y": 1500,
+                  "y": 1800,
                   "name": "Step 8: Notify the employee of the cancellation"
                 }
               },
@@ -1206,7 +1206,7 @@
                   "metadata": {
                     "designer": {
                       "x": 3000,
-                      "y": 1800,
+                      "y": 2100,
                       "name": "Exception queue: cancellation notice failed"
                     }
                   }
@@ -1218,7 +1218,7 @@
                   "metadata": {
                     "designer": {
                       "x": 3300,
-                      "y": 1800
+                      "y": 2100
                     }
                   }
                 }
@@ -1245,7 +1245,7 @@
               "metadata": {
                 "designer": {
                   "x": 3300,
-                  "y": 1500,
+                  "y": 1800,
                   "name": "Close the key: cancelled"
                 }
               }
@@ -1271,7 +1271,7 @@
               "metadata": {
                 "designer": {
                   "x": 3600,
-                  "y": 1500,
+                  "y": 1800,
                   "name": "Step 8: Decision log: cancelled"
                 }
               }

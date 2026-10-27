@@ -13,7 +13,7 @@ Every recipe here follows the book's anatomy and rule: AI drafts, rules check, p
 | Build specifications, governance cards, golden sets, prompts (all 40 recipes) | Available |
 | Platform cards, patterns, governance templates, golden-set method, monitoring, recipe library | Available |
 | n8n builds (all 40 recipes), each run against its golden set | Available |
-| Make builds | The 15 recipes with no AI step available, each run against its golden set; the 25 recipes with an AI step not yet available |
+| Make builds | The 15 recipes with no AI step and R4.1 available, each run against its golden set; the other 24 recipes with an AI step not yet available |
 | Power Automate and Zapier builds | Not yet available |
 
 Each recipe's `build-spec.md`, each prompt file and the index below say when its golden set last passed.
@@ -37,9 +37,10 @@ The builds were tested against stand-in systems (`tools/mock-systems/`), not aga
 3. On the webhook step, create a webhook and point your system at its address; for a scheduled scenario, set the schedule.
 4. Open the **Config** step and replace every `<your ...>` value, including `table_api_url` and `stop_flag_url`. Nothing else in the scenario hard-codes them.
 5. Each system call is an HTTP step named for the system and action. The blueprint carries no authentication: add your API's (a keychain or an Authorization header on each step), or replace the step with your system's own Make app, keeping its name and its error route.
-6. Turn on **Allow storing of incomplete executions** if Make has not kept it from the blueprint: the reads' Retry handlers need it.
-7. Create the stop list `stop_flag_url` points at, returning `{"stopped": false}`; set it to `true` to stop the scenario (book Chapter 3).
-8. Run the recipe's golden set with your own data before go-live, and publish only when the governance card is filled.
+6. For a recipe with an AI step, create an HTTP **API key** connection in Make for your Anthropic API key (parameter name `x-api-key`, in the header; allowed origin `https://api.anthropic.com`) and choose it on each **AI call** step. Make keeps the key encrypted; the blueprint carries none.
+7. Turn on **Allow storing of incomplete executions** if Make has not kept it from the blueprint: the reads' Retry handlers need it.
+8. Create the stop list `stop_flag_url` points at, returning `{"stopped": false}`; set it to `true` to stop the scenario (book Chapter 3).
+9. Run the recipe's golden set with your own data before go-live, and publish only when the governance card is filled.
 
 Make switches a webhook scenario off after one error (book Chapter 16), so watch the scenario's history in the first weeks.
 

@@ -136,7 +136,7 @@
           "metadata": {
             "designer": {
               "x": 900,
-              "y": 300
+              "y": 600
             }
           }
         }
@@ -550,7 +550,7 @@
                   "metadata": {
                     "designer": {
                       "x": 3600,
-                      "y": 300,
+                      "y": 600,
                       "name": "Step 4: Set the hold flag: mark key failed"
                     }
                   }
@@ -576,7 +576,7 @@
                   "metadata": {
                     "designer": {
                       "x": 3900,
-                      "y": 300,
+                      "y": 600,
                       "name": "Step 4: Set the hold flag: exception queue"
                     }
                   }
@@ -588,7 +588,7 @@
                   "metadata": {
                     "designer": {
                       "x": 4200,
-                      "y": 300
+                      "y": 600
                     }
                   }
                 }
@@ -853,7 +853,7 @@
                       "metadata": {
                         "designer": {
                           "x": 4500,
-                          "y": 600,
+                          "y": 300,
                           "name": "Decision log (open hold, no second task)"
                         }
                       },

@@ -146,7 +146,7 @@
           "metadata": {
             "designer": {
               "x": 900,
-              "y": 300
+              "y": 600
             }
           }
         }
@@ -418,7 +418,7 @@
                   "metadata": {
                     "designer": {
                       "x": 2400,
-                      "y": 300,
+                      "y": 600,
                       "name": "Exception queue: employee notice failed (approved)"
                     }
                   }
@@ -430,7 +430,7 @@
                   "metadata": {
                     "designer": {
                       "x": 2700,
-                      "y": 300
+                      "y": 600
                     }
                   }
                 }
@@ -513,7 +513,7 @@
               "metadata": {
                 "designer": {
                   "x": 2100,
-                  "y": 600,
+                  "y": 900,
                   "name": "Step 8: Notify the employee (declined)"
                 }
               },
@@ -539,7 +539,7 @@
                   "metadata": {
                     "designer": {
                       "x": 2100,
-                      "y": 900,
+                      "y": 1200,
                       "name": "Exception queue: employee notice failed (declined)"
                     }
                   }
@@ -551,7 +551,7 @@
                   "metadata": {
                     "designer": {
                       "x": 2400,
-                      "y": 900
+                      "y": 1200
                     }
                   }
                 }
@@ -590,7 +590,7 @@
               "metadata": {
                 "designer": {
                   "x": 2400,
-                  "y": 600,
+                  "y": 900,
                   "name": "Close the key (declined)"
                 }
               }
@@ -616,7 +616,7 @@
               "metadata": {
                 "designer": {
                   "x": 2700,
-                  "y": 600,
+                  "y": 900,
                   "name": "Step 8: Decision log: decided (declined)"
                 }
               }

@@ -142,7 +142,7 @@
           "metadata": {
             "designer": {
               "x": 900,
-              "y": 300
+              "y": 600
             }
           }
         }
@@ -576,7 +576,7 @@
               "metadata": {
                 "designer": {
                   "x": 3300,
-                  "y": 300,
+                  "y": 600,
                   "name": "Mark bill keys done (within tolerance)"
                 }
               },
@@ -614,7 +614,7 @@
               "metadata": {
                 "designer": {
                   "x": 3600,
-                  "y": 300,
+                  "y": 600,
                   "name": "Decision log: commitment (within tolerance)"
                 }
               }

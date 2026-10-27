@@ -915,7 +915,7 @@
                                           "metadata": {
                                             "designer": {
                                               "x": 6300,
-                                              "y": 300,
+                                              "y": 600,
                                               "name": "Step 10: Set the next stage and date: mark key failed"
                                             }
                                           }
@@ -941,7 +941,7 @@
                                           "metadata": {
                                             "designer": {
                                               "x": 6600,
-                                              "y": 300,
+                                              "y": 600,
                                               "name": "Step 10: Set the next stage and date: exception queue"
                                             }
                                           }
@@ -953,7 +953,7 @@
                                           "metadata": {
                                             "designer": {
                                               "x": 6900,
-                                              "y": 300
+                                              "y": 600
                                             }
                                           }
                                         }
@@ -1014,7 +1014,7 @@
                                                   "metadata": {
                                                     "designer": {
                                                       "x": 6900,
-                                                      "y": 300,
+                                                      "y": 900,
                                                       "name": "Step 10: Open Aisha's handoff: mark key failed"
                                                     }
                                                   }
@@ -1040,7 +1040,7 @@
                                                   "metadata": {
                                                     "designer": {
                                                       "x": 7200,
-                                                      "y": 300,
+                                                      "y": 900,
                                                       "name": "Step 10: Open Aisha's handoff: exception queue"
                                                     }
                                                   }
@@ -1052,7 +1052,7 @@
                                                   "metadata": {
                                                     "designer": {
                                                       "x": 7500,
-                                                      "y": 300
+                                                      "y": 900
                                                     }
                                                   }
                                                 }
@@ -1147,7 +1147,7 @@
                                               "metadata": {
                                                 "designer": {
                                                   "x": 6900,
-                                                  "y": 600,
+                                                  "y": 1200,
                                                   "name": "Mark key done"
                                                 }
                                               },
@@ -1185,7 +1185,7 @@
                                               "metadata": {
                                                 "designer": {
                                                   "x": 7200,
-                                                  "y": 600,
+                                                  "y": 1200,
                                                   "name": "Step 10: Decision log (sent)"
                                                 }
                                               }
@@ -1226,7 +1226,7 @@
                                       "metadata": {
                                         "designer": {
                                           "x": 6000,
-                                          "y": 900,
+                                          "y": 1500,
                                           "name": "Step 8: Release key: held"
                                         }
                                       },
@@ -1264,7 +1264,7 @@
                                       "metadata": {
                                         "designer": {
                                           "x": 6300,
-                                          "y": 900,
+                                          "y": 1500,
                                           "name": "Exception queue: held by step 8"
                                         }
                                       }
@@ -1290,7 +1290,7 @@
                                       "metadata": {
                                         "designer": {
                                           "x": 6600,
-                                          "y": 900,
+                                          "y": 1500,
                                           "name": "Step 8: Alert Aisha"
                                         }
                                       }
@@ -1316,7 +1316,7 @@
                                       "metadata": {
                                         "designer": {
                                           "x": 6900,
-                                          "y": 900,
+                                          "y": 1500,
                                           "name": "Step 8: Decision log: held"
                                         }
                                       }
@@ -1364,7 +1364,7 @@
                               "metadata": {
                                 "designer": {
                                   "x": 4800,
-                                  "y": 1200,
+                                  "y": 900,
                                   "name": "Step 7: Fill the template (final notice)"
                                 }
                               },
@@ -1413,7 +1413,7 @@
                               "metadata": {
                                 "designer": {
                                   "x": 5100,
-                                  "y": 1200,
+                                  "y": 900,
                                   "name": "Step 8: Rule: number, amount and no blank field (final notice)"
                                 }
                               }
@@ -1447,7 +1447,7 @@
                                       "metadata": {
                                         "designer": {
                                           "x": 5700,
-                                          "y": 1200,
+                                          "y": 900,
                                           "name": "Step 9: Ask Aisha to approve the final notice"
                                         }
                                       },
@@ -1473,7 +1473,7 @@
                                           "metadata": {
                                             "designer": {
                                               "x": 5700,
-                                              "y": 1500,
+                                              "y": 1200,
                                               "name": "Step 9: Ask Aisha to approve the final notice: exception queue"
                                             }
                                           }
@@ -1485,7 +1485,7 @@
                                           "metadata": {
                                             "designer": {
                                               "x": 6000,
-                                              "y": 1500
+                                              "y": 1200
                                             }
                                           }
                                         }
@@ -1524,7 +1524,7 @@
                                       "metadata": {
                                         "designer": {
                                           "x": 6000,
-                                          "y": 1200,
+                                          "y": 900,
                                           "name": "Step 10: Decision log (final notice)"
                                         }
                                       }
@@ -1655,7 +1655,7 @@
                               "metadata": {
                                 "designer": {
                                   "x": 5400,
-                                  "y": 1200,
+                                  "y": 900,
                                   "name": "Step 8: Passes? (final notice)"
                                 }
                               }
@@ -1685,7 +1685,7 @@
                               "metadata": {
                                 "designer": {
                                   "x": 4800,
-                                  "y": 2100,
+                                  "y": 1500,
                                   "name": "Steps 4 and 5: Record the stop"
                                 }
                               },
@@ -1711,7 +1711,7 @@
                                   "metadata": {
                                     "designer": {
                                       "x": 4800,
-                                      "y": 2400,
+                                      "y": 1800,
                                       "name": "Steps 4 and 5: Record the stop: exception queue"
                                     }
                                   }
@@ -1723,7 +1723,7 @@
                                   "metadata": {
                                     "designer": {
                                       "x": 5100,
-                                      "y": 2400
+                                      "y": 1800
                                     }
                                   }
                                 }
@@ -1770,7 +1770,7 @@
                                       "metadata": {
                                         "designer": {
                                           "x": 5400,
-                                          "y": 2100,
+                                          "y": 1500,
                                           "name": "Step 4: Tell Aisha"
                                         }
                                       },
@@ -1796,7 +1796,7 @@
                                           "metadata": {
                                             "designer": {
                                               "x": 5400,
-                                              "y": 2400,
+                                              "y": 2100,
                                               "name": "Step 4: Tell Aisha: exception queue"
                                             }
                                           }
@@ -1808,7 +1808,7 @@
                                           "metadata": {
                                             "designer": {
                                               "x": 5700,
-                                              "y": 2400
+                                              "y": 2100
                                             }
                                           }
                                         }
@@ -1847,7 +1847,7 @@
                                       "metadata": {
                                         "designer": {
                                           "x": 5700,
-                                          "y": 2100,
+                                          "y": 1500,
                                           "name": "Step 10: Decision log (stop, Aisha told)"
                                         }
                                       }
@@ -1877,7 +1877,7 @@
                                       "metadata": {
                                         "designer": {
                                           "x": 5400,
-                                          "y": 2700,
+                                          "y": 1800,
                                           "name": "Step 10: Decision log (stop)"
                                         }
                                       },
@@ -1900,7 +1900,7 @@
                               "metadata": {
                                 "designer": {
                                   "x": 5100,
-                                  "y": 2100,
+                                  "y": 1500,
                                   "name": "Tell Aisha?"
                                 }
                               }
@@ -1930,7 +1930,7 @@
                               "metadata": {
                                 "designer": {
                                   "x": 4800,
-                                  "y": 3000,
+                                  "y": 2100,
                                   "name": "Step 3: Add to the reminder list"
                                 }
                               },
@@ -1956,7 +1956,7 @@
                                   "metadata": {
                                     "designer": {
                                       "x": 4800,
-                                      "y": 3300,
+                                      "y": 2400,
                                       "name": "Step 3: Add to the reminder list: exception queue"
                                     }
                                   }
@@ -1968,7 +1968,7 @@
                                   "metadata": {
                                     "designer": {
                                       "x": 5100,
-                                      "y": 3300
+                                      "y": 2400
                                     }
                                   }
                                 }
@@ -2011,7 +2011,7 @@
                               "metadata": {
                                 "designer": {
                                   "x": 4800,
-                                  "y": 3600,
+                                  "y": 2700,
                                   "name": "Step 10: Decision log (wait)"
                                 }
                               },
@@ -2064,7 +2064,7 @@
                       "metadata": {
                         "designer": {
                           "x": 2700,
-                          "y": 3900,
+                          "y": 600,
                           "name": "Step 2: Decision log: no run"
                         }
                       },
@@ -2102,7 +2102,7 @@
                       "metadata": {
                         "designer": {
                           "x": 3000,
-                          "y": 3900,
+                          "y": 600,
                           "name": "Step 2: Alert Aisha"
                         }
                       }
@@ -2150,7 +2150,7 @@
               "metadata": {
                 "designer": {
                   "x": 1200,
-                  "y": 4200,
+                  "y": 600,
                   "name": "Step 9: Decision log entry: not approved"
                 }
               },
@@ -2193,7 +2193,7 @@
               "metadata": {
                 "designer": {
                   "x": 1500,
-                  "y": 4200,
+                  "y": 600,
                   "name": "Step 9: Decision log: not approved"
                 }
               }

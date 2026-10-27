@@ -1,0 +1,3 @@
+- Added the first Make build with an AI step, R4.1: all 8 golden-set cases pass on Make (cloud service, Core plan), including the cases that need Claude Haiku 5.5's live answer.
+- A Make AI step sends the prompt file's request with your own Anthropic API key, held in a Make HTTP "API key" connection; the blueprint carries no key, and README step 6 says how to connect yours. A failed call is tried once more, and a second failure sends the item to the safe path, as in the n8n builds.
+- Make scenarios now open with no two modules on the same spot: error routes from neighbouring steps were drawn over each other. Only module positions changed; every step, mapping and filter is as tested.

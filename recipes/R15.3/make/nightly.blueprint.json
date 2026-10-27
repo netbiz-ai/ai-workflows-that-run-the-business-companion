@@ -125,7 +125,7 @@
           "metadata": {
             "designer": {
               "x": 600,
-              "y": 300
+              "y": 600
             }
           }
         }
@@ -422,7 +422,7 @@
           "metadata": {
             "designer": {
               "x": 2400,
-              "y": 300,
+              "y": 600,
               "name": "Step 8: Correction failed"
             }
           }
@@ -448,7 +448,7 @@
           "metadata": {
             "designer": {
               "x": 2700,
-              "y": 300,
+              "y": 600,
               "name": "Exception queue: list held (correction failed)"
             }
           }
@@ -474,7 +474,7 @@
           "metadata": {
             "designer": {
               "x": 3000,
-              "y": 300,
+              "y": 600,
               "name": "Step 8: Tell Owen (correction failed)"
             }
           }
@@ -486,7 +486,7 @@
           "metadata": {
             "designer": {
               "x": 3300,
-              "y": 300
+              "y": 600
             }
           }
         }

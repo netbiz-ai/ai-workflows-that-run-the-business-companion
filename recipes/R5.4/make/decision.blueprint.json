@@ -820,7 +820,7 @@
                   "metadata": {
                     "designer": {
                       "x": 3000,
-                      "y": 1500,
+                      "y": 1800,
                       "name": "Step 8: Tell the salesperson: mark key failed"
                     }
                   }
@@ -846,7 +846,7 @@
                   "metadata": {
                     "designer": {
                       "x": 3300,
-                      "y": 1500,
+                      "y": 1800,
                       "name": "Step 8: Tell the salesperson: exception queue"
                     }
                   }
@@ -858,7 +858,7 @@
                   "metadata": {
                     "designer": {
                       "x": 3600,
-                      "y": 1500
+                      "y": 1800
                     }
                   }
                 }
@@ -941,7 +941,7 @@
               "metadata": {
                 "designer": {
                   "x": 2700,
-                  "y": 1800,
+                  "y": 2100,
                   "name": "Exception queue: decision not accepted"
                 }
               },
@@ -979,7 +979,7 @@
               "metadata": {
                 "designer": {
                   "x": 3000,
-                  "y": 1800,
+                  "y": 2100,
                   "name": "Mark decision key done (refuse)"
                 }
               }
@@ -1005,7 +1005,7 @@
               "metadata": {
                 "designer": {
                   "x": 3300,
-                  "y": 1800,
+                  "y": 2100,
                   "name": "Step 8: Log approver, time and version (refuse)"
                 }
               }
