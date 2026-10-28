@@ -1,0 +1,755 @@
+{
+  "name": "R4.2 Escalate: check the clock",
+  "flow": [
+    {
+      "id": 1,
+      "module": "code:ExecuteCode",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "language": "javascript",
+        "inputFormat": "editor",
+        "dependencies": [],
+        "codeEditorJavascript": "// Config: edit these values for your company; nothing else in the scenario hard-codes them.\n// Schedule: set this scenario to run every 5 minutes; Make keeps the schedule outside the blueprint.\nreturn {\n  \"stop_flag_url\": \"https://<your stop list API>/stop_flags/R4.2\",\n  \"table_api_url\": \"https://<your table API for the key log, decision log and exception queue>\",\n  \"workflow_owner\": \"<your workflow owner>\",\n  \"helpdesk_url\": \"https://<your helpdesk API>\",\n  \"phone_url\": \"https://<your text and call service API>\",\n  \"ticket_link\": \"https://<your helpdesk>/tickets/\",\n  \"keywords\": [\n    \"<your safety and legal keywords>\"\n  ],\n  \"min_text_chars\": 20,\n  \"escalation_priority\": \"<your highest priority>\",\n  \"timezone\": \"<your time zone, such as Europe/London>\",\n  \"opening_hours\": {\n    \"days\": [\n      \"Mon\",\n      \"Tue\",\n      \"Wed\",\n      \"Thu\",\n      \"Fri\"\n    ],\n    \"start\": \"<HH:MM>\",\n    \"end\": \"<HH:MM>\"\n  },\n  \"in_hours\": {\n    \"owner\": {\n      \"name\": \"<your owner in opening hours>\",\n      \"phone\": \"<their phone>\",\n      \"helpdesk_user\": \"<their helpdesk user>\"\n    },\n    \"backup\": {\n      \"name\": \"<your backup in opening hours>\",\n      \"phone\": \"<their phone>\",\n      \"helpdesk_user\": \"<their helpdesk user>\"\n    },\n    \"limit_min\": 15\n  },\n  \"out_of_hours\": {\n    \"owner\": {\n      \"name\": \"<your on-call phone holder>\",\n      \"phone\": \"<your on-call phone>\",\n      \"helpdesk_user\": \"<their helpdesk user>\"\n    },\n    \"backup\": {\n      \"name\": \"<your out-of-hours backup>\",\n      \"phone\": \"<their phone>\",\n      \"helpdesk_user\": \"<their helpdesk user>\"\n    },\n    \"limit_min\": 30\n  },\n  \"final_contact\": {\n    \"name\": \"<your workflow owner>\",\n    \"phone\": \"<their phone>\",\n    \"helpdesk_user\": \"<their helpdesk user>\"\n  },\n  \"triage_lead\": \"<your triage lead>\",\n  \"ai_model\": \"claude-haiku-5-5\",\n  \"ai_inference_geo\": \"us\",\n  \"ai_url\": \"https://api.anthropic.com/v1/messages\"\n};",
+        "input": []
+      },
+      "metadata": {
+        "designer": {
+          "x": 0,
+          "y": 0,
+          "name": "Config"
+        }
+      }
+    },
+    {
+      "id": 4,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{1.result.stop_flag_url}}",
+        "method": "get",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true
+      },
+      "metadata": {
+        "designer": {
+          "x": 300,
+          "y": 0,
+          "name": "Stop flag: read"
+        }
+      },
+      "onerror": [
+        {
+          "id": 2,
+          "module": "http:MakeRequest",
+          "version": 4,
+          "parameters": {},
+          "mapper": {
+            "url": "{{1.result.table_api_url}}/exception_queue",
+            "method": "post",
+            "timeout": "40",
+            "parseResponse": false,
+            "stopOnHttpError": true,
+            "allowRedirects": true,
+            "shareCookies": false,
+            "requestCompressedContent": true,
+            "contentType": "json",
+            "inputMethod": "jsonString",
+            "jsonStringBodyContent": "{\"recipe\": \"R4.2\", \"item\": \"run {{var.scenario.executionId}}\", \"reason\": \"stop list unreadable\", \"detail\": \"The stop list could not be read, so the run stopped\", \"owner\": \"{{1.result.workflow_owner}}\"}"
+          },
+          "metadata": {
+            "designer": {
+              "x": 300,
+              "y": 300,
+              "name": "Stop flag: list unreadable"
+            }
+          }
+        },
+        {
+          "id": 3,
+          "module": "builtin:Ignore",
+          "version": 1,
+          "metadata": {
+            "designer": {
+              "x": 600,
+              "y": 300
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{1.result.table_api_url}}/decision_log",
+        "method": "get",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true,
+        "queryParameters": [
+          {
+            "name": "recipe",
+            "value": "eq.R4.2"
+          },
+          {
+            "name": "select",
+            "value": "id,item,rules,decided_at"
+          },
+          {
+            "name": "order",
+            "value": "id.desc"
+          }
+        ]
+      },
+      "metadata": {
+        "designer": {
+          "x": 600,
+          "y": 0,
+          "name": "Read running clocks"
+        }
+      },
+      "onerror": [
+        {
+          "id": 5,
+          "module": "builtin:Break",
+          "version": 1,
+          "parameters": {},
+          "mapper": {
+            "count": "3",
+            "retry": true,
+            "interval": "1"
+          },
+          "metadata": {
+            "designer": {
+              "x": 600,
+              "y": 600
+            }
+          }
+        }
+      ],
+      "filter": {
+        "name": "stop flag not set",
+        "conditions": [
+          [
+            {
+              "a": "{{4.data.stopped}}",
+              "b": "true",
+              "o": "text:notequal"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "id": 7,
+      "module": "code:ExecuteCode",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "language": "javascript",
+        "inputFormat": "editor",
+        "dependencies": [],
+        "codeEditorJavascript": "// Adapter: the rule below is the same JavaScript as the recipe's n8n build.\n// $('Step name') answers from this step's inputs: each is that step's output in this scenario.\nconst SOURCES = {\"Config\": \"in0_Config\", \"Read running clocks\": \"in1_Readrunningclocks\"};\nconst LISTS = [\"Read running clocks\"];\nconst EXECUTED = [];\nconst DATA = {};\nfor (const [node, key] of Object.entries(SOURCES)) {\n  const raw = input[key];\n  let v = raw;\n  if (typeof raw === 'string') { try { v = JSON.parse(raw); } catch (e) { v = raw; } }\n  DATA[node] = LISTS.includes(node) ? (v || []).map(i => (i && i.json !== undefined ? i : { json: i })) : [{ json: v }];\n}\nconst $ = (node) => {\n  const ran = node in DATA || EXECUTED.includes(node);\n  const list = () => { if (!(node in DATA)) throw new Error(`step ${node} has no data in this scenario`); return DATA[node]; };\n  return { isExecuted: ran, first: () => list()[0], last: () => list()[list().length - 1], all: () => list(),\n           get item() { return list()[0]; } };\n};\nconst INPUT = \"Config\";\nconst $input = { all: () => $(INPUT).all(), first: () => $(INPUT).first(), last: () => $(INPUT).last(), get item() { return $(INPUT).first(); } };\nconst $execution = { id: input.run_id };\nconst BODIES = (out) => ({\"clock\": JSON.stringify(out)});\nconst one = (r) => (Array.isArray(r) ? r : [r]).filter(Boolean).map(i => (i.json !== undefined ? i.json : i));\nconst $json = INPUT && INPUT in DATA ? $input.first().json : {};\nconst __rule = () => {\n// The latest decision-log row with a clock, per ticket (rows come newest first); keep those still running.\nconst latest = new Map();\nfor (const r of $('Read running clocks').all().map(i => i.json)) {\n  if (r && r.rules && 'clock' in r.rules && !latest.has(r.item)) latest.set(r.item, r);\n}\nreturn [...latest.values()].filter(r => r.rules.clock === 'running').map(r => ({ json: { item: r.item, rules: r.rules,\n  minutes: Math.max(0, (Date.now() - Date.parse(r.decided_at)) / 60000) } }));\n};\nreturn { items: one(__rule()).map(o => Object.assign({}, o, BODIES(o))) };\n",
+        "input": [
+          {
+            "name": "in0_Config",
+            "value": "{{1.result}}"
+          },
+          {
+            "name": "in1_Readrunningclocks",
+            "value": "{{6.data}}"
+          },
+          {
+            "name": "run_id",
+            "value": "{{var.scenario.executionId}}"
+          }
+        ]
+      },
+      "metadata": {
+        "designer": {
+          "x": 900,
+          "y": 0,
+          "name": "Running clocks: latest per ticket"
+        }
+      }
+    },
+    {
+      "id": 8,
+      "module": "builtin:BasicFeeder",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "array": "{{7.result.items}}"
+      },
+      "metadata": {
+        "designer": {
+          "x": 1200,
+          "y": 0,
+          "name": "Any clock running?"
+        }
+      }
+    },
+    {
+      "id": 10,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{1.result.helpdesk_url}}/tickets/{{encodeURL(8.item)}}",
+        "method": "get",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true
+      },
+      "metadata": {
+        "designer": {
+          "x": 1500,
+          "y": 0,
+          "name": "Read the ticket's assignee"
+        }
+      },
+      "onerror": [
+        {
+          "id": 9,
+          "module": "builtin:Break",
+          "version": 1,
+          "parameters": {},
+          "mapper": {
+            "count": "3",
+            "retry": true,
+            "interval": "1"
+          },
+          "metadata": {
+            "designer": {
+              "x": 1500,
+              "y": 300
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "module": "code:ExecuteCode",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "language": "javascript",
+        "inputFormat": "editor",
+        "dependencies": [],
+        "codeEditorJavascript": "// Adapter: the rule below is the same JavaScript as the recipe's n8n build.\n// $('Step name') answers from this step's inputs: each is that step's output in this scenario.\nconst SOURCES = {\"Config\": \"in0_Config\", \"Any clock running?\": \"in1_Anyclockrunning\", \"Read the ticket's assignee\": \"in2_Readtheticketsassignee\"};\nconst LISTS = [];\nconst EXECUTED = [];\nconst DATA = {};\nfor (const [node, key] of Object.entries(SOURCES)) {\n  const raw = input[key];\n  let v = raw;\n  if (typeof raw === 'string') { try { v = JSON.parse(raw); } catch (e) { v = raw; } }\n  DATA[node] = LISTS.includes(node) ? (v || []).map(i => (i && i.json !== undefined ? i : { json: i })) : [{ json: v }];\n}\nconst $ = (node) => {\n  const ran = node in DATA || EXECUTED.includes(node);\n  const list = () => { if (!(node in DATA)) throw new Error(`step ${node} has no data in this scenario`); return DATA[node]; };\n  return { isExecuted: ran, first: () => list()[0], last: () => list()[list().length - 1], all: () => list(),\n           get item() { return list()[0]; } };\n};\nconst INPUT = \"Read the ticket's assignee\";\nconst $input = { all: () => $(INPUT).all(), first: () => $(INPUT).first(), last: () => $(INPUT).last(), get item() { return $(INPUT).first(); } };\nconst $execution = { id: input.run_id };\nconst BODIES = (out) => ({\"ack_log_body\": JSON.stringify({ recipe: 'R4.2', item: out.ticket_id, decision: 'acknowledged by ' + out.by, rules: { message_id: out.message_id, level: out.level, by: out.by, minutes: out.minutes, clock: 'stopped' } }), \"text_body\": (out.person ? JSON.stringify({ to: out.person.phone, text: 'Escalated ticket: ' + $('Config').first().json.ticket_link + out.ticket_id }) : null), \"call_body\": (out.person ? JSON.stringify({ to: out.person.phone, say: 'An escalated ticket needs you now. The link is in your texts.' }) : null), \"text_failed_body\": (out.person ? JSON.stringify({ recipe: 'R4.2', item: out.ticket_id, reason: 'notice failed', detail: 'Text to ' + out.person.name + ' failed after three tries', owner: $('Config').first().json.triage_lead }) : null), \"call_failed_body\": (out.person ? JSON.stringify({ recipe: 'R4.2', item: out.ticket_id, reason: 'notice failed', detail: 'Call to ' + out.person.name + ' failed after three tries', owner: $('Config').first().json.triage_lead }) : null), \"notice_log_body\": (out.person ? JSON.stringify({ recipe: 'R4.2', item: out.ticket_id, decision: 'escalated: ' + out.level + ' notified', rules: Object.assign({}, out.rules, { message_id: out.message_id, fired: out.fired, level: out.level, person: out.person.name, rota: out.rota, limit_min: out.limit_min, notified: out.notified, clock: out.level === 'final' ? 'ended' : 'running' }) }) : null)});\nconst one = (r) => (Array.isArray(r) ? r : [r]).filter(Boolean).map(i => (i.json !== undefined ? i.json : i));\nconst $json = INPUT && INPUT in DATA ? $input.first().json : {};\nconst __rule = () => {\n// Step 6: the person notified taking the ticket stops the clock; a passed limit notifies the next person on a fresh clock.\nconst cfg = $('Config').first().json;\nconst clocks = $('Any clock running?').all();\nconst out = [];\n$input.all().forEach((it, i) => {\n  const c = clocks[i].json;\n  const r = c.rules;\n  const t = it.json;\n  if (t.assignee && (r.notified || []).includes(t.assignee)) {\n    out.push({ json: { action: 'ack', ticket_id: c.item, by: t.assignee, level: r.level, minutes: Math.round(Number(c.minutes)), message_id: r.message_id }, pairedItem: { item: i } });\n    return;\n  }\n  if (Number(c.minutes) < Number(r.limit_min)) return;\n  const next = r.level === 'owner' ? { level: 'backup', person: cfg[r.rota].backup } : { level: 'final', person: cfg.final_contact };\n  out.push({ json: { action: 'notify', ticket_id: c.item, message_id: r.message_id, level: next.level, rota: r.rota, person: next.person,\n    limit_min: cfg[r.rota].limit_min, fired: `${r.level} did not take the ticket within ${r.limit_min} minutes`,\n    notified: (r.notified || []).concat([next.person.helpdesk_user]), rules: {} }, pairedItem: { item: i } });\n});\nreturn out;\n};\nconst out = one(__rule())[0] || {};\nreturn Object.assign({}, out, BODIES(out));\n",
+        "input": [
+          {
+            "name": "in0_Config",
+            "value": "{{1.result}}"
+          },
+          {
+            "name": "in1_Anyclockrunning",
+            "value": "{{8.clock}}"
+          },
+          {
+            "name": "in2_Readtheticketsassignee",
+            "value": "{{10.data}}"
+          },
+          {
+            "name": "run_id",
+            "value": "{{var.scenario.executionId}}"
+          }
+        ]
+      },
+      "metadata": {
+        "designer": {
+          "x": 1800,
+          "y": 0,
+          "name": "Step 6: Rule: taken or late?"
+        }
+      }
+    },
+    {
+      "id": 28,
+      "module": "builtin:BasicRouter",
+      "version": 1,
+      "mapper": null,
+      "routes": [
+        {
+          "flow": [
+            {
+              "id": 12,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{1.result.table_api_url}}/decision_log",
+                "method": "post",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{11.result.ack_log_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 2400,
+                  "y": 0,
+                  "name": "Step 6: Log the acknowledgment; stop the clock"
+                }
+              },
+              "filter": {
+                "name": "ack",
+                "conditions": [
+                  [
+                    {
+                      "a": "{{11.result.action}}",
+                      "b": "ack",
+                      "o": "text:equal"
+                    }
+                  ]
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "flow": [
+            {
+              "id": 13,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{1.result.phone_url}}/texts",
+                "method": "post",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{11.result.text_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 2400,
+                  "y": 300,
+                  "name": "Step 5 and 6: Text the person (next person)"
+                }
+              },
+              "onerror": [
+                {
+                  "id": 14,
+                  "module": "http:MakeRequest",
+                  "version": 4,
+                  "parameters": {},
+                  "mapper": {
+                    "url": "{{1.result.phone_url}}/texts",
+                    "method": "post",
+                    "timeout": "40",
+                    "parseResponse": false,
+                    "stopOnHttpError": true,
+                    "allowRedirects": true,
+                    "shareCookies": false,
+                    "requestCompressedContent": true,
+                    "contentType": "json",
+                    "inputMethod": "jsonString",
+                    "jsonStringBodyContent": "{{11.result.text_body}}"
+                  },
+                  "metadata": {
+                    "designer": {
+                      "x": 2400,
+                      "y": 600,
+                      "name": "Step 5 and 6: Text the person (next person), second try"
+                    }
+                  },
+                  "onerror": [
+                    {
+                      "id": 15,
+                      "module": "http:MakeRequest",
+                      "version": 4,
+                      "parameters": {},
+                      "mapper": {
+                        "url": "{{1.result.phone_url}}/texts",
+                        "method": "post",
+                        "timeout": "40",
+                        "parseResponse": false,
+                        "stopOnHttpError": false,
+                        "allowRedirects": true,
+                        "shareCookies": false,
+                        "requestCompressedContent": true,
+                        "contentType": "json",
+                        "inputMethod": "jsonString",
+                        "jsonStringBodyContent": "{{11.result.text_body}}"
+                      },
+                      "metadata": {
+                        "designer": {
+                          "x": 2400,
+                          "y": 900,
+                          "name": "Step 5 and 6: Text the person (next person), third try"
+                        }
+                      }
+                    },
+                    {
+                      "id": 16,
+                      "module": "builtin:Resume",
+                      "version": 1,
+                      "parameters": {},
+                      "mapper": {
+                        "statusCode": "{{15.statusCode}}",
+                        "data": "{{15.data}}",
+                        "headers": "{{15.headers}}"
+                      },
+                      "metadata": {
+                        "designer": {
+                          "x": 2700,
+                          "y": 900
+                        }
+                      }
+                    }
+                  ]
+                },
+                {
+                  "id": 17,
+                  "module": "builtin:Resume",
+                  "version": 1,
+                  "parameters": {},
+                  "mapper": {
+                    "statusCode": "{{14.statusCode}}",
+                    "data": "{{14.data}}",
+                    "headers": "{{14.headers}}"
+                  },
+                  "metadata": {
+                    "designer": {
+                      "x": 2700,
+                      "y": 600
+                    }
+                  }
+                }
+              ],
+              "filter": {
+                "name": "notify",
+                "conditions": [
+                  [
+                    {
+                      "a": "{{11.result.action}}",
+                      "b": "notify",
+                      "o": "text:equal"
+                    }
+                  ]
+                ]
+              }
+            },
+            {
+              "id": 27,
+              "module": "builtin:BasicRouter",
+              "version": 1,
+              "mapper": null,
+              "routes": [
+                {
+                  "flow": [
+                    {
+                      "id": 24,
+                      "module": "http:MakeRequest",
+                      "version": 4,
+                      "parameters": {},
+                      "mapper": {
+                        "url": "{{1.result.table_api_url}}/exception_queue",
+                        "method": "post",
+                        "timeout": "40",
+                        "parseResponse": false,
+                        "stopOnHttpError": true,
+                        "allowRedirects": true,
+                        "shareCookies": false,
+                        "requestCompressedContent": true,
+                        "contentType": "json",
+                        "inputMethod": "jsonString",
+                        "jsonStringBodyContent": "{{11.result.text_failed_body}}"
+                      },
+                      "metadata": {
+                        "designer": {
+                          "x": 3000,
+                          "y": 300,
+                          "name": "Exception queue: text failed (next person)"
+                        }
+                      },
+                      "filter": {
+                        "name": "failed",
+                        "conditions": [
+                          [
+                            {
+                              "a": "{{13.statusCode}}",
+                              "b": "300",
+                              "o": "number:greaterorequal"
+                            }
+                          ]
+                        ]
+                      }
+                    }
+                  ]
+                },
+                {
+                  "flow": [
+                    {
+                      "id": 18,
+                      "module": "http:MakeRequest",
+                      "version": 4,
+                      "parameters": {},
+                      "mapper": {
+                        "url": "{{1.result.phone_url}}/calls",
+                        "method": "post",
+                        "timeout": "40",
+                        "parseResponse": false,
+                        "stopOnHttpError": true,
+                        "allowRedirects": true,
+                        "shareCookies": false,
+                        "requestCompressedContent": true,
+                        "contentType": "json",
+                        "inputMethod": "jsonString",
+                        "jsonStringBodyContent": "{{11.result.call_body}}"
+                      },
+                      "metadata": {
+                        "designer": {
+                          "x": 3000,
+                          "y": 600,
+                          "name": "Step 5 and 6: Call the person (next person)"
+                        }
+                      },
+                      "onerror": [
+                        {
+                          "id": 19,
+                          "module": "http:MakeRequest",
+                          "version": 4,
+                          "parameters": {},
+                          "mapper": {
+                            "url": "{{1.result.phone_url}}/calls",
+                            "method": "post",
+                            "timeout": "40",
+                            "parseResponse": false,
+                            "stopOnHttpError": true,
+                            "allowRedirects": true,
+                            "shareCookies": false,
+                            "requestCompressedContent": true,
+                            "contentType": "json",
+                            "inputMethod": "jsonString",
+                            "jsonStringBodyContent": "{{11.result.call_body}}"
+                          },
+                          "metadata": {
+                            "designer": {
+                              "x": 3000,
+                              "y": 900,
+                              "name": "Step 5 and 6: Call the person (next person), second try"
+                            }
+                          },
+                          "onerror": [
+                            {
+                              "id": 20,
+                              "module": "http:MakeRequest",
+                              "version": 4,
+                              "parameters": {},
+                              "mapper": {
+                                "url": "{{1.result.phone_url}}/calls",
+                                "method": "post",
+                                "timeout": "40",
+                                "parseResponse": false,
+                                "stopOnHttpError": false,
+                                "allowRedirects": true,
+                                "shareCookies": false,
+                                "requestCompressedContent": true,
+                                "contentType": "json",
+                                "inputMethod": "jsonString",
+                                "jsonStringBodyContent": "{{11.result.call_body}}"
+                              },
+                              "metadata": {
+                                "designer": {
+                                  "x": 3000,
+                                  "y": 1200,
+                                  "name": "Step 5 and 6: Call the person (next person), third try"
+                                }
+                              }
+                            },
+                            {
+                              "id": 21,
+                              "module": "builtin:Resume",
+                              "version": 1,
+                              "parameters": {},
+                              "mapper": {
+                                "statusCode": "{{20.statusCode}}",
+                                "data": "{{20.data}}",
+                                "headers": "{{20.headers}}"
+                              },
+                              "metadata": {
+                                "designer": {
+                                  "x": 3300,
+                                  "y": 1200
+                                }
+                              }
+                            }
+                          ]
+                        },
+                        {
+                          "id": 22,
+                          "module": "builtin:Resume",
+                          "version": 1,
+                          "parameters": {},
+                          "mapper": {
+                            "statusCode": "{{19.statusCode}}",
+                            "data": "{{19.data}}",
+                            "headers": "{{19.headers}}"
+                          },
+                          "metadata": {
+                            "designer": {
+                              "x": 3300,
+                              "y": 900
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "id": 26,
+                      "module": "builtin:BasicRouter",
+                      "version": 1,
+                      "mapper": null,
+                      "routes": [
+                        {
+                          "flow": [
+                            {
+                              "id": 25,
+                              "module": "http:MakeRequest",
+                              "version": 4,
+                              "parameters": {},
+                              "mapper": {
+                                "url": "{{1.result.table_api_url}}/exception_queue",
+                                "method": "post",
+                                "timeout": "40",
+                                "parseResponse": false,
+                                "stopOnHttpError": true,
+                                "allowRedirects": true,
+                                "shareCookies": false,
+                                "requestCompressedContent": true,
+                                "contentType": "json",
+                                "inputMethod": "jsonString",
+                                "jsonStringBodyContent": "{{11.result.call_failed_body}}"
+                              },
+                              "metadata": {
+                                "designer": {
+                                  "x": 3600,
+                                  "y": 600,
+                                  "name": "Exception queue: call failed (next person)"
+                                }
+                              },
+                              "filter": {
+                                "name": "failed",
+                                "conditions": [
+                                  [
+                                    {
+                                      "a": "{{18.statusCode}}",
+                                      "b": "300",
+                                      "o": "number:greaterorequal"
+                                    }
+                                  ]
+                                ]
+                              }
+                            }
+                          ]
+                        },
+                        {
+                          "flow": [
+                            {
+                              "id": 23,
+                              "module": "http:MakeRequest",
+                              "version": 4,
+                              "parameters": {},
+                              "mapper": {
+                                "url": "{{1.result.table_api_url}}/decision_log",
+                                "method": "post",
+                                "timeout": "40",
+                                "parseResponse": false,
+                                "stopOnHttpError": true,
+                                "allowRedirects": true,
+                                "shareCookies": false,
+                                "requestCompressedContent": true,
+                                "contentType": "json",
+                                "inputMethod": "jsonString",
+                                "jsonStringBodyContent": "{{11.result.notice_log_body}}"
+                              },
+                              "metadata": {
+                                "designer": {
+                                  "x": 3600,
+                                  "y": 900,
+                                  "name": "Step 5 and 6: Log the notice; start the clock (next person)"
+                                }
+                              }
+                            }
+                          ]
+                        }
+                      ],
+                      "metadata": {
+                        "designer": {
+                          "x": 3300,
+                          "y": 600,
+                          "name": "Call made? (next person)"
+                        }
+                      }
+                    }
+                  ]
+                }
+              ],
+              "metadata": {
+                "designer": {
+                  "x": 2700,
+                  "y": 300,
+                  "name": "Text sent? (next person)"
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "designer": {
+          "x": 2100,
+          "y": 0,
+          "name": "Taken or late"
+        }
+      }
+    }
+  ],
+  "metadata": {
+    "instant": false,
+    "version": 1,
+    "designer": {
+      "orphans": []
+    },
+    "scenario": {
+      "dlq": true,
+      "slots": null,
+      "dataloss": false,
+      "maxErrors": 3,
+      "autoCommit": true,
+      "roundtrips": 1,
+      "sequential": false,
+      "confidential": false,
+      "freshVariables": false,
+      "autoCommitTriggerLast": true
+    }
+  }
+}

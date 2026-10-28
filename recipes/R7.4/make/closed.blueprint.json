@@ -1,0 +1,803 @@
+{
+  "name": "R7.4 Run the exception queue: item closed",
+  "flow": [
+    {
+      "id": 1,
+      "module": "gateway:CustomWebHook",
+      "version": 1,
+      "parameters": {
+        "hook": null,
+        "maxResults": 1
+      },
+      "mapper": {},
+      "metadata": {
+        "designer": {
+          "x": 0,
+          "y": 0,
+          "name": "Step 7: Item closed"
+        }
+      }
+    },
+    {
+      "id": 2,
+      "module": "code:ExecuteCode",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "language": "javascript",
+        "inputFormat": "editor",
+        "dependencies": [],
+        "codeEditorJavascript": "// Config: edit these values for your company; nothing else in the scenario hard-codes them.\nreturn {\n  \"stop_flag_url\": \"https://<your stop list API>/stop_flags/R7.4\",\n  \"table_api_url\": \"https://<your table API for the key log, decision log and exception queue>\",\n  \"workflow_owner\": \"<your workflow owner>\",\n  \"queue_url\": \"https://<your queue list API>\",\n  \"review_url\": \"https://<your review list API>\",\n  \"teams_url\": \"https://<your Teams messaging API>\",\n  \"approvals_url\": \"https://<your approval list API>\",\n  \"rematch_url\": \"https://<your n8n>/webhook/r7-2-ready\",\n  \"reason_owners\": {\n    \"needs a person\": \"<your AP owner>\",\n    \"unknown supplier\": \"<your AP owner>\",\n    \"no PO\": \"<your purchasing approver>\",\n    \"no receipt\": \"<your purchasing approver>\",\n    \"outside tolerance\": \"<your purchasing approver>\",\n    \"already invoiced\": \"<your purchasing approver>\",\n    \"pairing rejected\": \"<your purchasing approver>\",\n    \"lookup error\": \"<your workflow owner>\",\n    \"reservation failed\": \"<your workflow owner>\",\n    \"supplier on hold\": \"<your caller>\"\n  },\n  \"services_codes\": [\n    \"no PO\",\n    \"no receipt\"\n  ],\n  \"services_suppliers\": [\n    \"<your rent, utility and carrier supplier IDs>\"\n  ],\n  \"services_owner\": \"<your finance assistant>\",\n  \"escalation_owner\": \"<your AP owner>\",\n  \"query_codes\": [\n    \"<your mismatch and missing-document codes>\"\n  ],\n  \"banned_words\": [\n    \"paid\",\n    \"<your banned query words>\"\n  ],\n  \"aging_limit_days\": \"<your aging limit, working days>\",\n  \"approval_limit\": 10000,\n  \"approver_to_limit\": \"<your approver up to the limit>\",\n  \"approver_above\": \"<your approver above the limit>\",\n  \"approver_own_items\": \"<who approves the approvers' own items>\",\n  \"ai_model\": \"claude-haiku-5-5\",\n  \"ai_inference_geo\": \"us\",\n  \"ai_url\": \"https://api.anthropic.com/v1/messages\"\n};",
+        "input": []
+      },
+      "metadata": {
+        "designer": {
+          "x": 300,
+          "y": 0,
+          "name": "Config"
+        }
+      }
+    },
+    {
+      "id": 5,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{2.result.stop_flag_url}}",
+        "method": "get",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true
+      },
+      "metadata": {
+        "designer": {
+          "x": 600,
+          "y": 0,
+          "name": "Stop flag: read"
+        }
+      },
+      "onerror": [
+        {
+          "id": 3,
+          "module": "http:MakeRequest",
+          "version": 4,
+          "parameters": {},
+          "mapper": {
+            "url": "{{2.result.table_api_url}}/exception_queue",
+            "method": "post",
+            "timeout": "40",
+            "parseResponse": false,
+            "stopOnHttpError": true,
+            "allowRedirects": true,
+            "shareCookies": false,
+            "requestCompressedContent": true,
+            "contentType": "json",
+            "inputMethod": "jsonString",
+            "jsonStringBodyContent": "{\"recipe\": \"R7.4\", \"item\": \"run {{var.scenario.executionId}}\", \"reason\": \"stop list unreadable\", \"detail\": \"The stop list could not be read, so the run stopped\", \"owner\": \"{{2.result.workflow_owner}}\"}"
+          },
+          "metadata": {
+            "designer": {
+              "x": 600,
+              "y": 300,
+              "name": "Stop flag: list unreadable"
+            }
+          }
+        },
+        {
+          "id": 4,
+          "module": "builtin:Ignore",
+          "version": 1,
+          "metadata": {
+            "designer": {
+              "x": 900,
+              "y": 300
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{2.result.queue_url}}/items/{{encodeURL(1.item_id)}}",
+        "method": "get",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true
+      },
+      "metadata": {
+        "designer": {
+          "x": 900,
+          "y": 0,
+          "name": "Step 7: Read the closed item"
+        }
+      },
+      "onerror": [
+        {
+          "id": 6,
+          "module": "builtin:Break",
+          "version": 1,
+          "parameters": {},
+          "mapper": {
+            "count": "3",
+            "retry": true,
+            "interval": "1"
+          },
+          "metadata": {
+            "designer": {
+              "x": 900,
+              "y": 600
+            }
+          }
+        }
+      ],
+      "filter": {
+        "name": "stop flag not set",
+        "conditions": [
+          [
+            {
+              "a": "{{5.data.stopped}}",
+              "b": "true",
+              "o": "text:notequal"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "id": 9,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{2.result.review_url}}/records/{{encodeURL(7.data.invoice_id)}}",
+        "method": "get",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true
+      },
+      "metadata": {
+        "designer": {
+          "x": 1200,
+          "y": 0,
+          "name": "Step 7: Read the invoice record"
+        }
+      },
+      "onerror": [
+        {
+          "id": 8,
+          "module": "builtin:Break",
+          "version": 1,
+          "parameters": {},
+          "mapper": {
+            "count": "3",
+            "retry": true,
+            "interval": "1"
+          },
+          "metadata": {
+            "designer": {
+              "x": 1200,
+              "y": 300
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "module": "code:ExecuteCode",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "language": "javascript",
+        "inputFormat": "editor",
+        "dependencies": [],
+        "codeEditorJavascript": "// Adapter: the rule below is the same JavaScript as the recipe's n8n build.\n// $('Step name') answers from this step's inputs: each is that step's output in this scenario.\nconst SOURCES = {\"Config\": \"in0_Config\", \"Step 7: Read the closed item\": \"in1_Step7Readthecloseditem\", \"Step 7: Read the invoice record\": \"in2_Step7Readtheinvoicerecor\"};\nconst LISTS = [];\nconst EXECUTED = [];\nconst DATA = {};\nfor (const [node, key] of Object.entries(SOURCES)) {\n  const raw = input[key];\n  let v = raw;\n  if (typeof raw === 'string') { try { v = JSON.parse(raw); } catch (e) { v = raw; } }\n  DATA[node] = LISTS.includes(node) ? (v || []).map(i => (i && i.json !== undefined ? i : { json: i })) : [{ json: v }];\n}\nconst $ = (node) => {\n  const ran = node in DATA || EXECUTED.includes(node);\n  const list = () => { if (!(node in DATA)) throw new Error(`step ${node} has no data in this scenario`); return DATA[node]; };\n  return { isExecuted: ran, first: () => list()[0], last: () => list()[list().length - 1], all: () => list(),\n           get item() { return list()[0]; } };\n};\nconst INPUT = \"Step 7: Read the invoice record\";\nconst $input = { all: () => $(INPUT).all(), first: () => $(INPUT).first(), last: () => $(INPUT).last(), get item() { return $(INPUT).first(); } };\nconst $execution = { id: input.run_id };\n// The webhook's fields, as the rule reads them in n8n.\nDATA[\"Step 7: Item closed\"] = [{ json: { body: { item_id: input.t_item_id, resolution: input.t_resolution, resolved_by: input.t_resolved_by, note: input.t_note } } }];\nconst BODIES = (out) => ({\"rematch_body\": JSON.stringify({ record_id: $('Step 7: Read the closed item').first().json.invoice_id, resolved_by: $('Step 7: Item closed').first().json.body.resolved_by }), \"approval_body\": JSON.stringify({ invoice_id: $('Step 7: Read the closed item').first().json.invoice_id, approver: out.approver, total: $('Step 7: Read the invoice record').first().json.total, note: $('Step 7: Item closed').first().json.body.note || '', resolved_by: $('Step 7: Item closed').first().json.body.resolved_by, status: 'waiting' }), \"reject_body\": JSON.stringify({ status: 'rejected', rejected_by: $('Step 7: Item closed').first().json.body.resolved_by, note: $('Step 7: Item closed').first().json.body.note || '' }), \"close_body\": JSON.stringify({ status: 'closed', resolution: $('Step 7: Item closed').first().json.body.resolution, resolved_by: $('Step 7: Item closed').first().json.body.resolved_by, closed_on: new Date().toISOString().slice(0, 10) }), \"log_body\": JSON.stringify({ recipe: 'R7.4', item: $('Step 7: Item closed').first().json.body.item_id, decision: 'closed: ' + out.route + (out.approver ? ' to ' + out.approver : ''), rules: out.rules }), \"failed_body\": JSON.stringify({ recipe: 'R7.4', item: $('Step 7: Item closed').first().json.body.item_id, reason: 'write failed', detail: 'Rematch, approval, rejection or close write failed, never retried; finish it by hand', owner: $('Config').first().json.workflow_owner })});\nconst one = (r) => (Array.isArray(r) ? r : [r]).filter(Boolean).map(i => (i.json !== undefined ? i.json : i));\nconst $json = INPUT && INPUT in DATA ? $input.first().json : {};\nconst __rule = () => {\n// Step 7: a corrected record or released hold rematches; anything else goes to the payment approver, or is rejected.\nconst cfg = $('Config').first().json;\nconst b = $('Step 7: Item closed').first().json.body;\nconst rec = $('Step 7: Read the invoice record').first().json;\nif (['corrected record', 'released hold'].includes(b.resolution)) return [{ json: { route: 'rematch', rules: { resolution: b.resolution } } }];\nif (b.resolution === 'rejected') return [{ json: { route: 'reject', rules: { resolution: b.resolution } } }];\nlet approver = Number(rec.total) <= Number(cfg.approval_limit) ? cfg.approver_to_limit : cfg.approver_above;\nlet rule = Number(rec.total) <= Number(cfg.approval_limit) ? 'up to the limit' : 'above the limit';\nif (approver === b.resolved_by) { approver = cfg.approver_own_items; rule += '; approver resolved the item'; }\nreturn [{ json: { route: 'approve', approver, rules: { resolution: b.resolution, approver: rule } } }];\n};\nconst out = one(__rule())[0] || {};\nreturn Object.assign({}, out, BODIES(out));\n",
+        "input": [
+          {
+            "name": "in0_Config",
+            "value": "{{2.result}}"
+          },
+          {
+            "name": "in1_Step7Readthecloseditem",
+            "value": "{{7.data}}"
+          },
+          {
+            "name": "in2_Step7Readtheinvoicerecor",
+            "value": "{{9.data}}"
+          },
+          {
+            "name": "run_id",
+            "value": "{{var.scenario.executionId}}"
+          },
+          {
+            "name": "t_item_id",
+            "value": "{{1.item_id}}"
+          },
+          {
+            "name": "t_resolution",
+            "value": "{{1.resolution}}"
+          },
+          {
+            "name": "t_resolved_by",
+            "value": "{{1.resolved_by}}"
+          },
+          {
+            "name": "t_note",
+            "value": "{{1.note}}"
+          }
+        ]
+      },
+      "metadata": {
+        "designer": {
+          "x": 1500,
+          "y": 0,
+          "name": "Step 7: Rule: what happens next"
+        }
+      }
+    },
+    {
+      "id": 32,
+      "module": "builtin:BasicRouter",
+      "version": 1,
+      "mapper": null,
+      "routes": [
+        {
+          "flow": [
+            {
+              "id": 13,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.rematch_url}}",
+                "method": "post",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{10.result.rematch_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 2100,
+                  "y": 0,
+                  "name": "Step 7: Rematch"
+                }
+              },
+              "onerror": [
+                {
+                  "id": 11,
+                  "module": "http:MakeRequest",
+                  "version": 4,
+                  "parameters": {},
+                  "mapper": {
+                    "url": "{{2.result.table_api_url}}/exception_queue",
+                    "method": "post",
+                    "timeout": "40",
+                    "parseResponse": false,
+                    "stopOnHttpError": true,
+                    "allowRedirects": true,
+                    "shareCookies": false,
+                    "requestCompressedContent": true,
+                    "contentType": "json",
+                    "inputMethod": "jsonString",
+                    "jsonStringBodyContent": "{{10.result.failed_body}}"
+                  },
+                  "metadata": {
+                    "designer": {
+                      "x": 2100,
+                      "y": 300,
+                      "name": "Step 7: Rematch: exception queue"
+                    }
+                  }
+                },
+                {
+                  "id": 12,
+                  "module": "builtin:Ignore",
+                  "version": 1,
+                  "metadata": {
+                    "designer": {
+                      "x": 2400,
+                      "y": 300
+                    }
+                  }
+                }
+              ],
+              "filter": {
+                "name": "rematch",
+                "conditions": [
+                  [
+                    {
+                      "a": "{{10.result.route}}",
+                      "b": "rematch",
+                      "o": "text:equal"
+                    }
+                  ]
+                ]
+              }
+            },
+            {
+              "id": 16,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.queue_url}}/items/{{encodeURL(1.item_id)}}",
+                "method": "patch",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{10.result.close_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 2400,
+                  "y": 0,
+                  "name": "Step 7: Close the item (rematch)"
+                }
+              },
+              "onerror": [
+                {
+                  "id": 14,
+                  "module": "http:MakeRequest",
+                  "version": 4,
+                  "parameters": {},
+                  "mapper": {
+                    "url": "{{2.result.table_api_url}}/exception_queue",
+                    "method": "post",
+                    "timeout": "40",
+                    "parseResponse": false,
+                    "stopOnHttpError": true,
+                    "allowRedirects": true,
+                    "shareCookies": false,
+                    "requestCompressedContent": true,
+                    "contentType": "json",
+                    "inputMethod": "jsonString",
+                    "jsonStringBodyContent": "{{10.result.failed_body}}"
+                  },
+                  "metadata": {
+                    "designer": {
+                      "x": 2400,
+                      "y": 600,
+                      "name": "Step 7: Close the item (rematch): exception queue"
+                    }
+                  }
+                },
+                {
+                  "id": 15,
+                  "module": "builtin:Ignore",
+                  "version": 1,
+                  "metadata": {
+                    "designer": {
+                      "x": 2700,
+                      "y": 600
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "id": 17,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.table_api_url}}/decision_log",
+                "method": "post",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{10.result.log_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 2700,
+                  "y": 0,
+                  "name": "Step 7: Decision log (rematch)"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "flow": [
+            {
+              "id": 20,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.approvals_url}}/approvals/{{encodeURL(7.data.invoice_id)}}",
+                "method": "put",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{10.result.approval_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 2100,
+                  "y": 900,
+                  "name": "Step 7: Send to the payment approver"
+                }
+              },
+              "onerror": [
+                {
+                  "id": 18,
+                  "module": "http:MakeRequest",
+                  "version": 4,
+                  "parameters": {},
+                  "mapper": {
+                    "url": "{{2.result.table_api_url}}/exception_queue",
+                    "method": "post",
+                    "timeout": "40",
+                    "parseResponse": false,
+                    "stopOnHttpError": true,
+                    "allowRedirects": true,
+                    "shareCookies": false,
+                    "requestCompressedContent": true,
+                    "contentType": "json",
+                    "inputMethod": "jsonString",
+                    "jsonStringBodyContent": "{{10.result.failed_body}}"
+                  },
+                  "metadata": {
+                    "designer": {
+                      "x": 2100,
+                      "y": 1200,
+                      "name": "Step 7: Send to the payment approver: exception queue"
+                    }
+                  }
+                },
+                {
+                  "id": 19,
+                  "module": "builtin:Ignore",
+                  "version": 1,
+                  "metadata": {
+                    "designer": {
+                      "x": 2400,
+                      "y": 1200
+                    }
+                  }
+                }
+              ],
+              "filter": {
+                "name": "approve",
+                "conditions": [
+                  [
+                    {
+                      "a": "{{10.result.route}}",
+                      "b": "approve",
+                      "o": "text:equal"
+                    }
+                  ]
+                ]
+              }
+            },
+            {
+              "id": 23,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.queue_url}}/items/{{encodeURL(1.item_id)}}",
+                "method": "patch",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{10.result.close_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 2400,
+                  "y": 900,
+                  "name": "Step 7: Close the item (approve)"
+                }
+              },
+              "onerror": [
+                {
+                  "id": 21,
+                  "module": "http:MakeRequest",
+                  "version": 4,
+                  "parameters": {},
+                  "mapper": {
+                    "url": "{{2.result.table_api_url}}/exception_queue",
+                    "method": "post",
+                    "timeout": "40",
+                    "parseResponse": false,
+                    "stopOnHttpError": true,
+                    "allowRedirects": true,
+                    "shareCookies": false,
+                    "requestCompressedContent": true,
+                    "contentType": "json",
+                    "inputMethod": "jsonString",
+                    "jsonStringBodyContent": "{{10.result.failed_body}}"
+                  },
+                  "metadata": {
+                    "designer": {
+                      "x": 2400,
+                      "y": 1500,
+                      "name": "Step 7: Close the item (approve): exception queue"
+                    }
+                  }
+                },
+                {
+                  "id": 22,
+                  "module": "builtin:Ignore",
+                  "version": 1,
+                  "metadata": {
+                    "designer": {
+                      "x": 2700,
+                      "y": 1500
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "id": 24,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.table_api_url}}/decision_log",
+                "method": "post",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{10.result.log_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 2700,
+                  "y": 900,
+                  "name": "Step 7: Decision log (approve)"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "flow": [
+            {
+              "id": 27,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.review_url}}/records/{{encodeURL(7.data.invoice_id)}}",
+                "method": "patch",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{10.result.reject_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 2100,
+                  "y": 1800,
+                  "name": "Step 7: Reject the invoice"
+                }
+              },
+              "onerror": [
+                {
+                  "id": 25,
+                  "module": "http:MakeRequest",
+                  "version": 4,
+                  "parameters": {},
+                  "mapper": {
+                    "url": "{{2.result.table_api_url}}/exception_queue",
+                    "method": "post",
+                    "timeout": "40",
+                    "parseResponse": false,
+                    "stopOnHttpError": true,
+                    "allowRedirects": true,
+                    "shareCookies": false,
+                    "requestCompressedContent": true,
+                    "contentType": "json",
+                    "inputMethod": "jsonString",
+                    "jsonStringBodyContent": "{{10.result.failed_body}}"
+                  },
+                  "metadata": {
+                    "designer": {
+                      "x": 2100,
+                      "y": 2100,
+                      "name": "Step 7: Reject the invoice: exception queue"
+                    }
+                  }
+                },
+                {
+                  "id": 26,
+                  "module": "builtin:Ignore",
+                  "version": 1,
+                  "metadata": {
+                    "designer": {
+                      "x": 2400,
+                      "y": 2100
+                    }
+                  }
+                }
+              ],
+              "filter": {
+                "name": "reject",
+                "conditions": [
+                  [
+                    {
+                      "a": "{{10.result.route}}",
+                      "b": "reject",
+                      "o": "text:equal"
+                    }
+                  ]
+                ]
+              }
+            },
+            {
+              "id": 30,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.queue_url}}/items/{{encodeURL(1.item_id)}}",
+                "method": "patch",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{10.result.close_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 2400,
+                  "y": 1800,
+                  "name": "Step 7: Close the item (reject)"
+                }
+              },
+              "onerror": [
+                {
+                  "id": 28,
+                  "module": "http:MakeRequest",
+                  "version": 4,
+                  "parameters": {},
+                  "mapper": {
+                    "url": "{{2.result.table_api_url}}/exception_queue",
+                    "method": "post",
+                    "timeout": "40",
+                    "parseResponse": false,
+                    "stopOnHttpError": true,
+                    "allowRedirects": true,
+                    "shareCookies": false,
+                    "requestCompressedContent": true,
+                    "contentType": "json",
+                    "inputMethod": "jsonString",
+                    "jsonStringBodyContent": "{{10.result.failed_body}}"
+                  },
+                  "metadata": {
+                    "designer": {
+                      "x": 2400,
+                      "y": 2400,
+                      "name": "Step 7: Close the item (reject): exception queue"
+                    }
+                  }
+                },
+                {
+                  "id": 29,
+                  "module": "builtin:Ignore",
+                  "version": 1,
+                  "metadata": {
+                    "designer": {
+                      "x": 2700,
+                      "y": 2400
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "id": 31,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.table_api_url}}/decision_log",
+                "method": "post",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{10.result.log_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 2700,
+                  "y": 1800,
+                  "name": "Step 7: Decision log (reject)"
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "designer": {
+          "x": 1800,
+          "y": 0,
+          "name": "Next"
+        }
+      }
+    }
+  ],
+  "metadata": {
+    "instant": true,
+    "version": 1,
+    "designer": {
+      "orphans": []
+    },
+    "scenario": {
+      "dlq": true,
+      "slots": null,
+      "dataloss": false,
+      "maxErrors": 3,
+      "autoCommit": true,
+      "roundtrips": 1,
+      "sequential": false,
+      "confidential": false,
+      "freshVariables": false,
+      "autoCommitTriggerLast": true
+    }
+  }
+}

@@ -1,0 +1,5 @@
+- Added Make builds for 16 more recipes with an AI step: R4.2, R4.4, R5.1, R5.2, R5.3, R6.1, R6.2, R7.1, R7.4, R9.1, R9.2, R10.1, R10.2, R10.3, R12.2 and R14.1.
+- Every golden-set case of these recipes passes on Make (cloud service, Core plan), including the cases that need Claude Haiku 5.5's live answer.
+- Where a recipe's spec tries an AI call or a read three times, the Make build does too.
+- The Make test runner now sends the mocks' seed data through the public test route, so a seed that names a mock URL reaches Make, and it no longer misses a run that Make's log listing showed only briefly.
+- Known issue: the R5.3 prompt builder drops text such as "{{name}}" when it appears inside a filled-in value; a fix for both the n8n and Make builds follows.

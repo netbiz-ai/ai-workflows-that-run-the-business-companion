@@ -1,0 +1,231 @@
+{
+  "name": "R5.3 Draft a quote: price list expiry warning",
+  "flow": [
+    {
+      "id": 1,
+      "module": "code:ExecuteCode",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "language": "javascript",
+        "inputFormat": "editor",
+        "dependencies": [],
+        "codeEditorJavascript": "// Config: edit these values for your company; nothing else in the scenario hard-codes them.\n// Schedule: set this scenario to run every day at 07:00; Make keeps the schedule outside the blueprint.\nreturn {\n  \"stop_flag_url\": \"https://<your stop list API>/stop_flags/R5.3\",\n  \"table_api_url\": \"https://<your table API for the key log, decision log and exception queue>\",\n  \"workflow_owner\": \"<your workflow owner>\",\n  \"crm_url\": \"https://<your CRM API>\",\n  \"terms_url\": \"https://<your approved terms library API>\",\n  \"messaging_url\": \"https://<your messaging API>\",\n  \"currency_symbol\": \"$\",\n  \"expiry_warning_days\": 7,\n  \"number_words\": [\n    \"zero\",\n    \"one\",\n    \"two\",\n    \"three\",\n    \"four\",\n    \"five\",\n    \"six\",\n    \"seven\",\n    \"eight\",\n    \"nine\",\n    \"ten\",\n    \"eleven\",\n    \"twelve\",\n    \"thirteen\",\n    \"fourteen\",\n    \"fifteen\",\n    \"sixteen\",\n    \"seventeen\",\n    \"eighteen\",\n    \"nineteen\",\n    \"twenty\",\n    \"thirty\",\n    \"forty\",\n    \"fifty\",\n    \"sixty\",\n    \"seventy\",\n    \"eighty\",\n    \"ninety\",\n    \"hundred\",\n    \"thousand\",\n    \"million\",\n    \"billion\",\n    \"dozen\",\n    \"half\",\n    \"once\",\n    \"twice\"\n  ],\n  \"sales_lead\": \"<your sales lead, who prices off-list lines>\",\n  \"price_list_owner\": \"<your price list owner>\",\n  \"ai_model\": \"claude-haiku-5-5\",\n  \"ai_inference_geo\": \"us\",\n  \"ai_url\": \"https://api.anthropic.com/v1/messages\"\n};",
+        "input": []
+      },
+      "metadata": {
+        "designer": {
+          "x": 0,
+          "y": 0,
+          "name": "Config"
+        }
+      }
+    },
+    {
+      "id": 4,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{1.result.stop_flag_url}}",
+        "method": "get",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true
+      },
+      "metadata": {
+        "designer": {
+          "x": 300,
+          "y": 0,
+          "name": "Stop flag: read"
+        }
+      },
+      "onerror": [
+        {
+          "id": 2,
+          "module": "http:MakeRequest",
+          "version": 4,
+          "parameters": {},
+          "mapper": {
+            "url": "{{1.result.table_api_url}}/exception_queue",
+            "method": "post",
+            "timeout": "40",
+            "parseResponse": false,
+            "stopOnHttpError": true,
+            "allowRedirects": true,
+            "shareCookies": false,
+            "requestCompressedContent": true,
+            "contentType": "json",
+            "inputMethod": "jsonString",
+            "jsonStringBodyContent": "{\"recipe\": \"R5.3\", \"item\": \"run {{var.scenario.executionId}}\", \"reason\": \"stop list unreadable\", \"detail\": \"The stop list could not be read, so the run stopped\", \"owner\": \"{{1.result.workflow_owner}}\"}"
+          },
+          "metadata": {
+            "designer": {
+              "x": 300,
+              "y": 300,
+              "name": "Stop flag: list unreadable"
+            }
+          }
+        },
+        {
+          "id": 3,
+          "module": "builtin:Ignore",
+          "version": 1,
+          "metadata": {
+            "designer": {
+              "x": 600,
+              "y": 300
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{1.result.crm_url}}/price_lists/current",
+        "method": "get",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true
+      },
+      "metadata": {
+        "designer": {
+          "x": 600,
+          "y": 0,
+          "name": "Read the price list (morning)"
+        }
+      },
+      "onerror": [
+        {
+          "id": 5,
+          "module": "builtin:Break",
+          "version": 1,
+          "parameters": {},
+          "mapper": {
+            "count": "3",
+            "retry": true,
+            "interval": "1"
+          },
+          "metadata": {
+            "designer": {
+              "x": 600,
+              "y": 600
+            }
+          }
+        }
+      ],
+      "filter": {
+        "name": "stop flag not set",
+        "conditions": [
+          [
+            {
+              "a": "{{4.data.stopped}}",
+              "b": "true",
+              "o": "text:notequal"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "id": 7,
+      "module": "code:ExecuteCode",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "language": "javascript",
+        "inputFormat": "editor",
+        "dependencies": [],
+        "codeEditorJavascript": "// Adapter: the rule below is the same JavaScript as the recipe's n8n build.\n// $('Step name') answers from this step's inputs: each is that step's output in this scenario.\nconst SOURCES = {\"Config\": \"in0_Config\", \"Read the price list (morning)\": \"in1_Readthepricelistmorning\"};\nconst LISTS = [];\nconst EXECUTED = [];\nconst DATA = {};\nfor (const [node, key] of Object.entries(SOURCES)) {\n  const raw = input[key];\n  let v = raw;\n  if (typeof raw === 'string') { try { v = JSON.parse(raw); } catch (e) { v = raw; } }\n  DATA[node] = LISTS.includes(node) ? (v || []).map(i => (i && i.json !== undefined ? i : { json: i })) : [{ json: v }];\n}\nconst $ = (node) => {\n  const ran = node in DATA || EXECUTED.includes(node);\n  const list = () => { if (!(node in DATA)) throw new Error(`step ${node} has no data in this scenario`); return DATA[node]; };\n  return { isExecuted: ran, first: () => list()[0], last: () => list()[list().length - 1], all: () => list(),\n           get item() { return list()[0]; } };\n};\nconst INPUT = \"Read the price list (morning)\";\nconst $input = { all: () => $(INPUT).all(), first: () => $(INPUT).first(), last: () => $(INPUT).last(), get item() { return $(INPUT).first(); } };\nconst $execution = { id: input.run_id };\nconst BODIES = (out) => ({\"message\": JSON.stringify({ to: $('Config').first().json.price_list_owner, subject: 'Price list ' + out.version + ' expires ' + out.valid_until, text: 'Publish a new price list; quotes stop drafting once it expires.' })});\nconst one = (r) => (Array.isArray(r) ? r : [r]).filter(Boolean).map(i => (i.json !== undefined ? i.json : i));\nconst $json = INPUT && INPUT in DATA ? $input.first().json : {};\nconst __rule = () => {\n// Failure table: warn the price list owner a week before the list expires.\nconst cfg = $('Config').first().json;\nconst list = $('Read the price list (morning)').first().json;\nconst today = new Date(new Date().toISOString().slice(0, 10) + 'T00:00:00Z');\nconst until = list.valid_until ? new Date(list.valid_until + 'T00:00:00Z') : null;\nconst days = until ? Math.round((until - today) / 86400000) : -1;\nif (days > cfg.expiry_warning_days) return [];\nreturn [{ json: { version: list.version, valid_until: list.valid_until || 'not set', days } }];\n};\nconst out = one(__rule())[0] || {};\nreturn Object.assign({}, out, BODIES(out));\n",
+        "input": [
+          {
+            "name": "in0_Config",
+            "value": "{{1.result}}"
+          },
+          {
+            "name": "in1_Readthepricelistmorning",
+            "value": "{{6.data}}"
+          },
+          {
+            "name": "run_id",
+            "value": "{{var.scenario.executionId}}"
+          }
+        ]
+      },
+      "metadata": {
+        "designer": {
+          "x": 900,
+          "y": 0,
+          "name": "Rule: expiring within a week?"
+        }
+      }
+    },
+    {
+      "id": 8,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{1.result.messaging_url}}/messages",
+        "method": "post",
+        "timeout": "40",
+        "parseResponse": false,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true,
+        "contentType": "json",
+        "inputMethod": "jsonString",
+        "jsonStringBodyContent": "{{7.result.message}}"
+      },
+      "metadata": {
+        "designer": {
+          "x": 1200,
+          "y": 0,
+          "name": "Tell the price list owner"
+        }
+      },
+      "filter": {
+        "name": "expiring within a week",
+        "conditions": [
+          [
+            {
+              "a": "{{7.result.valid_until}}",
+              "b": "",
+              "o": "exist"
+            }
+          ]
+        ]
+      }
+    }
+  ],
+  "metadata": {
+    "instant": false,
+    "version": 1,
+    "designer": {
+      "orphans": []
+    },
+    "scenario": {
+      "dlq": true,
+      "slots": null,
+      "dataloss": false,
+      "maxErrors": 3,
+      "autoCommit": true,
+      "roundtrips": 1,
+      "sequential": false,
+      "confidential": false,
+      "freshVariables": false,
+      "autoCommitTriggerLast": true
+    }
+  }
+}

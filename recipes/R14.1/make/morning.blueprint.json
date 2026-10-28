@@ -1,0 +1,444 @@
+{
+  "name": "R14.1 Turn a transcript into a draft action list: morning expiry",
+  "flow": [
+    {
+      "id": 1,
+      "module": "code:ExecuteCode",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "language": "javascript",
+        "inputFormat": "editor",
+        "dependencies": [],
+        "codeEditorJavascript": "// Config: edit these values for your company; nothing else in the scenario hard-codes them.\n// Schedule: set this scenario to run every day at 07:00; Make keeps the schedule outside the blueprint.\nreturn {\n  \"stop_flag_url\": \"https://<your stop list API>/stop_flags/R14.1\",\n  \"table_api_url\": \"https://<your table API for the key log, decision log and exception queue>\",\n  \"workflow_owner\": \"<your workflow owner>\",\n  \"register_url\": \"https://<your meeting register API>\",\n  \"calendar_url\": \"https://<your calendar API>\",\n  \"transcripts_url\": \"https://<your transcription API>\",\n  \"actions_url\": \"https://<your action list API>\",\n  \"messaging_url\": \"https://<your messaging API>\",\n  \"transcript_link\": \"https://<your transcript viewer>/{transcript_id}?t={time_stamp}\",\n  \"action_list_link\": \"https://<your action list>?occurrence={occurrence_id}\",\n  \"out_of_scope_titles\": [\n    \"HR\",\n    \"disciplinary\",\n    \"negotiation\"\n  ],\n  \"max_items_per_line\": 2,\n  \"working_weekdays\": [\n    1,\n    2,\n    3,\n    4,\n    5\n  ],\n  \"holidays\": [\n    \"<your holiday dates, YYYY-MM-DD>\"\n  ],\n  \"register_owner\": \"<your register owner>\",\n  \"exception_owner\": \"<your workflow editor>\",\n  \"ai_model\": \"claude-haiku-5-5\",\n  \"ai_inference_geo\": \"us\",\n  \"ai_url\": \"https://api.anthropic.com/v1/messages\"\n};",
+        "input": []
+      },
+      "metadata": {
+        "designer": {
+          "x": 0,
+          "y": 0,
+          "name": "Config"
+        }
+      }
+    },
+    {
+      "id": 4,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{1.result.stop_flag_url}}",
+        "method": "get",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true
+      },
+      "metadata": {
+        "designer": {
+          "x": 300,
+          "y": 0,
+          "name": "Stop flag: read"
+        }
+      },
+      "onerror": [
+        {
+          "id": 2,
+          "module": "http:MakeRequest",
+          "version": 4,
+          "parameters": {},
+          "mapper": {
+            "url": "{{1.result.table_api_url}}/exception_queue",
+            "method": "post",
+            "timeout": "40",
+            "parseResponse": false,
+            "stopOnHttpError": true,
+            "allowRedirects": true,
+            "shareCookies": false,
+            "requestCompressedContent": true,
+            "contentType": "json",
+            "inputMethod": "jsonString",
+            "jsonStringBodyContent": "{\"recipe\": \"R14.1\", \"item\": \"run {{var.scenario.executionId}}\", \"reason\": \"stop list unreadable\", \"detail\": \"The stop list could not be read, so the run stopped\", \"owner\": \"{{1.result.workflow_owner}}\"}"
+          },
+          "metadata": {
+            "designer": {
+              "x": 300,
+              "y": 300,
+              "name": "Stop flag: list unreadable"
+            }
+          }
+        },
+        {
+          "id": 3,
+          "module": "builtin:Ignore",
+          "version": 1,
+          "metadata": {
+            "designer": {
+              "x": 600,
+              "y": 300
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{1.result.actions_url}}/items",
+        "method": "get",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true,
+        "queryParameters": [
+          {
+            "name": "_wrap",
+            "value": "1"
+          },
+          {
+            "name": "status",
+            "value": "proposed"
+          }
+        ]
+      },
+      "metadata": {
+        "designer": {
+          "x": 600,
+          "y": 0,
+          "name": "Step 8: Read proposed items"
+        }
+      },
+      "onerror": [
+        {
+          "id": 5,
+          "module": "builtin:Break",
+          "version": 1,
+          "parameters": {},
+          "mapper": {
+            "count": "3",
+            "retry": true,
+            "interval": "1"
+          },
+          "metadata": {
+            "designer": {
+              "x": 600,
+              "y": 600
+            }
+          }
+        }
+      ],
+      "filter": {
+        "name": "stop flag not set",
+        "conditions": [
+          [
+            {
+              "a": "{{4.data.stopped}}",
+              "b": "true",
+              "o": "text:notequal"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "id": 7,
+      "module": "code:ExecuteCode",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "language": "javascript",
+        "inputFormat": "editor",
+        "dependencies": [],
+        "codeEditorJavascript": "// Adapter: the rule below is the same JavaScript as the recipe's n8n build.\n// $('Step name') answers from this step's inputs: each is that step's output in this scenario.\nconst SOURCES = {\"Config\": \"in0_Config\", \"Step 8: Read proposed items\": \"in1_Step8Readproposeditems\"};\nconst LISTS = [];\nconst EXECUTED = [\"Step 8: Each morning\"];\nconst DATA = {};\nfor (const [node, key] of Object.entries(SOURCES)) {\n  const raw = input[key];\n  let v = raw;\n  if (typeof raw === 'string') { try { v = JSON.parse(raw); } catch (e) { v = raw; } }\n  DATA[node] = LISTS.includes(node) ? (v || []).map(i => (i && i.json !== undefined ? i : { json: i })) : [{ json: v }];\n}\nconst $ = (node) => {\n  const ran = node in DATA || EXECUTED.includes(node);\n  const list = () => { if (!(node in DATA)) throw new Error(`step ${node} has no data in this scenario`); return DATA[node]; };\n  return { isExecuted: ran, first: () => list()[0], last: () => list()[list().length - 1], all: () => list(),\n           get item() { return list()[0]; } };\n};\nconst INPUT = \"Step 8: Read proposed items\";\nconst $input = { all: () => $(INPUT).all(), first: () => $(INPUT).first(), last: () => $(INPUT).last(), get item() { return $(INPUT).first(); } };\nconst $execution = { id: input.run_id };\nconst BODIES = (out) => ({\"id_q\": encodeURIComponent(out.id), \"expired_body\": JSON.stringify({ status: 'expired' }), \"log_body\": JSON.stringify({ recipe: 'R14.1', item: out.id, decision: 'expired unverified', rules: { occurrence: out.occurrence_id, series: out.series_id } }), \"failed_body\": JSON.stringify({ recipe: 'R14.1', item: out.id, reason: 'write failed', detail: 'Expiry write failed; never retried', owner: $('Config').first().json.exception_owner })});\nconst one = (r) => (Array.isArray(r) ? r : [r]).filter(Boolean).map(i => (i.json !== undefined ? i.json : i));\nconst $json = INPUT && INPUT in DATA ? $input.first().json : {};\nconst __rule = () => {\n// Working days come from Config: the weekdays you work and your holiday dates.\nconst isWorkday = (d, cfg) => cfg.working_weekdays.includes(d.getUTCDay()) && !cfg.holidays.includes(d.toISOString().slice(0, 10));\nconst nextWorkday = (d, cfg) => { let x = new Date(d.getTime() + 86400000); while (!isWorkday(x, cfg)) x = new Date(x.getTime() + 86400000); return x; };\nconst todayUtc = () => new Date(new Date().toISOString().slice(0, 10) + 'T00:00:00Z');\n\n// Step 8: a draft still unverified after its deadline (the end of the next working day) expires.\nconst today = todayUtc().toISOString().slice(0, 10);\nconst rows = ($('Step 8: Read proposed items').first().json.items || []).filter(r => r.status === 'proposed' && r.verify_by && r.verify_by < today);\nreturn rows.map(r => ({ json: { id: r.id, occurrence_id: r.occurrence_id, series_id: r.series_id } }));\n};\nreturn { items: one(__rule()).map(o => Object.assign({}, o, BODIES(o))) };\n",
+        "input": [
+          {
+            "name": "in0_Config",
+            "value": "{{1.result}}"
+          },
+          {
+            "name": "in1_Step8Readproposeditems",
+            "value": "{{6.data}}"
+          },
+          {
+            "name": "run_id",
+            "value": "{{var.scenario.executionId}}"
+          }
+        ]
+      },
+      "metadata": {
+        "designer": {
+          "x": 900,
+          "y": 0,
+          "name": "Step 8: Rule: past the deadline?"
+        }
+      }
+    },
+    {
+      "id": 8,
+      "module": "builtin:BasicFeeder",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "array": "{{7.result.items}}"
+      },
+      "metadata": {
+        "designer": {
+          "x": 1200,
+          "y": 0,
+          "name": "Step 8: Each expired draft"
+        }
+      }
+    },
+    {
+      "id": 11,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{1.result.actions_url}}/items/{{8.id_q}}",
+        "method": "patch",
+        "timeout": "40",
+        "parseResponse": false,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true,
+        "contentType": "json",
+        "inputMethod": "jsonString",
+        "jsonStringBodyContent": "{{8.expired_body}}"
+      },
+      "metadata": {
+        "designer": {
+          "x": 1500,
+          "y": 0,
+          "name": "Step 8: Mark expired"
+        }
+      },
+      "onerror": [
+        {
+          "id": 9,
+          "module": "http:MakeRequest",
+          "version": 4,
+          "parameters": {},
+          "mapper": {
+            "url": "{{1.result.table_api_url}}/exception_queue",
+            "method": "post",
+            "timeout": "40",
+            "parseResponse": false,
+            "stopOnHttpError": true,
+            "allowRedirects": true,
+            "shareCookies": false,
+            "requestCompressedContent": true,
+            "contentType": "json",
+            "inputMethod": "jsonString",
+            "jsonStringBodyContent": "{{8.failed_body}}"
+          },
+          "metadata": {
+            "designer": {
+              "x": 1500,
+              "y": 300,
+              "name": "Step 8: Exception queue: write failed"
+            }
+          }
+        },
+        {
+          "id": 10,
+          "module": "builtin:Ignore",
+          "version": 1,
+          "metadata": {
+            "designer": {
+              "x": 1800,
+              "y": 300
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 12,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{1.result.table_api_url}}/decision_log",
+        "method": "post",
+        "timeout": "40",
+        "parseResponse": false,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true,
+        "contentType": "json",
+        "inputMethod": "jsonString",
+        "jsonStringBodyContent": "{{8.log_body}}"
+      },
+      "metadata": {
+        "designer": {
+          "x": 1800,
+          "y": 0,
+          "name": "Step 8: Decision log"
+        }
+      }
+    },
+    {
+      "id": 13,
+      "module": "builtin:BasicAggregator",
+      "version": 1,
+      "parameters": {
+        "feeder": 8
+      },
+      "mapper": {
+        "id": "{{8.id}}",
+        "occurrence_id": "{{8.occurrence_id}}",
+        "series_id": "{{8.series_id}}"
+      },
+      "metadata": {
+        "designer": {
+          "x": 2100,
+          "y": 0,
+          "name": "Step 8: Expired drafts"
+        }
+      }
+    },
+    {
+      "id": 14,
+      "module": "code:ExecuteCode",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "language": "javascript",
+        "inputFormat": "editor",
+        "dependencies": [],
+        "codeEditorJavascript": "// Adapter: the rule below is the same JavaScript as the recipe's n8n build.\n// $('Step name') answers from this step's inputs: each is that step's output in this scenario.\nconst SOURCES = {\"Config\": \"in0_Config\", \"Step 8: Rule: past the deadline?\": \"in1_Step8Rulepastthedeadline\", \"Step 8: Expired drafts\": \"in2_Step8Expireddrafts\"};\nconst LISTS = [\"Step 8: Expired drafts\", \"Step 8: Rule: past the deadline?\"];\nconst EXECUTED = [\"Step 8: Each morning\"];\nconst DATA = {};\nfor (const [node, key] of Object.entries(SOURCES)) {\n  const raw = input[key];\n  let v = raw;\n  if (typeof raw === 'string') { try { v = JSON.parse(raw); } catch (e) { v = raw; } }\n  DATA[node] = LISTS.includes(node) ? (v || []).map(i => (i && i.json !== undefined ? i : { json: i })) : [{ json: v }];\n}\nconst $ = (node) => {\n  const ran = node in DATA || EXECUTED.includes(node);\n  const list = () => { if (!(node in DATA)) throw new Error(`step ${node} has no data in this scenario`); return DATA[node]; };\n  return { isExecuted: ran, first: () => list()[0], last: () => list()[list().length - 1], all: () => list(),\n           get item() { return list()[0]; } };\n};\nconst INPUT = \"Step 8: Expired drafts\";\nconst $input = { all: () => $(INPUT).all(), first: () => $(INPUT).first(), last: () => $(INPUT).last(), get item() { return $(INPUT).first(); } };\nconst $execution = { id: input.run_id };\nconst BODIES = (out) => ({\"owner_message\": JSON.stringify({ to: [$('Config').first().json.register_owner], subject: out.count + ' draft action list(s) expired unverified', text: 'The chair or backup types these actions in: ' + out.lists.join('; ') }), \"failed_body\": JSON.stringify({ recipe: 'R14.1', item: 'expiry ' + new Date().toISOString().slice(0, 10), reason: 'write failed', detail: 'Message to the register owner failed; never retried: ' + out.lists.join('; '), owner: $('Config').first().json.exception_owner })});\nconst one = (r) => (Array.isArray(r) ? r : [r]).filter(Boolean).map(i => (i.json !== undefined ? i.json : i));\nconst $json = INPUT && INPUT in DATA ? $input.first().json : {};\nconst __rule = () => {\n// One message to the register owner listing the expired drafts.\nconst rows = $input.all().map((_, i) => $('Step 8: Rule: past the deadline?').all()[i].json);\nconst lists = [...new Set(rows.map(r => `${r.series_id} ${r.occurrence_id}`))];\nreturn [{ json: { lists, count: lists.length }, pairedItem: { item: 0 } }];\n};\nconst out = one(__rule())[0] || {};\nreturn Object.assign({}, out, BODIES(out));\n",
+        "input": [
+          {
+            "name": "in0_Config",
+            "value": "{{1.result}}"
+          },
+          {
+            "name": "in1_Step8Rulepastthedeadline",
+            "value": "{{13.array}}"
+          },
+          {
+            "name": "in2_Step8Expireddrafts",
+            "value": "{{13.array}}"
+          },
+          {
+            "name": "run_id",
+            "value": "{{var.scenario.executionId}}"
+          }
+        ]
+      },
+      "metadata": {
+        "designer": {
+          "x": 2400,
+          "y": 0,
+          "name": "Step 8: One message"
+        }
+      },
+      "filter": {
+        "name": "a draft expired",
+        "conditions": [
+          [
+            {
+              "a": "{{length(13.array)}}",
+              "b": "0",
+              "o": "number:greater"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "id": 17,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{1.result.messaging_url}}/messages",
+        "method": "post",
+        "timeout": "40",
+        "parseResponse": false,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true,
+        "contentType": "json",
+        "inputMethod": "jsonString",
+        "jsonStringBodyContent": "{{14.result.owner_message}}"
+      },
+      "metadata": {
+        "designer": {
+          "x": 2700,
+          "y": 0,
+          "name": "Step 8: Tell the register owner"
+        }
+      },
+      "onerror": [
+        {
+          "id": 15,
+          "module": "http:MakeRequest",
+          "version": 4,
+          "parameters": {},
+          "mapper": {
+            "url": "{{1.result.table_api_url}}/exception_queue",
+            "method": "post",
+            "timeout": "40",
+            "parseResponse": false,
+            "stopOnHttpError": true,
+            "allowRedirects": true,
+            "shareCookies": false,
+            "requestCompressedContent": true,
+            "contentType": "json",
+            "inputMethod": "jsonString",
+            "jsonStringBodyContent": "{{14.result.failed_body}}"
+          },
+          "metadata": {
+            "designer": {
+              "x": 2700,
+              "y": 300,
+              "name": "Step 8: Exception queue: message failed"
+            }
+          }
+        },
+        {
+          "id": 16,
+          "module": "builtin:Ignore",
+          "version": 1,
+          "metadata": {
+            "designer": {
+              "x": 3000,
+              "y": 300
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "metadata": {
+    "instant": false,
+    "version": 1,
+    "designer": {
+      "orphans": []
+    },
+    "scenario": {
+      "dlq": true,
+      "slots": null,
+      "dataloss": false,
+      "maxErrors": 3,
+      "autoCommit": true,
+      "roundtrips": 1,
+      "sequential": false,
+      "confidential": false,
+      "freshVariables": false,
+      "autoCommitTriggerLast": true
+    }
+  }
+}

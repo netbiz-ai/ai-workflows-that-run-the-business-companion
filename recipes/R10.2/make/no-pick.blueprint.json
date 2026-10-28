@@ -1,0 +1,287 @@
+{
+  "name": "R10.2 Delivery confirmations and reschedule replies: no pick in 24 hours",
+  "flow": [
+    {
+      "id": 1,
+      "module": "code:ExecuteCode",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "language": "javascript",
+        "inputFormat": "editor",
+        "dependencies": [],
+        "codeEditorJavascript": "// Config: edit these values for your company; nothing else in the scenario hard-codes them.\n// Schedule: set this scenario to run every hour; Make keeps the schedule outside the blueprint.\nreturn {\n  \"stop_flag_url\": \"https://<your stop list API>/stop_flags/R10.2\",\n  \"table_api_url\": \"https://<your table API for the key log, decision log and exception queue>\",\n  \"workflow_owner\": \"<your workflow owner>\",\n  \"scheduling_url\": \"https://<your scheduling system API>\",\n  \"messaging_url\": \"https://<your messaging API>\",\n  \"tasks_url\": \"https://<your dispatcher task API>\",\n  \"helpdesk_url\": \"https://<your helpdesk API>\",\n  \"dispatch_queue\": \"<your dispatcher queue>\",\n  \"confirmation_template\": \"<your confirmation template; the workflow fills {date}, {window} and {prep}>\",\n  \"reminder_template\": \"<your reminder template; the workflow fills {date} and {window}>\",\n  \"slot_request_template\": \"{slots}\\nReply 1, 2 or 3 within 24 hours and a dispatcher will confirm your new time; until then your booking stays as it is.\",\n  \"preparation_notes\": \"<your preparation notes>\",\n  \"urgent_words\": [\n    \"leak\",\n    \"smoke\",\n    \"injured\",\n    \"damaged\"\n  ],\n  \"day_words\": [\n    \"monday\",\n    \"tuesday\",\n    \"wednesday\",\n    \"thursday\",\n    \"friday\",\n    \"saturday\",\n    \"sunday\",\n    \"mon\",\n    \"tue\",\n    \"tues\",\n    \"wed\",\n    \"thu\",\n    \"thur\",\n    \"thurs\",\n    \"fri\",\n    \"sat\",\n    \"sun\",\n    \"today\",\n    \"tomorrow\",\n    \"tonight\",\n    \"weekend\",\n    \"morning\",\n    \"afternoon\",\n    \"evening\",\n    \"noon\",\n    \"midday\",\n    \"january\",\n    \"february\",\n    \"march\",\n    \"april\",\n    \"may\",\n    \"june\",\n    \"july\",\n    \"august\",\n    \"september\",\n    \"october\",\n    \"november\",\n    \"december\",\n    \"jan\",\n    \"feb\",\n    \"mar\",\n    \"apr\",\n    \"jun\",\n    \"jul\",\n    \"aug\",\n    \"sep\",\n    \"sept\",\n    \"oct\",\n    \"nov\",\n    \"dec\"\n  ],\n  \"max_slots\": 3,\n  \"pick_hours\": 24,\n  \"masking_list\": [\n    \"code\",\n    \"gate\",\n    \"keypad\",\n    \"PIN\",\n    \"key safe\"\n  ],\n  \"address_words\": [\n    \"<your floor, unit and street words, such as floor, unit, apartment, street, road>\"\n  ],\n  \"mask_token\": \"<your mask token>\",\n  \"ai_model\": \"claude-haiku-5-5\",\n  \"ai_inference_geo\": \"us\",\n  \"ai_url\": \"https://api.anthropic.com/v1/messages\"\n};",
+        "input": []
+      },
+      "metadata": {
+        "designer": {
+          "x": 0,
+          "y": 0,
+          "name": "Config"
+        }
+      }
+    },
+    {
+      "id": 4,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{1.result.stop_flag_url}}",
+        "method": "get",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true
+      },
+      "metadata": {
+        "designer": {
+          "x": 300,
+          "y": 0,
+          "name": "Stop flag: read"
+        }
+      },
+      "onerror": [
+        {
+          "id": 2,
+          "module": "http:MakeRequest",
+          "version": 4,
+          "parameters": {},
+          "mapper": {
+            "url": "{{1.result.table_api_url}}/exception_queue",
+            "method": "post",
+            "timeout": "40",
+            "parseResponse": false,
+            "stopOnHttpError": true,
+            "allowRedirects": true,
+            "shareCookies": false,
+            "requestCompressedContent": true,
+            "contentType": "json",
+            "inputMethod": "jsonString",
+            "jsonStringBodyContent": "{\"recipe\": \"R10.2\", \"item\": \"run {{var.scenario.executionId}}\", \"reason\": \"stop list unreadable\", \"detail\": \"The stop list could not be read, so the run stopped\", \"owner\": \"{{1.result.workflow_owner}}\"}"
+          },
+          "metadata": {
+            "designer": {
+              "x": 300,
+              "y": 300,
+              "name": "Stop flag: list unreadable"
+            }
+          }
+        },
+        {
+          "id": 3,
+          "module": "builtin:Ignore",
+          "version": 1,
+          "metadata": {
+            "designer": {
+              "x": 600,
+              "y": 300
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{1.result.table_api_url}}/decision_log",
+        "method": "get",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true,
+        "queryParameters": [
+          {
+            "name": "recipe",
+            "value": "eq.R10.2"
+          },
+          {
+            "name": "select",
+            "value": "id,item,decision,decided_at"
+          },
+          {
+            "name": "order",
+            "value": "id.asc"
+          }
+        ]
+      },
+      "metadata": {
+        "designer": {
+          "x": 600,
+          "y": 0,
+          "name": "Step 12: Read offers with no pick"
+        }
+      },
+      "onerror": [
+        {
+          "id": 5,
+          "module": "builtin:Break",
+          "version": 1,
+          "parameters": {},
+          "mapper": {
+            "count": "3",
+            "retry": true,
+            "interval": "1"
+          },
+          "metadata": {
+            "designer": {
+              "x": 600,
+              "y": 600
+            }
+          }
+        }
+      ],
+      "filter": {
+        "name": "stop flag not set",
+        "conditions": [
+          [
+            {
+              "a": "{{4.data.stopped}}",
+              "b": "true",
+              "o": "text:notequal"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "id": 7,
+      "module": "code:ExecuteCode",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "language": "javascript",
+        "inputFormat": "editor",
+        "dependencies": [],
+        "codeEditorJavascript": "// Adapter: the rule below is the same JavaScript as the recipe's n8n build.\n// $('Step name') answers from this step's inputs: each is that step's output in this scenario.\nconst SOURCES = {\"Config\": \"in0_Config\", \"Step 12: Read offers with no pick\": \"in1_Step12Readofferswithnopi\"};\nconst LISTS = [\"Step 12: Read offers with no pick\"];\nconst EXECUTED = [\"Step 12: Every hour\"];\nconst DATA = {};\nfor (const [node, key] of Object.entries(SOURCES)) {\n  const raw = input[key];\n  let v = raw;\n  if (typeof raw === 'string') { try { v = JSON.parse(raw); } catch (e) { v = raw; } }\n  DATA[node] = LISTS.includes(node) ? (v || []).map(i => (i && i.json !== undefined ? i : { json: i })) : [{ json: v }];\n}\nconst $ = (node) => {\n  const ran = node in DATA || EXECUTED.includes(node);\n  const list = () => { if (!(node in DATA)) throw new Error(`step ${node} has no data in this scenario`); return DATA[node]; };\n  return { isExecuted: ran, first: () => list()[0], last: () => list()[list().length - 1], all: () => list(),\n           get item() { return list()[0]; } };\n};\nconst INPUT = \"Step 12: Read offers with no pick\";\nconst $input = { all: () => $(INPUT).all(), first: () => $(INPUT).first(), last: () => $(INPUT).last(), get item() { return $(INPUT).first(); } };\nconst $execution = { id: input.run_id };\n// Step 12: Read offers with no pick: each offer older than pick_hours with no later row for its job (n8n's SQL).\n{ const rows = DATA[\"Step 12: Read offers with no pick\"].map(i => i.json); const cutoff = Date.now() - Number(DATA['Config'][0].json.pick_hours) * 3600000;\n  DATA[\"Step 12: Read offers with no pick\"] = rows.filter(o => o.decision === 'slots offered' && new Date(o.decided_at).getTime() <= cutoff\n    && !rows.some(p => p.item === o.item && p.id > o.id)).map(o => ({ json: { id: o.id, item: o.item } }));\n  // None waiting: one empty row, as n8n's Postgres node gives (alwaysOutputData); the rule drops it.\n  if (!DATA[\"Step 12: Read offers with no pick\"].length) DATA[\"Step 12: Read offers with no pick\"] = [{ json: {} }]; }\nconst BODIES = (out) => ({\"reserve_body\": JSON.stringify({ p_recipe: 'R10.2', p_key: 'no pick:' + out.offer }), \"task_body\": JSON.stringify({ id: 'NP-' + out.offer, to: $('Config').first().json.dispatch_queue, job: out.job, type: 'no pick', reason: 'No pick in 24 hours: decide whether to phone.' })});\nconst one = (r) => (Array.isArray(r) ? r : [r]).filter(Boolean).map(i => (i.json !== undefined ? i.json : i));\nconst $json = INPUT && INPUT in DATA ? $input.first().json : {};\nconst __rule = () => {\n// Step 12: offers with no reply in 24 hours.\nreturn $input.all().filter(i => i.json.id).map(i => ({ json: { offer: String(i.json.id), job: i.json.item } }));\n};\nreturn { items: one(__rule()).map(o => Object.assign({}, o, BODIES(o))) };\n",
+        "input": [
+          {
+            "name": "in0_Config",
+            "value": "{{1.result}}"
+          },
+          {
+            "name": "in1_Step12Readofferswithnopi",
+            "value": "{{6.data}}"
+          },
+          {
+            "name": "run_id",
+            "value": "{{var.scenario.executionId}}"
+          }
+        ]
+      },
+      "metadata": {
+        "designer": {
+          "x": 900,
+          "y": 0,
+          "name": "Step 12: Rule: offers still waiting"
+        }
+      }
+    },
+    {
+      "id": 8,
+      "module": "builtin:BasicFeeder",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "array": "{{7.result.items}}"
+      },
+      "metadata": {
+        "designer": {
+          "x": 1200,
+          "y": 0,
+          "name": "Step 12: Each offer waiting"
+        }
+      }
+    },
+    {
+      "id": 9,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{1.result.table_api_url}}/rpc/reserve_key",
+        "method": "post",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true,
+        "contentType": "json",
+        "inputMethod": "jsonString",
+        "jsonStringBodyContent": "{{8.reserve_body}}"
+      },
+      "metadata": {
+        "designer": {
+          "x": 1500,
+          "y": 0,
+          "name": "Step 12: Reserve key"
+        }
+      }
+    },
+    {
+      "id": 10,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{1.result.tasks_url}}/tasks",
+        "method": "post",
+        "timeout": "40",
+        "parseResponse": false,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true,
+        "contentType": "json",
+        "inputMethod": "jsonString",
+        "jsonStringBodyContent": "{{8.task_body}}"
+      },
+      "metadata": {
+        "designer": {
+          "x": 1800,
+          "y": 0,
+          "name": "Step 12: Dispatcher decides whether to phone"
+        }
+      },
+      "filter": {
+        "name": "new key (not a copy)",
+        "conditions": [
+          [
+            {
+              "a": "{{9.data}}",
+              "b": "true",
+              "o": "text:equal"
+            }
+          ]
+        ]
+      }
+    }
+  ],
+  "metadata": {
+    "instant": false,
+    "version": 1,
+    "designer": {
+      "orphans": []
+    },
+    "scenario": {
+      "dlq": true,
+      "slots": null,
+      "dataloss": false,
+      "maxErrors": 3,
+      "autoCommit": true,
+      "roundtrips": 1,
+      "sequential": false,
+      "confidential": false,
+      "freshVariables": false,
+      "autoCommitTriggerLast": true
+    }
+  }
+}

@@ -195,6 +195,24 @@ def ended(sid: int) -> list[dict]:
     return [entry for entry in logs if entry.get("eventType") == "EXECUTION_END"]
 
 
+def check(exp: dict) -> tuple[bool, str]:
+    """golden.check, with the mocks' state and calls read back in the stack-internal address, so a
+    seed that spells out mock URLs (rewritten to the public route for Make) meets its expectations
+    as written in tests.json."""
+    plain = golden.http
+
+    def http(method, url, body=None, headers=None, ok=(200, 201, 204)):
+        code, out = plain(method, url, body, headers, ok)
+        if url.endswith(("/_state", "/_calls")) and MOCKS_PUBLIC:
+            out = json.loads(json.dumps(out).replace(MOCKS_PUBLIC, golden.MOCKS_IN))
+        return code, out
+    golden.http = http
+    try:
+        return golden.check(exp)
+    finally:
+        golden.http = plain
+
+
 def credits_left() -> float | None:
     org = os.environ.get("MAKE_ORG_ID")
     if not org:
@@ -226,7 +244,11 @@ def wait_runs(sids: list[int], before: set, expected: int, since: str, timeout: 
     deadline = time.time() + 300
     while retrying(sids, since) and time.time() < deadline:
         time.sleep(15)
-    return [e for sid in sids for e in ended(sid) if e["id"] not in before]
+    # Read again for runs a retry added, but keep the runs already seen: Make's log listing can
+    # come back short for a moment, and a run seen once has ended.
+    seen = {e["id"]: e for e in runs}
+    seen.update({e["id"]: e for sid in sids for e in ended(sid) if e["id"] not in before})
+    return list(seen.values())
 
 
 def ensure_active(sids: list[int]) -> list[int]:
@@ -308,7 +330,7 @@ def _run(rid: str, build_only: bool, only: list[str]) -> int:
                 lines.append((case, None, [], 0, 0))
                 print(f"SKIP  {case['case']}: {case['input']} (needs the AI key)")
                 continue
-            golden.http("POST", f"{golden.MOCKS}/_reset", {"seed": golden.merge(tests.get("seed", {}), case.get("seed", {}))})
+            golden.http("POST", f"{golden.MOCKS}/_reset", {"seed": public(golden.merge(tests.get("seed", {}), case.get("seed", {})))})
             golden.sql("TRUNCATE key_log, decision_log, exception_queue RESTART IDENTITY")
             for q in case.get("sql_seed", []):
                 golden.sql(q)
@@ -336,7 +358,7 @@ def _run(rid: str, build_only: bool, only: list[str]) -> int:
                 runs = []
                 print(f"      {e}")
             time.sleep(1)
-            results = [golden.check(e) for e in case["expect"]]
+            results = [check(e) for e in case["expect"]]
             if case.get("needs_ai"):
                 _, calls = golden.http("GET", f"{golden.MOCKS}/_calls")
                 bad = [c.get("status") for c in calls if c["path"] == "/anthropic/v1/messages" and c.get("status") != 200]

@@ -11,7 +11,7 @@ It never posts to the ledger, approves anything, or obeys the invoice.
 |---|---|---|
 | Tool-neutral | `build-spec.md` | Available |
 | n8n | [`n8n/workflow.json`](n8n/workflow.json) | Available: golden set passed on n8n 2.42.7, 2026-10-19 ([report](n8n/test-report.md)) |
-| Make | `make/blueprint.json` | Not yet available |
+| Make | [`make/blueprint.json`](make/blueprint.json) | Available: golden set passed on Make (Core plan), 2026-10-27 ([report](make/test-report.md)) |
 | Power Automate | `power-automate/` | Not yet available |
 | Zapier | `zapier.md` | Not yet available |
 

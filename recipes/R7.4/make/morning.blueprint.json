@@ -1,0 +1,241 @@
+{
+  "name": "R7.4 Run the exception queue: morning list",
+  "flow": [
+    {
+      "id": 1,
+      "module": "code:ExecuteCode",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "language": "javascript",
+        "inputFormat": "editor",
+        "dependencies": [],
+        "codeEditorJavascript": "// Config: edit these values for your company; nothing else in the scenario hard-codes them.\n// Schedule: set this scenario to run every working day, Monday to Friday, at 08:00; Make keeps the schedule outside the blueprint.\nreturn {\n  \"stop_flag_url\": \"https://<your stop list API>/stop_flags/R7.4\",\n  \"table_api_url\": \"https://<your table API for the key log, decision log and exception queue>\",\n  \"workflow_owner\": \"<your workflow owner>\",\n  \"queue_url\": \"https://<your queue list API>\",\n  \"review_url\": \"https://<your review list API>\",\n  \"teams_url\": \"https://<your Teams messaging API>\",\n  \"approvals_url\": \"https://<your approval list API>\",\n  \"rematch_url\": \"https://<your n8n>/webhook/r7-2-ready\",\n  \"reason_owners\": {\n    \"needs a person\": \"<your AP owner>\",\n    \"unknown supplier\": \"<your AP owner>\",\n    \"no PO\": \"<your purchasing approver>\",\n    \"no receipt\": \"<your purchasing approver>\",\n    \"outside tolerance\": \"<your purchasing approver>\",\n    \"already invoiced\": \"<your purchasing approver>\",\n    \"pairing rejected\": \"<your purchasing approver>\",\n    \"lookup error\": \"<your workflow owner>\",\n    \"reservation failed\": \"<your workflow owner>\",\n    \"supplier on hold\": \"<your caller>\"\n  },\n  \"services_codes\": [\n    \"no PO\",\n    \"no receipt\"\n  ],\n  \"services_suppliers\": [\n    \"<your rent, utility and carrier supplier IDs>\"\n  ],\n  \"services_owner\": \"<your finance assistant>\",\n  \"escalation_owner\": \"<your AP owner>\",\n  \"query_codes\": [\n    \"<your mismatch and missing-document codes>\"\n  ],\n  \"banned_words\": [\n    \"paid\",\n    \"<your banned query words>\"\n  ],\n  \"aging_limit_days\": \"<your aging limit, working days>\",\n  \"approval_limit\": 10000,\n  \"approver_to_limit\": \"<your approver up to the limit>\",\n  \"approver_above\": \"<your approver above the limit>\",\n  \"approver_own_items\": \"<who approves the approvers' own items>\",\n  \"ai_model\": \"claude-haiku-5-5\",\n  \"ai_inference_geo\": \"us\",\n  \"ai_url\": \"https://api.anthropic.com/v1/messages\"\n};",
+        "input": []
+      },
+      "metadata": {
+        "designer": {
+          "x": 0,
+          "y": 0,
+          "name": "Config"
+        }
+      }
+    },
+    {
+      "id": 4,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{1.result.stop_flag_url}}",
+        "method": "get",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true
+      },
+      "metadata": {
+        "designer": {
+          "x": 300,
+          "y": 0,
+          "name": "Stop flag: read"
+        }
+      },
+      "onerror": [
+        {
+          "id": 2,
+          "module": "http:MakeRequest",
+          "version": 4,
+          "parameters": {},
+          "mapper": {
+            "url": "{{1.result.table_api_url}}/exception_queue",
+            "method": "post",
+            "timeout": "40",
+            "parseResponse": false,
+            "stopOnHttpError": true,
+            "allowRedirects": true,
+            "shareCookies": false,
+            "requestCompressedContent": true,
+            "contentType": "json",
+            "inputMethod": "jsonString",
+            "jsonStringBodyContent": "{\"recipe\": \"R7.4\", \"item\": \"run {{var.scenario.executionId}}\", \"reason\": \"stop list unreadable\", \"detail\": \"The stop list could not be read, so the run stopped\", \"owner\": \"{{1.result.workflow_owner}}\"}"
+          },
+          "metadata": {
+            "designer": {
+              "x": 300,
+              "y": 300,
+              "name": "Stop flag: list unreadable"
+            }
+          }
+        },
+        {
+          "id": 3,
+          "module": "builtin:Ignore",
+          "version": 1,
+          "metadata": {
+            "designer": {
+              "x": 600,
+              "y": 300
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{1.result.queue_url}}/items",
+        "method": "get",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true,
+        "queryParameters": [
+          {
+            "name": "_wrap",
+            "value": "1"
+          },
+          {
+            "name": "status",
+            "value": "open"
+          }
+        ]
+      },
+      "metadata": {
+        "designer": {
+          "x": 600,
+          "y": 0,
+          "name": "Step 8: Read the open items"
+        }
+      },
+      "onerror": [
+        {
+          "id": 5,
+          "module": "builtin:Break",
+          "version": 1,
+          "parameters": {},
+          "mapper": {
+            "count": "3",
+            "retry": true,
+            "interval": "1"
+          },
+          "metadata": {
+            "designer": {
+              "x": 600,
+              "y": 600
+            }
+          }
+        }
+      ],
+      "filter": {
+        "name": "stop flag not set",
+        "conditions": [
+          [
+            {
+              "a": "{{4.data.stopped}}",
+              "b": "true",
+              "o": "text:notequal"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "id": 7,
+      "module": "code:ExecuteCode",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "language": "javascript",
+        "inputFormat": "editor",
+        "dependencies": [],
+        "codeEditorJavascript": "// Adapter: the rule below is the same JavaScript as the recipe's n8n build.\n// $('Step name') answers from this step's inputs: each is that step's output in this scenario.\nconst SOURCES = {\"Config\": \"in0_Config\", \"Step 8: Read the open items\": \"in1_Step8Readtheopenitems\"};\nconst LISTS = [];\nconst EXECUTED = [];\nconst DATA = {};\nfor (const [node, key] of Object.entries(SOURCES)) {\n  const raw = input[key];\n  let v = raw;\n  if (typeof raw === 'string') { try { v = JSON.parse(raw); } catch (e) { v = raw; } }\n  DATA[node] = LISTS.includes(node) ? (v || []).map(i => (i && i.json !== undefined ? i : { json: i })) : [{ json: v }];\n}\nconst $ = (node) => {\n  const ran = node in DATA || EXECUTED.includes(node);\n  const list = () => { if (!(node in DATA)) throw new Error(`step ${node} has no data in this scenario`); return DATA[node]; };\n  return { isExecuted: ran, first: () => list()[0], last: () => list()[list().length - 1], all: () => list(),\n           get item() { return list()[0]; } };\n};\nconst INPUT = \"Step 8: Read the open items\";\nconst $input = { all: () => $(INPUT).all(), first: () => $(INPUT).first(), last: () => $(INPUT).last(), get item() { return $(INPUT).first(); } };\nconst $execution = { id: input.run_id };\nconst BODIES = (out) => ({\"post_body\": JSON.stringify({ to: $('Config').first().json.escalation_owner, subject: 'Overdue exception items, oldest first', items: out.items, text: out.text })});\nconst one = (r) => (Array.isArray(r) ? r : [r]).filter(Boolean).map(i => (i.json !== undefined ? i.json : i));\nconst $json = INPUT && INPUT in DATA ? $input.first().json : {};\nconst __rule = () => {\n// Step 8: open items past the aging limit, in working days, oldest first.\nconst cfg = $('Config').first().json;\nconst day = d => new Date(String(d).slice(0, 10) + 'T00:00:00Z');\nconst today = day(new Date().toISOString());\nconst working = from => { let n = 0; for (let d = new Date(from.getTime() + 86400000); d <= today; d = new Date(d.getTime() + 86400000)) if (d.getUTCDay() % 6 !== 0) n++; return n; };\nconst items = ($('Step 8: Read the open items').first().json.items || []).filter(i => i.status === 'open' && i.raised_at)\n  .map(i => Object.assign({}, i, { age: working(day(i.raised_at)) }))\n  .filter(i => i.age > Number(cfg.aging_limit_days))\n  .sort((a, b) => day(a.raised_at) - day(b.raised_at));\nreturn [{ json: { any: items.length > 0, items: items.map(i => i.id),\n  text: items.map(i => `${i.id}: invoice ${i.invoice_id}, ${i.reason_code}, owner ${i.owner || 'none'}, ${i.age} working days`).join('\\n') } }];\n};\nconst out = one(__rule())[0] || {};\nreturn Object.assign({}, out, BODIES(out));\n",
+        "input": [
+          {
+            "name": "in0_Config",
+            "value": "{{1.result}}"
+          },
+          {
+            "name": "in1_Step8Readtheopenitems",
+            "value": "{{6.data}}"
+          },
+          {
+            "name": "run_id",
+            "value": "{{var.scenario.executionId}}"
+          }
+        ]
+      },
+      "metadata": {
+        "designer": {
+          "x": 900,
+          "y": 0,
+          "name": "Step 8: Rule: past the aging limit"
+        }
+      }
+    },
+    {
+      "id": 8,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{1.result.teams_url}}/messages",
+        "method": "post",
+        "timeout": "40",
+        "parseResponse": false,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true,
+        "contentType": "json",
+        "inputMethod": "jsonString",
+        "jsonStringBodyContent": "{{7.result.post_body}}"
+      },
+      "metadata": {
+        "designer": {
+          "x": 1200,
+          "y": 0,
+          "name": "Step 8: Post overdue items to the escalation owner"
+        }
+      },
+      "filter": {
+        "name": "any overdue",
+        "conditions": [
+          [
+            {
+              "a": "{{7.result.any}}",
+              "b": "true",
+              "o": "text:equal"
+            }
+          ]
+        ]
+      }
+    }
+  ],
+  "metadata": {
+    "instant": false,
+    "version": 1,
+    "designer": {
+      "orphans": []
+    },
+    "scenario": {
+      "dlq": true,
+      "slots": null,
+      "dataloss": false,
+      "maxErrors": 3,
+      "autoCommit": true,
+      "roundtrips": 1,
+      "sequential": false,
+      "confidential": false,
+      "freshVariables": false,
+      "autoCommitTriggerLast": true
+    }
+  }
+}

@@ -1,0 +1,357 @@
+{
+  "name": "R12.2 Draft the weekly briefing narrative: Friday 16:00",
+  "flow": [
+    {
+      "id": 1,
+      "module": "code:ExecuteCode",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "language": "javascript",
+        "inputFormat": "editor",
+        "dependencies": [],
+        "codeEditorJavascript": "// Config: edit these values for your company; nothing else in the scenario hard-codes them.\n// Schedule: set this scenario to run every Friday at 16:00; Make keeps the schedule outside the blueprint.\nreturn {\n  \"stop_flag_url\": \"https://<your stop list API>/stop_flags/R12.2\",\n  \"table_api_url\": \"https://<your table API for the key log, decision log and exception queue>\",\n  \"workflow_owner\": \"<your workflow owner>\",\n  \"table_url\": \"https://<your weekly table API>\",\n  \"commentary_url\": \"https://<your owner commentary list API>\",\n  \"customers_url\": \"https://<your customer list API>\",\n  \"staff_url\": \"https://<your staff list API>\",\n  \"alert_log_url\": \"https://<your R12.3 alert log API>\",\n  \"drafts_url\": \"https://<your draft list API>\",\n  \"preread_url\": \"https://<your pre-read API>\",\n  \"messaging_url\": \"https://<your messaging API>\",\n  \"draft_weekday\": 5,\n  \"draft_from\": \"14:00\",\n  \"first_draft_until\": \"15:30\",\n  \"must_mention_change_above\": {\n    \"<measure>\": \"<your stated size>\"\n  },\n  \"banned_causes\": [\n    \"because\",\n    \"<your banned-cause words>\"\n  ],\n  \"banned_cause_list_version\": \"<your list version>\",\n  \"prompt_version\": \"<your prompt version>\",\n  \"verifier\": \"<your verifier>\",\n  \"backup_verifier\": \"<your backup verifier>\",\n  \"verifier_own_measures\": [\n    \"<measures your verifier owns>\"\n  ],\n  \"ai_model\": \"claude-haiku-5-5\",\n  \"ai_inference_geo\": \"us\",\n  \"ai_url\": \"https://api.anthropic.com/v1/messages\"\n};",
+        "input": []
+      },
+      "metadata": {
+        "designer": {
+          "x": 0,
+          "y": 0,
+          "name": "Config"
+        }
+      }
+    },
+    {
+      "id": 4,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{1.result.stop_flag_url}}",
+        "method": "get",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true
+      },
+      "metadata": {
+        "designer": {
+          "x": 300,
+          "y": 0,
+          "name": "Stop flag: read"
+        }
+      },
+      "onerror": [
+        {
+          "id": 2,
+          "module": "http:MakeRequest",
+          "version": 4,
+          "parameters": {},
+          "mapper": {
+            "url": "{{1.result.table_api_url}}/exception_queue",
+            "method": "post",
+            "timeout": "40",
+            "parseResponse": false,
+            "stopOnHttpError": true,
+            "allowRedirects": true,
+            "shareCookies": false,
+            "requestCompressedContent": true,
+            "contentType": "json",
+            "inputMethod": "jsonString",
+            "jsonStringBodyContent": "{\"recipe\": \"R12.2\", \"item\": \"run {{var.scenario.executionId}}\", \"reason\": \"stop list unreadable\", \"detail\": \"The stop list could not be read, so the run stopped\", \"owner\": \"{{1.result.workflow_owner}}\"}"
+          },
+          "metadata": {
+            "designer": {
+              "x": 300,
+              "y": 300,
+              "name": "Stop flag: list unreadable"
+            }
+          }
+        },
+        {
+          "id": 3,
+          "module": "builtin:Ignore",
+          "version": 1,
+          "metadata": {
+            "designer": {
+              "x": 600,
+              "y": 300
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{1.result.drafts_url}}/drafts",
+        "method": "get",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true,
+        "queryParameters": [
+          {
+            "name": "_wrap",
+            "value": "1"
+          }
+        ]
+      },
+      "metadata": {
+        "designer": {
+          "x": 600,
+          "y": 0,
+          "name": "Read open drafts"
+        }
+      },
+      "onerror": [
+        {
+          "id": 5,
+          "module": "builtin:Break",
+          "version": 1,
+          "parameters": {},
+          "mapper": {
+            "count": "3",
+            "retry": true,
+            "interval": "1"
+          },
+          "metadata": {
+            "designer": {
+              "x": 600,
+              "y": 600
+            }
+          }
+        }
+      ],
+      "filter": {
+        "name": "stop flag not set",
+        "conditions": [
+          [
+            {
+              "a": "{{4.data.stopped}}",
+              "b": "true",
+              "o": "text:notequal"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "id": 7,
+      "module": "code:ExecuteCode",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "language": "javascript",
+        "inputFormat": "editor",
+        "dependencies": [],
+        "codeEditorJavascript": "// Adapter: the rule below is the same JavaScript as the recipe's n8n build.\n// $('Step name') answers from this step's inputs: each is that step's output in this scenario.\nconst SOURCES = {\"Config\": \"in0_Config\", \"Read open drafts\": \"in1_Readopendrafts\"};\nconst LISTS = [];\nconst EXECUTED = [];\nconst DATA = {};\nfor (const [node, key] of Object.entries(SOURCES)) {\n  const raw = input[key];\n  let v = raw;\n  if (typeof raw === 'string') { try { v = JSON.parse(raw); } catch (e) { v = raw; } }\n  DATA[node] = LISTS.includes(node) ? (v || []).map(i => (i && i.json !== undefined ? i : { json: i })) : [{ json: v }];\n}\nconst $ = (node) => {\n  const ran = node in DATA || EXECUTED.includes(node);\n  const list = () => { if (!(node in DATA)) throw new Error(`step ${node} has no data in this scenario`); return DATA[node]; };\n  return { isExecuted: ran, first: () => list()[0], last: () => list()[list().length - 1], all: () => list(),\n           get item() { return list()[0]; } };\n};\nconst INPUT = \"Read open drafts\";\nconst $input = { all: () => $(INPUT).all(), first: () => $(INPUT).first(), last: () => $(INPUT).last(), get item() { return $(INPUT).first(); } };\nconst $execution = { id: input.run_id };\nconst BODIES = (out) => ({\"week_q\": encodeURIComponent(out.week), \"failed_body\": JSON.stringify({ recipe: 'R12.2', item: 'four', reason: 'write failed', detail: 'A verification or publication write failed; check the draft and pre-read', owner: $('Config').first().json.verifier }), \"patch_body\": JSON.stringify(out.patch), \"ask_body\": JSON.stringify({ to: $('Config').first().json.backup_verifier, subject: 'Verify the weekly narrative by 16:45', text: 'Week ' + out.week + ': the narrative is not yet verified.' })});\nconst one = (r) => (Array.isArray(r) ? r : [r]).filter(Boolean).map(i => (i.json !== undefined ? i.json : i));\nconst $json = INPUT && INPUT in DATA ? $input.first().json : {};\nconst __rule = () => {\n// Step 13 at 16:00: close the week to new drafts (step 14); a draft not yet verified goes to the backup verifier.\nconst drafts = ($('Read open drafts').first().json.items || []).filter(d => d.closed !== true);\nreturn drafts.map(d => ({ json: { week: d.week, notify: d.stage === 'to verify',\n  patch: { closed: true, stage: d.stage === 'to verify' ? 'backup' : d.stage } } }));\n};\nreturn { items: one(__rule()).map(o => Object.assign({}, o, BODIES(o))) };\n",
+        "input": [
+          {
+            "name": "in0_Config",
+            "value": "{{1.result}}"
+          },
+          {
+            "name": "in1_Readopendrafts",
+            "value": "{{6.data}}"
+          },
+          {
+            "name": "run_id",
+            "value": "{{var.scenario.executionId}}"
+          }
+        ]
+      },
+      "metadata": {
+        "designer": {
+          "x": 900,
+          "y": 0,
+          "name": "Step 13: Rule: not verified by 16:00"
+        }
+      }
+    },
+    {
+      "id": 8,
+      "module": "builtin:BasicFeeder",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "array": "{{7.result.items}}"
+      },
+      "metadata": {
+        "designer": {
+          "x": 1200,
+          "y": 0,
+          "name": "Each draft"
+        }
+      }
+    },
+    {
+      "id": 11,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{1.result.drafts_url}}/drafts/{{8.week_q}}",
+        "method": "patch",
+        "timeout": "40",
+        "parseResponse": false,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true,
+        "contentType": "json",
+        "inputMethod": "jsonString",
+        "jsonStringBodyContent": "{{8.patch_body}}"
+      },
+      "metadata": {
+        "designer": {
+          "x": 1500,
+          "y": 0,
+          "name": "Step 13: Close the week to new drafts"
+        }
+      },
+      "onerror": [
+        {
+          "id": 9,
+          "module": "http:MakeRequest",
+          "version": 4,
+          "parameters": {},
+          "mapper": {
+            "url": "{{1.result.table_api_url}}/exception_queue",
+            "method": "post",
+            "timeout": "40",
+            "parseResponse": false,
+            "stopOnHttpError": true,
+            "allowRedirects": true,
+            "shareCookies": false,
+            "requestCompressedContent": true,
+            "contentType": "json",
+            "inputMethod": "jsonString",
+            "jsonStringBodyContent": "{{8.failed_body}}"
+          },
+          "metadata": {
+            "designer": {
+              "x": 1500,
+              "y": 300,
+              "name": "Step 13: Close the week to new drafts: exception queue"
+            }
+          }
+        },
+        {
+          "id": 10,
+          "module": "builtin:Ignore",
+          "version": 1,
+          "metadata": {
+            "designer": {
+              "x": 1800,
+              "y": 300
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 14,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{1.result.messaging_url}}/messages",
+        "method": "post",
+        "timeout": "40",
+        "parseResponse": false,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true,
+        "contentType": "json",
+        "inputMethod": "jsonString",
+        "jsonStringBodyContent": "{{8.ask_body}}"
+      },
+      "metadata": {
+        "designer": {
+          "x": 1800,
+          "y": 0,
+          "name": "Step 13: Ask the backup verifier"
+        }
+      },
+      "onerror": [
+        {
+          "id": 12,
+          "module": "http:MakeRequest",
+          "version": 4,
+          "parameters": {},
+          "mapper": {
+            "url": "{{1.result.table_api_url}}/exception_queue",
+            "method": "post",
+            "timeout": "40",
+            "parseResponse": false,
+            "stopOnHttpError": true,
+            "allowRedirects": true,
+            "shareCookies": false,
+            "requestCompressedContent": true,
+            "contentType": "json",
+            "inputMethod": "jsonString",
+            "jsonStringBodyContent": "{{8.failed_body}}"
+          },
+          "metadata": {
+            "designer": {
+              "x": 1800,
+              "y": 600,
+              "name": "Step 13: Ask the backup verifier: exception queue"
+            }
+          }
+        },
+        {
+          "id": 13,
+          "module": "builtin:Ignore",
+          "version": 1,
+          "metadata": {
+            "designer": {
+              "x": 2100,
+              "y": 600
+            }
+          }
+        }
+      ],
+      "filter": {
+        "name": "backup verifier needed",
+        "conditions": [
+          [
+            {
+              "a": "{{8.notify}}",
+              "b": "true",
+              "o": "text:equal"
+            }
+          ]
+        ]
+      }
+    }
+  ],
+  "metadata": {
+    "instant": false,
+    "version": 1,
+    "designer": {
+      "orphans": []
+    },
+    "scenario": {
+      "dlq": true,
+      "slots": null,
+      "dataloss": false,
+      "maxErrors": 3,
+      "autoCommit": true,
+      "roundtrips": 1,
+      "sequential": false,
+      "confidential": false,
+      "freshVariables": false,
+      "autoCommitTriggerLast": true
+    }
+  }
+}

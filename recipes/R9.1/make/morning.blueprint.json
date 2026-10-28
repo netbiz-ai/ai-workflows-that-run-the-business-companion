@@ -1,0 +1,413 @@
+{
+  "name": "R9.1 Run onboarding: morning check for silent managers",
+  "flow": [
+    {
+      "id": 1,
+      "module": "code:ExecuteCode",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "language": "javascript",
+        "inputFormat": "editor",
+        "dependencies": [],
+        "codeEditorJavascript": "// Config: edit these values for your company; nothing else in the scenario hard-codes them.\n// Schedule: set this scenario to run every day at 07:00; Make keeps the schedule outside the blueprint.\nreturn {\n  \"stop_flag_url\": \"https://<your stop list API>/stop_flags/R9.1\",\n  \"table_api_url\": \"https://<your table API for the key log, decision log and exception queue>\",\n  \"workflow_owner\": \"<your workflow owner>\",\n  \"templates_url\": \"https://<your role-template list API>\",\n  \"directory_url\": \"https://<your directory API>\",\n  \"inventory_url\": \"https://<your access inventory API>\",\n  \"tasks_url\": \"https://<your task list API>\",\n  \"messaging_url\": \"https://<your messaging API>\",\n  \"user_group\": \"<the one group your onboarding service account may create users in>\",\n  \"hr_owner\": \"<your HR owner>\",\n  \"it_owner\": \"<your IT owner>\",\n  \"approval_working_days\": 2,\n  \"ai_model\": \"claude-haiku-5-5\",\n  \"ai_inference_geo\": \"us\",\n  \"ai_url\": \"https://api.anthropic.com/v1/messages\"\n};",
+        "input": []
+      },
+      "metadata": {
+        "designer": {
+          "x": 0,
+          "y": 0,
+          "name": "Config"
+        }
+      }
+    },
+    {
+      "id": 4,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{1.result.stop_flag_url}}",
+        "method": "get",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true
+      },
+      "metadata": {
+        "designer": {
+          "x": 300,
+          "y": 0,
+          "name": "Stop flag: read"
+        }
+      },
+      "onerror": [
+        {
+          "id": 2,
+          "module": "http:MakeRequest",
+          "version": 4,
+          "parameters": {},
+          "mapper": {
+            "url": "{{1.result.table_api_url}}/exception_queue",
+            "method": "post",
+            "timeout": "40",
+            "parseResponse": false,
+            "stopOnHttpError": true,
+            "allowRedirects": true,
+            "shareCookies": false,
+            "requestCompressedContent": true,
+            "contentType": "json",
+            "inputMethod": "jsonString",
+            "jsonStringBodyContent": "{\"recipe\": \"R9.1\", \"item\": \"run {{var.scenario.executionId}}\", \"reason\": \"stop list unreadable\", \"detail\": \"The stop list could not be read, so the run stopped\", \"owner\": \"{{1.result.workflow_owner}}\"}"
+          },
+          "metadata": {
+            "designer": {
+              "x": 300,
+              "y": 300,
+              "name": "Stop flag: list unreadable"
+            }
+          }
+        },
+        {
+          "id": 3,
+          "module": "builtin:Ignore",
+          "version": 1,
+          "metadata": {
+            "designer": {
+              "x": 600,
+              "y": 300
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{1.result.tasks_url}}/checklists",
+        "method": "get",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true,
+        "queryParameters": [
+          {
+            "name": "_wrap",
+            "value": "1"
+          },
+          {
+            "name": "status",
+            "value": "awaiting manager"
+          }
+        ]
+      },
+      "metadata": {
+        "designer": {
+          "x": 600,
+          "y": 0,
+          "name": "Step 8: Read checklists awaiting the manager"
+        }
+      },
+      "onerror": [
+        {
+          "id": 5,
+          "module": "builtin:Break",
+          "version": 1,
+          "parameters": {},
+          "mapper": {
+            "count": "3",
+            "retry": true,
+            "interval": "1"
+          },
+          "metadata": {
+            "designer": {
+              "x": 600,
+              "y": 600
+            }
+          }
+        }
+      ],
+      "filter": {
+        "name": "stop flag not set",
+        "conditions": [
+          [
+            {
+              "a": "{{4.data.stopped}}",
+              "b": "true",
+              "o": "text:notequal"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "id": 7,
+      "module": "code:ExecuteCode",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "language": "javascript",
+        "inputFormat": "editor",
+        "dependencies": [],
+        "codeEditorJavascript": "// Adapter: the rule below is the same JavaScript as the recipe's n8n build.\n// $('Step name') answers from this step's inputs: each is that step's output in this scenario.\nconst SOURCES = {\"Config\": \"in0_Config\", \"Step 8: Read checklists awaiting the manager\": \"in1_Step8Readchecklistsawait\"};\nconst LISTS = [];\nconst EXECUTED = [];\nconst DATA = {};\nfor (const [node, key] of Object.entries(SOURCES)) {\n  const raw = input[key];\n  let v = raw;\n  if (typeof raw === 'string') { try { v = JSON.parse(raw); } catch (e) { v = raw; } }\n  DATA[node] = LISTS.includes(node) ? (v || []).map(i => (i && i.json !== undefined ? i : { json: i })) : [{ json: v }];\n}\nconst $ = (node) => {\n  const ran = node in DATA || EXECUTED.includes(node);\n  const list = () => { if (!(node in DATA)) throw new Error(`step ${node} has no data in this scenario`); return DATA[node]; };\n  return { isExecuted: ran, first: () => list()[0], last: () => list()[list().length - 1], all: () => list(),\n           get item() { return list()[0]; } };\n};\nconst INPUT = \"Step 8: Read checklists awaiting the manager\";\nconst $input = { all: () => $(INPUT).all(), first: () => $(INPUT).first(), last: () => $(INPUT).last(), get item() { return $(INPUT).first(); } };\nconst $execution = { id: input.run_id };\nconst BODIES = (out) => ({\"goes\": (out.person_id ? 'yes' : null), \"person_q\": (out.person_id ? encodeURIComponent(out.person_id) : null), \"record_body\": (out.person_id ? JSON.stringify(Object.assign({}, out, { route: undefined, status: 'sent' })) : null), \"welcome_body\": (out.person_id ? JSON.stringify({ to: out.email, cc: out.manager, subject: 'Welcome: your first week from ' + out.start_date, text: (out.rows || []).map(r => 'Day ' + r.day + ': ' + r.task + ' (' + r.owner + ')').join('\\n') }) : null), \"done9_body\": (out.person_id ? JSON.stringify({ status: 'done', result: 'welcome pack sent: ' + out.how }) : null), \"log9_body\": (out.person_id ? JSON.stringify({ recipe: 'R9.1', item: out.person_id, decision: 'welcome pack sent (' + out.how + ')', rules: { template_version: out.template_version, source: out.source, how: out.how, items: (out.rows || []).length } }) : null), \"welcome_failed_body\": (out.person_id ? JSON.stringify({ recipe: 'R9.1', item: out.person_id, reason: 'welcome pack not sent', detail: 'Welcome pack not sent (send error); HR sends it', owner: $('Config').first().json.hr_owner }) : null)});\nconst one = (r) => (Array.isArray(r) ? r : [r]).filter(Boolean).map(i => (i.json !== undefined ? i.json : i));\nconst $json = INPUT && INPUT in DATA ? $input.first().json : {};\nconst __rule = () => {\nconst isoToday = () => new Date().toISOString().slice(0, 10);\nconst day = d => new Date(String(d).slice(0, 10) + 'T00:00:00Z');\nconst addDays = (d, n) => new Date(day(d).getTime() + n * 86400000).toISOString().slice(0, 10);\n// Working days (Monday to Friday) after today, up to and including the date.\nfunction workingDaysUntil(d) {\n  const end = day(d); let n = 0;\n  for (let x = new Date(day(isoToday()).getTime() + 86400000); x <= end; x = new Date(x.getTime() + 86400000)) {\n    if (x.getUTCDay() % 6 !== 0) n++;\n  }\n  return n;\n}\n\n// Step 8 and the failure table: the manager is silent and the start is under 2 working days away,\n// so the template's checklist goes.\nconst cfg = $('Config').first().json;\nconst waiting = $('Step 8: Read checklists awaiting the manager').first().json.items || [];\nreturn waiting.filter(c => workingDaysUntil(c.start_date) < cfg.approval_working_days).map(c => ({ json: {\n  person_id: c.person_id, name: c.name, email: c.email, manager: c.manager, start_date: c.start_date,\n  template_version: c.template_version, template_rows: c.template_rows, rows: c.template_rows, source: 'template',\n  how: 'template: manager silent' } }));\n};\nreturn { items: one(__rule()).map(o => Object.assign({}, o, BODIES(o))) };\n",
+        "input": [
+          {
+            "name": "in0_Config",
+            "value": "{{1.result}}"
+          },
+          {
+            "name": "in1_Step8Readchecklistsawait",
+            "value": "{{6.data}}"
+          },
+          {
+            "name": "run_id",
+            "value": "{{var.scenario.executionId}}"
+          }
+        ]
+      },
+      "metadata": {
+        "designer": {
+          "x": 900,
+          "y": 0,
+          "name": "Step 8: Rule: manager silent, start near"
+        }
+      }
+    },
+    {
+      "id": 8,
+      "module": "builtin:BasicFeeder",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "array": "{{7.result.items}}"
+      },
+      "metadata": {
+        "designer": {
+          "x": 1200,
+          "y": 0,
+          "name": "Each checklist that goes"
+        }
+      }
+    },
+    {
+      "id": 11,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{1.result.tasks_url}}/checklists/{{8.person_q}}",
+        "method": "put",
+        "timeout": "40",
+        "parseResponse": false,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true,
+        "contentType": "json",
+        "inputMethod": "jsonString",
+        "jsonStringBodyContent": "{{8.record_body}}"
+      },
+      "metadata": {
+        "designer": {
+          "x": 1500,
+          "y": 0,
+          "name": "Step 9: Record the checklist (manager silent)"
+        }
+      },
+      "onerror": [
+        {
+          "id": 9,
+          "module": "http:MakeRequest",
+          "version": 4,
+          "parameters": {},
+          "mapper": {
+            "url": "{{1.result.table_api_url}}/exception_queue",
+            "method": "post",
+            "timeout": "40",
+            "parseResponse": false,
+            "stopOnHttpError": true,
+            "allowRedirects": true,
+            "shareCookies": false,
+            "requestCompressedContent": true,
+            "contentType": "json",
+            "inputMethod": "jsonString",
+            "jsonStringBodyContent": "{{8.welcome_failed_body}}"
+          },
+          "metadata": {
+            "designer": {
+              "x": 1500,
+              "y": 300,
+              "name": "Step 9: Exception queue: welcome pack not sent (manager silent)"
+            }
+          }
+        },
+        {
+          "id": 10,
+          "module": "builtin:Ignore",
+          "version": 1,
+          "metadata": {
+            "designer": {
+              "x": 1800,
+              "y": 300
+            }
+          }
+        }
+      ],
+      "filter": {
+        "name": "a checklist goes",
+        "conditions": [
+          [
+            {
+              "a": "{{8.goes}}",
+              "b": "yes",
+              "o": "text:equal"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "id": 14,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{1.result.messaging_url}}/messages",
+        "method": "post",
+        "timeout": "40",
+        "parseResponse": false,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true,
+        "contentType": "json",
+        "inputMethod": "jsonString",
+        "jsonStringBodyContent": "{{8.welcome_body}}"
+      },
+      "metadata": {
+        "designer": {
+          "x": 1800,
+          "y": 0,
+          "name": "Step 9: Send the welcome pack (manager silent)"
+        }
+      },
+      "onerror": [
+        {
+          "id": 12,
+          "module": "http:MakeRequest",
+          "version": 4,
+          "parameters": {},
+          "mapper": {
+            "url": "{{1.result.table_api_url}}/exception_queue",
+            "method": "post",
+            "timeout": "40",
+            "parseResponse": false,
+            "stopOnHttpError": true,
+            "allowRedirects": true,
+            "shareCookies": false,
+            "requestCompressedContent": true,
+            "contentType": "json",
+            "inputMethod": "jsonString",
+            "jsonStringBodyContent": "{{8.welcome_failed_body}}"
+          },
+          "metadata": {
+            "designer": {
+              "x": 1800,
+              "y": 600,
+              "name": "Step 9: Exception queue: welcome pack not sent (manager silent, send)"
+            }
+          }
+        },
+        {
+          "id": 13,
+          "module": "builtin:Ignore",
+          "version": 1,
+          "metadata": {
+            "designer": {
+              "x": 2100,
+              "y": 600
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 15,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{1.result.table_api_url}}/key_log?recipe=eq.R9.1&status=neq.failed&key=eq.{{8.person_q}}",
+        "method": "patch",
+        "timeout": "40",
+        "parseResponse": false,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true,
+        "contentType": "json",
+        "inputMethod": "jsonString",
+        "jsonStringBodyContent": "{{8.done9_body}}"
+      },
+      "metadata": {
+        "designer": {
+          "x": 2100,
+          "y": 0,
+          "name": "Mark key done: welcome pack sent (manager silent)"
+        }
+      }
+    },
+    {
+      "id": 16,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{1.result.table_api_url}}/decision_log",
+        "method": "post",
+        "timeout": "40",
+        "parseResponse": false,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true,
+        "contentType": "json",
+        "inputMethod": "jsonString",
+        "jsonStringBodyContent": "{{8.log9_body}}"
+      },
+      "metadata": {
+        "designer": {
+          "x": 2400,
+          "y": 0,
+          "name": "Step 9: Decision log (manager silent)"
+        }
+      }
+    }
+  ],
+  "metadata": {
+    "instant": false,
+    "version": 1,
+    "designer": {
+      "orphans": []
+    },
+    "scenario": {
+      "dlq": true,
+      "slots": null,
+      "dataloss": false,
+      "maxErrors": 3,
+      "autoCommit": true,
+      "roundtrips": 1,
+      "sequential": false,
+      "confidential": false,
+      "freshVariables": false,
+      "autoCommitTriggerLast": true
+    }
+  }
+}

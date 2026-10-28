@@ -1,0 +1,283 @@
+{
+  "name": "R10.1 Turn a sale into a complete work order: late tasks",
+  "flow": [
+    {
+      "id": 1,
+      "module": "code:ExecuteCode",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "language": "javascript",
+        "inputFormat": "editor",
+        "dependencies": [],
+        "codeEditorJavascript": "// Config: edit these values for your company; nothing else in the scenario hard-codes them.\n// Schedule: set this scenario to run every day at 08:00; Make keeps the schedule outside the blueprint.\nreturn {\n  \"stop_flag_url\": \"https://<your stop list API>/stop_flags/R10.1\",\n  \"table_api_url\": \"https://<your table API for the key log, decision log and exception queue>\",\n  \"workflow_owner\": \"<your workflow owner>\",\n  \"sales_url_online\": \"https://<your online store API>\",\n  \"sales_url_store\": \"https://<your register API>\",\n  \"sales_url_trade\": \"https://<your CRM API>\",\n  \"zones_url\": \"https://<your zone sheet API>\",\n  \"products_url\": \"https://<your product list API>\",\n  \"scheduling_url\": \"https://<your scheduling system API>\",\n  \"tasks_url\": \"https://<your task API>\",\n  \"masking_list\": [\n    \"code\",\n    \"gate\",\n    \"keypad\",\n    \"PIN\",\n    \"key safe\"\n  ],\n  \"address_words\": [\n    \"<your floor, unit and street words, such as floor, unit, apartment, street, road>\"\n  ],\n  \"mask_token\": \"<your mask token>\",\n  \"lift_words\": [\n    \"lift\",\n    \"elevator\"\n  ],\n  \"stairs_words\": [\n    \"stairs\",\n    \"stair\",\n    \"steps\",\n    \"staircase\"\n  ],\n  \"negative_words\": [\n    \"no\",\n    \"not\",\n    \"without\",\n    \"broken\",\n    \"isn't\",\n    \"doesn't\",\n    \"out of order\",\n    \"out of service\"\n  ],\n  \"late_task_working_days\": 2,\n  \"near_delivery_working_days\": 3,\n  \"ops_team\": \"<your operations team>\",\n  \"systems_owner\": \"<your systems owner>\",\n  \"ai_model\": \"claude-haiku-5-5\",\n  \"ai_inference_geo\": \"us\",\n  \"ai_url\": \"https://api.anthropic.com/v1/messages\"\n};",
+        "input": []
+      },
+      "metadata": {
+        "designer": {
+          "x": 0,
+          "y": 0,
+          "name": "Config"
+        }
+      }
+    },
+    {
+      "id": 4,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{1.result.stop_flag_url}}",
+        "method": "get",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true
+      },
+      "metadata": {
+        "designer": {
+          "x": 300,
+          "y": 0,
+          "name": "Stop flag: read"
+        }
+      },
+      "onerror": [
+        {
+          "id": 2,
+          "module": "http:MakeRequest",
+          "version": 4,
+          "parameters": {},
+          "mapper": {
+            "url": "{{1.result.table_api_url}}/exception_queue",
+            "method": "post",
+            "timeout": "40",
+            "parseResponse": false,
+            "stopOnHttpError": true,
+            "allowRedirects": true,
+            "shareCookies": false,
+            "requestCompressedContent": true,
+            "contentType": "json",
+            "inputMethod": "jsonString",
+            "jsonStringBodyContent": "{\"recipe\": \"R10.1\", \"item\": \"run {{var.scenario.executionId}}\", \"reason\": \"stop list unreadable\", \"detail\": \"The stop list could not be read, so the run stopped\", \"owner\": \"{{1.result.workflow_owner}}\"}"
+          },
+          "metadata": {
+            "designer": {
+              "x": 300,
+              "y": 300,
+              "name": "Stop flag: list unreadable"
+            }
+          }
+        },
+        {
+          "id": 3,
+          "module": "builtin:Ignore",
+          "version": 1,
+          "metadata": {
+            "designer": {
+              "x": 600,
+              "y": 300
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{1.result.tasks_url}}/tasks",
+        "method": "get",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true,
+        "queryParameters": [
+          {
+            "name": "_wrap",
+            "value": "1"
+          },
+          {
+            "name": "status",
+            "value": "open"
+          }
+        ]
+      },
+      "metadata": {
+        "designer": {
+          "x": 600,
+          "y": 0,
+          "name": "Step 9: Read open tasks"
+        }
+      },
+      "onerror": [
+        {
+          "id": 5,
+          "module": "builtin:Break",
+          "version": 1,
+          "parameters": {},
+          "mapper": {
+            "count": "3",
+            "retry": true,
+            "interval": "1"
+          },
+          "metadata": {
+            "designer": {
+              "x": 600,
+              "y": 600
+            }
+          }
+        }
+      ],
+      "filter": {
+        "name": "stop flag not set",
+        "conditions": [
+          [
+            {
+              "a": "{{4.data.stopped}}",
+              "b": "true",
+              "o": "text:notequal"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "id": 7,
+      "module": "code:ExecuteCode",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "language": "javascript",
+        "inputFormat": "editor",
+        "dependencies": [],
+        "codeEditorJavascript": "// Adapter: the rule below is the same JavaScript as the recipe's n8n build.\n// $('Step name') answers from this step's inputs: each is that step's output in this scenario.\nconst SOURCES = {\"Config\": \"in0_Config\", \"Step 9: Read open tasks\": \"in1_Step9Readopentasks\"};\nconst LISTS = [];\nconst EXECUTED = [];\nconst DATA = {};\nfor (const [node, key] of Object.entries(SOURCES)) {\n  const raw = input[key];\n  let v = raw;\n  if (typeof raw === 'string') { try { v = JSON.parse(raw); } catch (e) { v = raw; } }\n  DATA[node] = LISTS.includes(node) ? (v || []).map(i => (i && i.json !== undefined ? i : { json: i })) : [{ json: v }];\n}\nconst $ = (node) => {\n  const ran = node in DATA || EXECUTED.includes(node);\n  const list = () => { if (!(node in DATA)) throw new Error(`step ${node} has no data in this scenario`); return DATA[node]; };\n  return { isExecuted: ran, first: () => list()[0], last: () => list()[list().length - 1], all: () => list(),\n           get item() { return list()[0]; } };\n};\nconst INPUT = \"Step 9: Read open tasks\";\nconst $input = { all: () => $(INPUT).all(), first: () => $(INPUT).first(), last: () => $(INPUT).last(), get item() { return $(INPUT).first(); } };\nconst $execution = { id: input.run_id };\nconst BODIES = (out) => ({\"reserve_body\": JSON.stringify({ p_recipe: 'R10.1', p_key: 'late:' + out.task }), \"exception_body\": JSON.stringify({ recipe: 'R10.1', item: out.work_order, reason: out.reason, detail: out.detail, owner: $('Config').first().json.ops_team })});\nconst one = (r) => (Array.isArray(r) ? r : [r]).filter(Boolean).map(i => (i.json !== undefined ? i.json : i));\nconst $json = INPUT && INPUT in DATA ? $input.first().json : {};\nconst __rule = () => {\n// Step 9: a task open two working days, or a delivery inside three, goes to Tom's team.\nconst cfg = $('Config').first().json;\nconst today = new Date().toISOString().slice(0, 10);\nfunction workingDays(a, b) {\n  let n = 0, d = new Date(a + 'T00:00:00Z'); const end = new Date(b + 'T00:00:00Z');\n  while (d < end) { d = new Date(d.getTime() + 86400000); if (d.getUTCDay() % 6 !== 0) n++; }\n  return n;\n}\nconst out = [];\nfor (const t of $('Step 9: Read open tasks').first().json.items || []) {\n  const open = t.created ? workingDays(t.created, today) : 0;\n  const soon = t.delivery_date ? workingDays(today, t.delivery_date) <= cfg.near_delivery_working_days : false;\n  if (open >= cfg.late_task_working_days) out.push({ json: { task: t.id, work_order: t.work_order, reason: 'task open two working days', detail: `Task ${t.id} open ${open} working days: ${(t.gaps || []).join('; ')}` } });\n  else if (soon) out.push({ json: { task: t.id, work_order: t.work_order, reason: 'delivery inside three working days', detail: `Task ${t.id}, delivery ${t.delivery_date}: ${(t.gaps || []).join('; ')}` } });\n}\nreturn out;\n};\nreturn { items: one(__rule()).map(o => Object.assign({}, o, BODIES(o))) };\n",
+        "input": [
+          {
+            "name": "in0_Config",
+            "value": "{{1.result}}"
+          },
+          {
+            "name": "in1_Step9Readopentasks",
+            "value": "{{6.data}}"
+          },
+          {
+            "name": "run_id",
+            "value": "{{var.scenario.executionId}}"
+          }
+        ]
+      },
+      "metadata": {
+        "designer": {
+          "x": 900,
+          "y": 0,
+          "name": "Step 9: Rule: open two working days, or delivery inside three?"
+        }
+      }
+    },
+    {
+      "id": 8,
+      "module": "builtin:BasicFeeder",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "array": "{{7.result.items}}"
+      },
+      "metadata": {
+        "designer": {
+          "x": 1200,
+          "y": 0,
+          "name": "Each late task"
+        }
+      }
+    },
+    {
+      "id": 9,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{1.result.table_api_url}}/rpc/reserve_key",
+        "method": "post",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true,
+        "contentType": "json",
+        "inputMethod": "jsonString",
+        "jsonStringBodyContent": "{{8.reserve_body}}"
+      },
+      "metadata": {
+        "designer": {
+          "x": 1500,
+          "y": 0,
+          "name": "Step 9: Reserve key"
+        }
+      }
+    },
+    {
+      "id": 10,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{1.result.table_api_url}}/exception_queue",
+        "method": "post",
+        "timeout": "40",
+        "parseResponse": false,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true,
+        "contentType": "json",
+        "inputMethod": "jsonString",
+        "jsonStringBodyContent": "{{8.exception_body}}"
+      },
+      "metadata": {
+        "designer": {
+          "x": 1800,
+          "y": 0,
+          "name": "Exception queue: Tom's team takes the task"
+        }
+      },
+      "filter": {
+        "name": "new key (not a copy)",
+        "conditions": [
+          [
+            {
+              "a": "{{9.data}}",
+              "b": "true",
+              "o": "text:equal"
+            }
+          ]
+        ]
+      }
+    }
+  ],
+  "metadata": {
+    "instant": false,
+    "version": 1,
+    "designer": {
+      "orphans": []
+    },
+    "scenario": {
+      "dlq": true,
+      "slots": null,
+      "dataloss": false,
+      "maxErrors": 3,
+      "autoCommit": true,
+      "roundtrips": 1,
+      "sequential": false,
+      "confidential": false,
+      "freshVariables": false,
+      "autoCommitTriggerLast": true
+    }
+  }
+}

@@ -1,0 +1,275 @@
+{
+  "name": "R10.2 Delivery confirmations and reschedule replies: slot set or changed",
+  "flow": [
+    {
+      "id": 1,
+      "module": "gateway:CustomWebHook",
+      "version": 1,
+      "parameters": {
+        "hook": null,
+        "maxResults": 1
+      },
+      "mapper": {},
+      "metadata": {
+        "designer": {
+          "x": 0,
+          "y": 0,
+          "name": "Step 1: Slot set or changed"
+        }
+      }
+    },
+    {
+      "id": 2,
+      "module": "code:ExecuteCode",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "language": "javascript",
+        "inputFormat": "editor",
+        "dependencies": [],
+        "codeEditorJavascript": "// Config: edit these values for your company; nothing else in the scenario hard-codes them.\nreturn {\n  \"stop_flag_url\": \"https://<your stop list API>/stop_flags/R10.2\",\n  \"table_api_url\": \"https://<your table API for the key log, decision log and exception queue>\",\n  \"workflow_owner\": \"<your workflow owner>\",\n  \"scheduling_url\": \"https://<your scheduling system API>\",\n  \"messaging_url\": \"https://<your messaging API>\",\n  \"tasks_url\": \"https://<your dispatcher task API>\",\n  \"helpdesk_url\": \"https://<your helpdesk API>\",\n  \"dispatch_queue\": \"<your dispatcher queue>\",\n  \"confirmation_template\": \"<your confirmation template; the workflow fills {date}, {window} and {prep}>\",\n  \"reminder_template\": \"<your reminder template; the workflow fills {date} and {window}>\",\n  \"slot_request_template\": \"{slots}\\nReply 1, 2 or 3 within 24 hours and a dispatcher will confirm your new time; until then your booking stays as it is.\",\n  \"preparation_notes\": \"<your preparation notes>\",\n  \"urgent_words\": [\n    \"leak\",\n    \"smoke\",\n    \"injured\",\n    \"damaged\"\n  ],\n  \"day_words\": [\n    \"monday\",\n    \"tuesday\",\n    \"wednesday\",\n    \"thursday\",\n    \"friday\",\n    \"saturday\",\n    \"sunday\",\n    \"mon\",\n    \"tue\",\n    \"tues\",\n    \"wed\",\n    \"thu\",\n    \"thur\",\n    \"thurs\",\n    \"fri\",\n    \"sat\",\n    \"sun\",\n    \"today\",\n    \"tomorrow\",\n    \"tonight\",\n    \"weekend\",\n    \"morning\",\n    \"afternoon\",\n    \"evening\",\n    \"noon\",\n    \"midday\",\n    \"january\",\n    \"february\",\n    \"march\",\n    \"april\",\n    \"may\",\n    \"june\",\n    \"july\",\n    \"august\",\n    \"september\",\n    \"october\",\n    \"november\",\n    \"december\",\n    \"jan\",\n    \"feb\",\n    \"mar\",\n    \"apr\",\n    \"jun\",\n    \"jul\",\n    \"aug\",\n    \"sep\",\n    \"sept\",\n    \"oct\",\n    \"nov\",\n    \"dec\"\n  ],\n  \"max_slots\": 3,\n  \"pick_hours\": 24,\n  \"masking_list\": [\n    \"code\",\n    \"gate\",\n    \"keypad\",\n    \"PIN\",\n    \"key safe\"\n  ],\n  \"address_words\": [\n    \"<your floor, unit and street words, such as floor, unit, apartment, street, road>\"\n  ],\n  \"mask_token\": \"<your mask token>\",\n  \"ai_model\": \"claude-haiku-5-5\",\n  \"ai_inference_geo\": \"us\",\n  \"ai_url\": \"https://api.anthropic.com/v1/messages\"\n};",
+        "input": []
+      },
+      "metadata": {
+        "designer": {
+          "x": 300,
+          "y": 0,
+          "name": "Config"
+        }
+      }
+    },
+    {
+      "id": 5,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{2.result.stop_flag_url}}",
+        "method": "get",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true
+      },
+      "metadata": {
+        "designer": {
+          "x": 600,
+          "y": 0,
+          "name": "Stop flag: read"
+        }
+      },
+      "onerror": [
+        {
+          "id": 3,
+          "module": "http:MakeRequest",
+          "version": 4,
+          "parameters": {},
+          "mapper": {
+            "url": "{{2.result.table_api_url}}/exception_queue",
+            "method": "post",
+            "timeout": "40",
+            "parseResponse": false,
+            "stopOnHttpError": true,
+            "allowRedirects": true,
+            "shareCookies": false,
+            "requestCompressedContent": true,
+            "contentType": "json",
+            "inputMethod": "jsonString",
+            "jsonStringBodyContent": "{\"recipe\": \"R10.2\", \"item\": \"run {{var.scenario.executionId}}\", \"reason\": \"stop list unreadable\", \"detail\": \"The stop list could not be read, so the run stopped\", \"owner\": \"{{2.result.workflow_owner}}\"}"
+          },
+          "metadata": {
+            "designer": {
+              "x": 600,
+              "y": 300,
+              "name": "Stop flag: list unreadable"
+            }
+          }
+        },
+        {
+          "id": 4,
+          "module": "builtin:Ignore",
+          "version": 1,
+          "metadata": {
+            "designer": {
+              "x": 900,
+              "y": 300
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{2.result.scheduling_url}}/work_orders/{{encodeURL(1.job_id)}}",
+        "method": "get",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true
+      },
+      "metadata": {
+        "designer": {
+          "x": 900,
+          "y": 0,
+          "name": "Step 1: Read the job"
+        }
+      },
+      "onerror": [
+        {
+          "id": 6,
+          "module": "builtin:Break",
+          "version": 1,
+          "parameters": {},
+          "mapper": {
+            "count": "3",
+            "retry": true,
+            "interval": "1"
+          },
+          "metadata": {
+            "designer": {
+              "x": 900,
+              "y": 600
+            }
+          }
+        }
+      ],
+      "filter": {
+        "name": "stop flag not set",
+        "conditions": [
+          [
+            {
+              "a": "{{5.data.stopped}}",
+              "b": "true",
+              "o": "text:notequal"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "id": 8,
+      "module": "code:ExecuteCode",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "language": "javascript",
+        "inputFormat": "editor",
+        "dependencies": [],
+        "codeEditorJavascript": "// Adapter: the rule below is the same JavaScript as the recipe's n8n build.\n// $('Step name') answers from this step's inputs: each is that step's output in this scenario.\nconst SOURCES = {\"Config\": \"in0_Config\", \"Step 1: Read the job\": \"in1_Step1Readthejob\"};\nconst LISTS = [];\nconst EXECUTED = [];\nconst DATA = {};\nfor (const [node, key] of Object.entries(SOURCES)) {\n  const raw = input[key];\n  let v = raw;\n  if (typeof raw === 'string') { try { v = JSON.parse(raw); } catch (e) { v = raw; } }\n  DATA[node] = LISTS.includes(node) ? (v || []).map(i => (i && i.json !== undefined ? i : { json: i })) : [{ json: v }];\n}\nconst $ = (node) => {\n  const ran = node in DATA || EXECUTED.includes(node);\n  const list = () => { if (!(node in DATA)) throw new Error(`step ${node} has no data in this scenario`); return DATA[node]; };\n  return { isExecuted: ran, first: () => list()[0], last: () => list()[list().length - 1], all: () => list(),\n           get item() { return list()[0]; } };\n};\nconst INPUT = \"Step 1: Read the job\";\nconst $input = { all: () => $(INPUT).all(), first: () => $(INPUT).first(), last: () => $(INPUT).last(), get item() { return $(INPUT).first(); } };\nconst $execution = { id: input.run_id };\nconst BODIES = (out) => ({\"message_body\": JSON.stringify(out.message), \"nd_body\": JSON.stringify({ id: 'ND-' + out.job + '-confirmation', to: $('Config').first().json.dispatch_queue, job: out.job, type: 'message not delivered', reason: 'Confirmation not delivered: send error. Phone the customer.' })});\nconst one = (r) => (Array.isArray(r) ? r : [r]).filter(Boolean).map(i => (i.json !== undefined ? i.json : i));\nconst $json = INPUT && INPUT in DATA ? $input.first().json : {};\nconst __rule = () => {\n// Step 1: the confirmation, with date, window and preparation notes, on the customer's preferred channel.\nconst cfg = $('Config').first().json;\nconst fill = (tpl, vals) => String(tpl).replace(/\\{(\\w+)\\}/g, (m, k) => (k in vals ? String(vals[k]) : m));\nconst job = $('Step 1: Read the job').first().json;\nconst c = job.customer || {};\nreturn [{ json: { job: job.id, message: { to: c.channel === 'email' ? c.email : c.phone, channel: c.channel, job: job.id, template: 'confirmation',\n  text: fill(cfg.confirmation_template, { date: job.slot_date, window: job.window, prep: cfg.preparation_notes }) } } }];\n};\nconst out = one(__rule())[0] || {};\nreturn Object.assign({}, out, BODIES(out));\n",
+        "input": [
+          {
+            "name": "in0_Config",
+            "value": "{{2.result}}"
+          },
+          {
+            "name": "in1_Step1Readthejob",
+            "value": "{{7.data}}"
+          },
+          {
+            "name": "run_id",
+            "value": "{{var.scenario.executionId}}"
+          }
+        ]
+      },
+      "metadata": {
+        "designer": {
+          "x": 1200,
+          "y": 0,
+          "name": "Step 1: Fill the confirmation"
+        }
+      }
+    },
+    {
+      "id": 11,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{2.result.messaging_url}}/messages",
+        "method": "post",
+        "timeout": "40",
+        "parseResponse": false,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true,
+        "contentType": "json",
+        "inputMethod": "jsonString",
+        "jsonStringBodyContent": "{{8.result.message_body}}"
+      },
+      "metadata": {
+        "designer": {
+          "x": 1500,
+          "y": 0,
+          "name": "Step 1: Send the confirmation"
+        }
+      },
+      "onerror": [
+        {
+          "id": 9,
+          "module": "http:MakeRequest",
+          "version": 4,
+          "parameters": {},
+          "mapper": {
+            "url": "{{2.result.tasks_url}}/tasks",
+            "method": "post",
+            "timeout": "40",
+            "parseResponse": false,
+            "stopOnHttpError": true,
+            "allowRedirects": true,
+            "shareCookies": false,
+            "requestCompressedContent": true,
+            "contentType": "json",
+            "inputMethod": "jsonString",
+            "jsonStringBodyContent": "{{8.result.nd_body}}"
+          },
+          "metadata": {
+            "designer": {
+              "x": 1500,
+              "y": 300,
+              "name": "Step 1: Not delivered: dispatcher phones"
+            }
+          }
+        },
+        {
+          "id": 10,
+          "module": "builtin:Ignore",
+          "version": 1,
+          "metadata": {
+            "designer": {
+              "x": 1800,
+              "y": 300
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "metadata": {
+    "instant": true,
+    "version": 1,
+    "designer": {
+      "orphans": []
+    },
+    "scenario": {
+      "dlq": true,
+      "slots": null,
+      "dataloss": false,
+      "maxErrors": 3,
+      "autoCommit": true,
+      "roundtrips": 1,
+      "sequential": false,
+      "confidential": false,
+      "freshVariables": false,
+      "autoCommitTriggerLast": true
+    }
+  }
+}
