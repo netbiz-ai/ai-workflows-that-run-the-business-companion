@@ -3,6 +3,9 @@
 
     python3 tools/n8n/golden.py R11.2            build, test, write report
     python3 tools/n8n/golden.py R11.2 --build    only write recipes/R11.2/n8n/workflow.json
+    python3 tools/n8n/golden.py R11.2 --case Normal --case Edge
+                                                 run only these cases (to debug); never
+                                                 writes the report
 
 Needs the companion test stack (tools/stack/): n8n 2.42.7 on N8N_URL, the mock
 systems on MOCKS_URL, and the Postgres container for the key log, decision log
@@ -232,14 +235,14 @@ def import_check(wf: dict) -> None:
     api("DELETE", f"/workflows/{wid}")
 
 
-def run(rid: str, build_only: bool = False) -> int:
+def run(rid: str, build_only: bool = False, only: list[str] | None = None) -> int:
     import fcntl
     lock = open("/tmp/companion-golden.lock", "w")
     fcntl.flock(lock, fcntl.LOCK_EX)  # one golden-set run at a time: they share the mocks and tables
-    return _run(rid, build_only)
+    return _run(rid, build_only, only or [])
 
 
-def _run(rid: str, build_only: bool = False) -> int:
+def _run(rid: str, build_only: bool = False, only: list[str] | None = None) -> int:
     folder = ROOT / "recipes" / rid / "n8n"
     folder.mkdir(parents=True, exist_ok=True)
     wf = load_build(rid).to_json()
@@ -259,6 +262,11 @@ def _run(rid: str, build_only: bool = False) -> int:
         "trigger": [t for t in first["trigger"] if "sql" not in t][:1],
         "expect": [{"writes": 0}, {"sql": "select count(*) from key_log", "equals": "0"},
                    {"sql": "select count(*) from decision_log", "equals": "0"}]})
+    if only:
+        missing = set(only) - {c["case"] for c in tests["cases"]}
+        if missing:
+            raise SystemExit(f"no such case: {sorted(missing)}")
+        tests["cases"] = [c for c in tests["cases"] if c["case"] in only]
     twf, sched = test_copy(wf, tests)
     wid = deploy(twf)
     lines, failed = [], 0
@@ -302,6 +310,9 @@ def _run(rid: str, build_only: bool = False) -> int:
                 print(f"      expected {msg}")
         if errors and not case.get("allow_error"):
             print(f"      {len(errors)} execution(s) ended in error")
+    if only:
+        print("partial run (--case): report not written")
+        return 1 if failed else 0
     version = subprocess.run(["docker", "exec", "companion-n8n", "n8n", "--version"], capture_output=True, text=True).stdout.strip()
     today = dt.date.today().isoformat()
     md = [f"# {rid} n8n build: golden-set run", "",
@@ -318,4 +329,10 @@ def _run(rid: str, build_only: bool = False) -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(run(sys.argv[1], "--build" in sys.argv[2:]))
+    import argparse
+    ap = argparse.ArgumentParser()
+    ap.add_argument("recipe")
+    ap.add_argument("--build", action="store_true")
+    ap.add_argument("--case", action="append", default=[])
+    a = ap.parse_args()
+    sys.exit(run(a.recipe, a.build, a.case))

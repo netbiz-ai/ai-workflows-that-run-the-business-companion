@@ -10,7 +10,7 @@ It never replies, overwrites, merges or deletes.
 | Platform | File | Status |
 |---|---|---|
 | Tool-neutral | `build-spec.md` | Available |
-| n8n | [`n8n/workflow.json`](n8n/workflow.json) | Available: golden set passed on n8n 2.42.7, 2026-10-19 ([report](n8n/test-report.md)) |
+| n8n | [`n8n/workflow.json`](n8n/workflow.json) | Available: golden set passed on n8n 2.42.7, 2026-10-28 ([report](n8n/test-report.md)) |
 | Make | [`make/blueprint.json`](make/blueprint.json) and [`make/email.blueprint.json`](make/email.blueprint.json) and [`make/phone-note.blueprint.json`](make/phone-note.blueprint.json) | Available: golden set passed on Make (Core plan), 2026-10-27 ([report](make/test-report.md)) |
 | Power Automate | `power-automate/` | Not yet available |
 | Zapier | `zapier.md` | Not yet available |

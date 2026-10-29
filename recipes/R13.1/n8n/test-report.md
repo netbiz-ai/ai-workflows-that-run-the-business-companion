@@ -1,6 +1,6 @@
 # R13.1 n8n build: golden-set run
 
-Run 2026-10-19 on n8n 2.42.7 (self-hosted), against the companion's mock systems (`tools/mock-systems/`).
+Run 2026-10-28 on n8n 2.42.7 (self-hosted), against the companion's mock systems (`tools/mock-systems/`).
 Result: 15 of 15 cases passed.
 
 | Case | Input | Result | Checked |

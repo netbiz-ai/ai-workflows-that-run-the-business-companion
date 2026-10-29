@@ -1,0 +1,5 @@
+- Fixed the n8n AI step's prompt builder: a filled-in value that itself looks like a placeholder, such as "{{line_3_total}}", is now sent to the model as written instead of being blanked.
+- Only R5.3 was affected: its model was told "Placeholders you may use:" with an empty list, so it could not name the placeholders the quote step fills; its n8n workflow is updated and passes its golden set.
+- The other 24 n8n builds with an AI step send the same prompts as before; all 25 golden sets were run again and pass.
+- The R5.3 Make build still has the old prompt builder; its fix ships with the next Make test run.
+- The n8n test runner takes `--case` to run only some cases while debugging, as the Make runner does.

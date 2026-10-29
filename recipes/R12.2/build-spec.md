@@ -10,7 +10,7 @@ The AI computes nothing, gives no cause an owner did not write, recommends no de
 | Platform | File | Status |
 |---|---|---|
 | Tool-neutral | `build-spec.md` | Available |
-| n8n | [`n8n/workflow.json`](n8n/workflow.json) | Available: golden set passed on n8n 2.42.7, 2026-10-19 ([report](n8n/test-report.md)) |
+| n8n | [`n8n/workflow.json`](n8n/workflow.json) | Available: golden set passed on n8n 2.42.7, 2026-10-28 ([report](n8n/test-report.md)) |
 | Make | [`make/blueprint.json`](make/blueprint.json) and [`make/friday-1400.blueprint.json`](make/friday-1400.blueprint.json) and [`make/friday-1600.blueprint.json`](make/friday-1600.blueprint.json) and [`make/friday-1645.blueprint.json`](make/friday-1645.blueprint.json) and [`make/verify.blueprint.json`](make/verify.blueprint.json) | Available: golden set passed on Make (Core plan), 2026-10-27 ([report](make/test-report.md)) |
 | Power Automate | `power-automate/` | Not yet available |
 | Zapier | `zapier.md` | Not yet available |

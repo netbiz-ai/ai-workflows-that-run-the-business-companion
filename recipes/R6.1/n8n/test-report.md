@@ -1,11 +1,11 @@
 # R6.1 n8n build: golden-set run
 
-Run 2026-10-19 on n8n 2.42.7 (self-hosted), against the companion's mock systems (`tools/mock-systems/`).
+Run 2026-10-28 on n8n 2.42.7 (self-hosted), against the companion's mock systems (`tools/mock-systems/`).
 Result: 12 of 12 cases passed.
 
 | Case | Input | Result | Checked |
 |---|---|---|---|
-| Normal | Reply about one open quote | Pass | crm/activities/1.deal_id = "D-1"; crm/activities/1.link = "https://mail.example.test/items/M-1"; crm/activities/1.summary = null; crm/accounts/A-1.last_contact = "2026-10-19"; crm/drafts/2.status = "waiting for owner"; crm/drafts/2.owner = "ben@northstar.example.test"; crm/drafts/2.ai_chosen_deal = false; select count(*) from exception_queue where recipe='R6.1' -> 0; select decision from decision_log where recipe='R6.1' -> logged to deal D-1 |
+| Normal | Reply about one open quote | Pass | crm/activities/1.deal_id = "D-1"; crm/activities/1.link = "https://mail.example.test/items/M-1"; crm/activities/1.summary = null; crm/accounts/A-1.last_contact = "2026-10-28"; crm/drafts/2.status = "waiting for owner"; crm/drafts/2.owner = "ben@northstar.example.test"; crm/drafts/2.ai_chosen_deal = false; select count(*) from exception_queue where recipe='R6.1' -> 0; select decision from decision_log where recipe='R6.1' -> logged to deal D-1 |
 | Edge | Two open deals; email fits either | Pass | select count(*) from exception_queue where recipe='R6.1' and reason='unmatched' and detail like 'deal unclear%' -> 1; POST /crm/activities: 0 call(s); POST /crm/drafts: 0 call(s) |
 | Duplicate | Same email in two mailboxes | Pass | GET /mail/messages/M-1: 1 call(s); GET /mail/messages/M-2: 1 call(s); select copies_skipped from key_log where recipe='R6.1' -> 1; GET /crm/contacts: 1 call(s); select count(*) from decision_log where recipe='R6.1' -> 1 |
 | Escalate | Manager's address on two accounts | Pass | select detail from exception_queue where recipe='R6.1' and reason='unmatched' -> several accounts match: A-1, A-2; POST /crm/activities: 0 call(s); PATCH /crm/accounts/A-1: 0 call(s); POST /crm/drafts: 0 call(s); POST /anthropic/v1/messages: 0 call(s) |
