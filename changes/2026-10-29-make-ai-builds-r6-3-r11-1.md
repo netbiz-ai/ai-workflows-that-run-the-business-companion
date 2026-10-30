@@ -1,0 +1,4 @@
+- Added Make builds for R6.3 and R11.1: every golden-set case passes on Make (cloud service, Core plan), 13 of 13 each, including the cases that need Claude Haiku 5.5's live answer.
+- The Make builder's AI step now fills the prompt in one pass, as the n8n builder does since 2026-10-28, and can try an AI call or any read up to three times.
+- The 17 earlier Make builds with an AI step are unchanged and still exactly as tested; R5.3's Make build still sends its model an empty placeholder list until it is rebuilt and run again.
+- The Make test runner now reads the credits left from Make's credit count and does not start while the organization is paused.

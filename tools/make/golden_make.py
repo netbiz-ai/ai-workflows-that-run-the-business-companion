@@ -218,6 +218,12 @@ def credits_left() -> float | None:
     if not org:
         return None
     o = make("GET", f"/organizations/{org}")["organization"]
+    if o.get("isPaused"):
+        raise SystemExit(f"the Make organization is paused (out of credits) until {o.get('nextReset')}; not starting")
+    # Credits are counted in hundredths; "operations" counts modules run, which is fewer than
+    # the credits charged (some modules cost more than one credit per run).
+    if o.get("unusedCenticredits") is not None:
+        return float(o["unusedCenticredits"]) / 100
     return float(o["license"]["operations"]) - float(o.get("operations") or 0)
 
 

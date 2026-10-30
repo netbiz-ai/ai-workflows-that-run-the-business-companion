@@ -41,6 +41,7 @@ code:ExecuteCode v1, builtin:BasicRouter v1, gateway:CustomWebHook v1).
 
 from __future__ import annotations
 
+import copy
 import importlib.util
 import json
 import re
@@ -233,7 +234,8 @@ class Scenario:
             f"const vars = {vars_js};\n"
             "const cfg = $('Config').first().json;\n"
             "const fill = t => t.replace(/\\{\\{(\\w+)\\}\\}/g, (m, k) => (k in vars ? String(vars[k]) : m));\n"
-            "const user = fill(TEMPLATE).replace(/\\{\\{(\\w+)\\}\\}/g, '');\n"
+            "// One pass, so a filled-in value that looks like a placeholder is sent as written.\n"
+            "const user = TEMPLATE.replace(/\\{\\{(\\w+)\\}\\}/g, (m, k) => (k in vars ? String(vars[k]) : ''));\n"
             f"const request = {{ model: cfg.ai_model, max_tokens: {max_tokens}, system: fill(SYSTEM),\n"
             "  messages: [{ role: 'user', content: user }] };\n"
             "if (cfg.ai_inference_geo) request.inference_geo = cfg.ai_inference_geo;\n"
@@ -250,11 +252,38 @@ class Scenario:
                                          "tlsType": ""})
         if tries < 2:
             return [build, call(f"{step}: AI call", stop=False)]
+        if tries > 2:
+            return [build, self.with_tries(call(f"{step}: AI call", stop=False), tries)]
         second = call(f"{step}: AI call, second try", stop=False)
         resume = {"id": self._id(f"_resume{self._next}"), "module": "builtin:Resume", "version": 1, "parameters": {},
                   "mapper": {k: "{{" + f"{second['id']}.{k}" + "}}" for k in ("statusCode", "data", "headers")},
                   "metadata": {"designer": {}}}
         return [build, call(f"{step}: AI call", onerror=[second, resume])]
+
+    def with_tries(self, m: dict, n: int) -> dict:
+        """Make an HTTP step try up to n times (n <= 3): each failed try hands over to the next in
+        its error route, and Make's Resume handler passes that try's response on as the step's own
+        output, so the step after it sees the last answer (a non-2xx status if every try failed).
+        The step's own error route, if any, is replaced. Returns m."""
+        ordinal = {2: "second", 3: "third"}
+        calls = [m]
+        for k in range(2, n + 1):
+            name = f"{m['metadata']['designer']['name']}, {ordinal[k]} try"
+            c = copy.deepcopy(calls[-1])
+            c.pop("onerror", None)
+            c.pop("filter", None)
+            c["id"] = self._id(name)
+            c["metadata"]["designer"]["name"] = name
+            calls.append(c)
+        for i, c in enumerate(calls):
+            c["mapper"]["stopOnHttpError"] = i < len(calls) - 1
+        for i in range(len(calls) - 2, -1, -1):
+            nxt = calls[i + 1]
+            resume = {"id": self._id(f"_resume{self._next}"), "module": "builtin:Resume", "version": 1, "parameters": {},
+                      "mapper": {k: "{{" + f"{nxt['id']}.{k}" + "}}" for k in ("statusCode", "data", "headers")},
+                      "metadata": {"designer": {}}}
+            calls[i]["onerror"] = [nxt, resume]
+        return m
 
     def aggregator(self, name: str, iterator_name: str, fields: dict[str, str], x=0, y=0) -> dict:
         """Gather the bundles an iterator started back into one: {{<this>.array}} is a list of

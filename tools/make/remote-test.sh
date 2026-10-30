@@ -18,7 +18,7 @@ for d in n8n builds make builds_make; do
 done
 rsync -a -e "ssh -i $KEY" "$ROOT/recipes/$RID/" "$HOST:$REMOTE/recipes/$RID/"
 set +e
-$SSH "cd /opt/companion-n8n && set -a && . ./make.env && . ./ids.env && set +a && export MOCKS_PUBLIC_URL=https://$PUBLIC_HOST/\$MOCKS_PUBLIC_SECRET MAKE_ADOPT_SCENARIOS=${MAKE_ADOPT_SCENARIOS:-} && cd repo && python3 tools/make/golden_make.py $RID $ARGS"
+$SSH "cd /opt/companion-n8n && set -a && . ./make.env && . ./ids.env && set +a && export MOCKS_PUBLIC_URL=https://$PUBLIC_HOST/\$MOCKS_PUBLIC_SECRET MAKE_ADOPT_SCENARIOS=${MAKE_ADOPT_SCENARIOS:-} MAKE_MIN_CREDITS=${MAKE_MIN_CREDITS:-1500} && cd repo && python3 tools/make/golden_make.py $RID $ARGS"
 status=$?
 set -e
 rsync -a -e "ssh -i $KEY" "$HOST:$REMOTE/recipes/$RID/make/" "$ROOT/recipes/$RID/make/"

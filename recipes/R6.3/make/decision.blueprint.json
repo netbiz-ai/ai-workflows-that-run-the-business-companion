@@ -1,0 +1,438 @@
+{
+  "name": "R6.3 Find likely duplicate accounts: decision recorded",
+  "flow": [
+    {
+      "id": 1,
+      "module": "gateway:CustomWebHook",
+      "version": 1,
+      "parameters": {
+        "hook": null,
+        "maxResults": 1
+      },
+      "mapper": {},
+      "metadata": {
+        "designer": {
+          "x": 0,
+          "y": 0,
+          "name": "Step 10: Decision recorded"
+        }
+      }
+    },
+    {
+      "id": 2,
+      "module": "code:ExecuteCode",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "language": "javascript",
+        "inputFormat": "editor",
+        "dependencies": [],
+        "codeEditorJavascript": "// Config: edit these values for your company; nothing else in the scenario hard-codes them.\nreturn {\n  \"stop_flag_url\": \"https://<your stop list API>/stop_flags/R6.3\",\n  \"table_api_url\": \"https://<your table API for the key log, decision log and exception queue>\",\n  \"workflow_owner\": \"<your workflow owner>\",\n  \"export_url\": \"https://<your CRM export API>\",\n  \"queue_url\": \"https://<your merge queue and suppression list API>\",\n  \"messaging_url\": \"https://<your messaging API>\",\n  \"account_fields\": [\n    \"id\",\n    \"name\",\n    \"phone\",\n    \"tax_id\",\n    \"billing_address\",\n    \"email\",\n    \"open_quotes\",\n    \"credit_terms\",\n    \"links\"\n  ],\n  \"contact_fields\": [\n    \"id\",\n    \"account_id\",\n    \"email\"\n  ],\n  \"expected_accounts\": 400,\n  \"max_shrink_pct\": 20,\n  \"excluded_domains\": [\n    \"<your webmail and shared domains>\"\n  ],\n  \"default_country_code\": \"<your country calling code, digits only>\",\n  \"name_suffixes\": [\n    \"inc\",\n    \"llc\",\n    \"ltd\"\n  ],\n  \"address_abbreviations\": {\n    \"street\": \"st\",\n    \"avenue\": \"ave\",\n    \"road\": \"rd\",\n    \"drive\": \"dr\",\n    \"boulevard\": \"blvd\",\n    \"suite\": \"ste\"\n  },\n  \"signal_terms\": {\n    \"tax_id\": [\n      \"tax\"\n    ],\n    \"phone\": [\n      \"phone\",\n      \"telephone\"\n    ],\n    \"billing_address\": [\n      \"address\"\n    ],\n    \"email_domain\": [\n      \"domain\",\n      \"email\"\n    ],\n    \"name\": [\n      \"name\"\n    ]\n  },\n  \"other_field_terms\": [\n    \"<your CRM's other field names>\"\n  ],\n  \"open_quote_confirmer\": \"<your sales lead>\",\n  \"credit_terms_confirmer\": \"<your finance lead>\",\n  \"merger\": \"<your named merger>\",\n  \"export_owner\": \"<the person who fixes the export>\",\n  \"ai_model\": \"claude-haiku-5-5\",\n  \"ai_inference_geo\": \"us\",\n  \"ai_url\": \"https://api.anthropic.com/v1/messages\"\n};",
+        "input": []
+      },
+      "metadata": {
+        "designer": {
+          "x": 300,
+          "y": 0,
+          "name": "Config"
+        }
+      }
+    },
+    {
+      "id": 5,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{2.result.stop_flag_url}}",
+        "method": "get",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true
+      },
+      "metadata": {
+        "designer": {
+          "x": 600,
+          "y": 0,
+          "name": "Stop flag: read"
+        }
+      },
+      "onerror": [
+        {
+          "id": 3,
+          "module": "http:MakeRequest",
+          "version": 4,
+          "parameters": {},
+          "mapper": {
+            "url": "{{2.result.table_api_url}}/exception_queue",
+            "method": "post",
+            "timeout": "40",
+            "parseResponse": false,
+            "stopOnHttpError": true,
+            "allowRedirects": true,
+            "shareCookies": false,
+            "requestCompressedContent": true,
+            "contentType": "json",
+            "inputMethod": "jsonString",
+            "jsonStringBodyContent": "{\"recipe\": \"R6.3\", \"item\": \"run {{var.scenario.executionId}}\", \"reason\": \"stop list unreadable\", \"detail\": \"The stop list could not be read, so the run stopped\", \"owner\": \"{{2.result.workflow_owner}}\"}"
+          },
+          "metadata": {
+            "designer": {
+              "x": 600,
+              "y": 300,
+              "name": "Stop flag: list unreadable"
+            }
+          }
+        },
+        {
+          "id": 4,
+          "module": "builtin:Ignore",
+          "version": 1,
+          "metadata": {
+            "designer": {
+              "x": 900,
+              "y": 300
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{2.result.queue_url}}/pairs/{{encodeURL(1.pair_id)}}",
+        "method": "get",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true
+      },
+      "metadata": {
+        "designer": {
+          "x": 900,
+          "y": 0,
+          "name": "Step 10: Queue: Read the pair"
+        }
+      },
+      "onerror": [
+        {
+          "id": 6,
+          "module": "builtin:Break",
+          "version": 1,
+          "parameters": {},
+          "mapper": {
+            "count": "3",
+            "retry": true,
+            "interval": "1"
+          },
+          "metadata": {
+            "designer": {
+              "x": 900,
+              "y": 600
+            }
+          }
+        }
+      ],
+      "filter": {
+        "name": "stop flag not set",
+        "conditions": [
+          [
+            {
+              "a": "{{5.data.stopped}}",
+              "b": "true",
+              "o": "text:notequal"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "id": 8,
+      "module": "code:ExecuteCode",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "language": "javascript",
+        "inputFormat": "editor",
+        "dependencies": [],
+        "codeEditorJavascript": "// Adapter: the rule below is the same JavaScript as the recipe's n8n build.\n// $('Step name') answers from this step's inputs: each is that step's output in this scenario.\nconst SOURCES = {\"Config\": \"in0_Config\", \"Step 10: Queue: Read the pair\": \"in1_Step10QueueReadthepair\"};\nconst LISTS = [];\nconst EXECUTED = [];\nconst DATA = {};\nfor (const [node, key] of Object.entries(SOURCES)) {\n  const raw = input[key];\n  let v = raw;\n  if (typeof raw === 'string') { try { v = JSON.parse(raw); } catch (e) { v = raw; } }\n  DATA[node] = LISTS.includes(node) ? (v || []).map(i => (i && i.json !== undefined ? i : { json: i })) : [{ json: v }];\n}\nconst $ = (node) => {\n  const ran = node in DATA || EXECUTED.includes(node);\n  const list = () => { if (!(node in DATA)) throw new Error(`step ${node} has no data in this scenario`); return DATA[node]; };\n  return { isExecuted: ran, first: () => list()[0], last: () => list()[list().length - 1], all: () => list(),\n           get item() { return list()[0]; } };\n};\nconst INPUT = \"Step 10: Queue: Read the pair\";\nconst $input = { all: () => $(INPUT).all(), first: () => $(INPUT).first(), last: () => $(INPUT).last(), get item() { return $(INPUT).first(); } };\nconst $execution = { id: input.run_id };\n// The webhook's fields, as n8n reads them: $('Step 10: Decision recorded').first().json.body.\nDATA[\"Step 10: Decision recorded\"] = [{ json: { body: { pair_id: input.t_pair_id, decision: input.t_decision, by: input.t_by } } }];\nconst BODIES = (out) => ({\"suppression_body\": JSON.stringify({ pair: $('Step 10: Queue: Read the pair').first().json.accounts, signals: $('Step 10: Queue: Read the pair').first().json.signals, snapshot: $('Step 10: Queue: Read the pair').first().json.snapshot, rejected_by: $('Step 10: Decision recorded').first().json.body.by, rejected: new Date().toISOString().slice(0, 10) }), \"release_body\": JSON.stringify({ p_recipe: 'R6.3', p_key: $('Step 10: Decision recorded').first().json.body.pair_id }), \"log_body\": JSON.stringify({ recipe: 'R6.3', item: $('Step 10: Decision recorded').first().json.body.pair_id, decision: $('Step 10: Decision recorded').first().json.body.decision + ' by ' + $('Step 10: Decision recorded').first().json.body.by, rules: { signals: $('Step 10: Queue: Read the pair').first().json.signals, confirm_first: $('Step 10: Queue: Read the pair').first().json.confirm_first || [], by: $('Step 10: Decision recorded').first().json.body.by } }), \"exception_body\": JSON.stringify({ recipe: 'R6.3', item: $('Step 10: Decision recorded').first().json.body.pair_id, reason: 'write failed', detail: 'Suppression write failed; the rejected pair may be queued again', owner: $('Config').first().json.merger })});\nconst one = (r) => (Array.isArray(r) ? r : [r]).filter(Boolean).map(i => (i.json !== undefined ? i.json : i));\nconst $json = INPUT && INPUT in DATA ? $input.first().json : {};\nconst __rule = () => {\nreturn [{ json: {} }];\n};\nconst out = one(__rule())[0] || {};\nreturn Object.assign({}, out, BODIES(out));\n",
+        "input": [
+          {
+            "name": "t_pair_id",
+            "value": "{{1.pair_id}}"
+          },
+          {
+            "name": "t_decision",
+            "value": "{{1.decision}}"
+          },
+          {
+            "name": "t_by",
+            "value": "{{1.by}}"
+          },
+          {
+            "name": "in0_Config",
+            "value": "{{2.result}}"
+          },
+          {
+            "name": "in1_Step10QueueReadthepair",
+            "value": "{{7.data}}"
+          },
+          {
+            "name": "run_id",
+            "value": "{{var.scenario.executionId}}"
+          }
+        ]
+      },
+      "metadata": {
+        "designer": {
+          "x": 1200,
+          "y": 0,
+          "name": "Step 10: Build the bodies"
+        }
+      }
+    },
+    {
+      "id": 16,
+      "module": "builtin:BasicRouter",
+      "version": 1,
+      "mapper": null,
+      "routes": [
+        {
+          "flow": [
+            {
+              "id": 11,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.queue_url}}/suppressions/{{encodeURL(1.pair_id)}}",
+                "method": "put",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{8.result.suppression_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 1800,
+                  "y": 0,
+                  "name": "Step 10: Suppression list: Add the pair"
+                }
+              },
+              "onerror": [
+                {
+                  "id": 9,
+                  "module": "http:MakeRequest",
+                  "version": 4,
+                  "parameters": {},
+                  "mapper": {
+                    "url": "{{2.result.table_api_url}}/exception_queue",
+                    "method": "post",
+                    "timeout": "40",
+                    "parseResponse": false,
+                    "stopOnHttpError": true,
+                    "allowRedirects": true,
+                    "shareCookies": false,
+                    "requestCompressedContent": true,
+                    "contentType": "json",
+                    "inputMethod": "jsonString",
+                    "jsonStringBodyContent": "{{8.result.exception_body}}"
+                  },
+                  "metadata": {
+                    "designer": {
+                      "x": 1800,
+                      "y": 300,
+                      "name": "Exception queue: suppression write failed"
+                    }
+                  }
+                },
+                {
+                  "id": 10,
+                  "module": "builtin:Ignore",
+                  "version": 1,
+                  "metadata": {
+                    "designer": {
+                      "x": 2100,
+                      "y": 300
+                    }
+                  }
+                }
+              ],
+              "filter": {
+                "name": "rejected",
+                "conditions": [
+                  [
+                    {
+                      "a": "{{1.decision}}",
+                      "b": "reject",
+                      "o": "text:equal"
+                    }
+                  ]
+                ]
+              }
+            },
+            {
+              "id": 12,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.table_api_url}}/rpc/release_key",
+                "method": "post",
+                "timeout": "40",
+                "parseResponse": true,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{8.result.release_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 2100,
+                  "y": 0,
+                  "name": "Step 10: Release the key (rejected)"
+                }
+              }
+            },
+            {
+              "id": 13,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.table_api_url}}/decision_log",
+                "method": "post",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{8.result.log_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 2400,
+                  "y": 0,
+                  "name": "Step 10: Decision log (rejected)"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "flow": [
+            {
+              "id": 14,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.table_api_url}}/rpc/release_key",
+                "method": "post",
+                "timeout": "40",
+                "parseResponse": true,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{8.result.release_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 1800,
+                  "y": 600,
+                  "name": "Step 10: Release the key (not rejected)"
+                }
+              },
+              "filter": {
+                "name": "not rejected",
+                "conditions": [
+                  [
+                    {
+                      "a": "{{1.decision}}",
+                      "b": "reject",
+                      "o": "text:notequal"
+                    }
+                  ]
+                ]
+              }
+            },
+            {
+              "id": 15,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.table_api_url}}/decision_log",
+                "method": "post",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{8.result.log_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 2100,
+                  "y": 600,
+                  "name": "Step 10: Decision log (not rejected)"
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "designer": {
+          "x": 1500,
+          "y": 0,
+          "name": "Rejected?"
+        }
+      }
+    }
+  ],
+  "metadata": {
+    "instant": true,
+    "version": 1,
+    "designer": {
+      "orphans": []
+    },
+    "scenario": {
+      "dlq": true,
+      "slots": null,
+      "dataloss": false,
+      "maxErrors": 3,
+      "autoCommit": true,
+      "roundtrips": 1,
+      "sequential": false,
+      "confidential": false,
+      "freshVariables": false,
+      "autoCommitTriggerLast": true
+    }
+  }
+}

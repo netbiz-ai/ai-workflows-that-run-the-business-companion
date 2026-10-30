@@ -11,7 +11,7 @@ It never ranks quotes, chooses or contacts a supplier, creates a vendor or raise
 |---|---|---|
 | Tool-neutral | `build-spec.md` | Available |
 | n8n | [`n8n/workflow.json`](n8n/workflow.json) | Available: golden set passed on n8n 2.42.7, 2026-10-28 ([report](n8n/test-report.md)) |
-| Make | `make/blueprint.json` | Not yet available |
+| Make | [`make/blueprint.json`](make/blueprint.json) and [`make/shift.blueprint.json`](make/shift.blueprint.json) | Available: golden set passed on Make (Core plan), 2026-10-29 ([report](make/test-report.md)) |
 | Power Automate | `power-automate/` | Not yet available |
 | Zapier | `zapier.md` | Not yet available |
 
