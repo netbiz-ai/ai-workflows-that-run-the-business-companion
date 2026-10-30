@@ -14,8 +14,8 @@ Differences from the n8n build, all forced by Make:
   (with_body()), the notes and rows lists included.
 - n8n runs three branches from "Step 4: Write the account to the inventory" (groups, tasks, the
   AI draft). Make's router runs the same three routes in that order, each with its own iterator.
-- The n8n AI call tries three times. mk.ai_step makes two tries, so with_tries() adds the
-  third in the second try's error route, handed on by Make's Resume handler like the second.
+- The n8n AI call tries three times (mk's ai_step, tries=3): each try's error route holds the
+  next try, and Make's Resume handler hands the last answer on.
 - n8n's "Step 7: AI error: template's checklist" node runs inside "Step 7: Rule: use the draft?"
   (on_ai_error), because Make branches never meet again; "Step 7: Read the directory" therefore
   runs before that rule on an AI error too (a read; nothing changes).
@@ -31,7 +31,6 @@ Differences from the n8n build, all forced by Make:
   count and fixed text, so their bodies are written by hand (n8n has no Code node there).
 """
 
-import copy
 import json
 import sys
 from pathlib import Path
@@ -103,31 +102,6 @@ def with_body(m: dict, trigger: str, fields: tuple[str, ...]) -> dict:
     return m
 
 
-def with_tries(s: Scenario, m: dict, n: int) -> dict:
-    """Make an HTTP step try up to n times: each failed try hands over to the next in its error
-    route, and Make's Resume handler passes that try's response on as the step's own output, so
-    the step after it sees the last answer (a non-200 status if every try failed)."""
-    ordinal = {2: "second", 3: "third"}
-    calls = [m]
-    for k in range(2, n + 1):
-        name = f"{m['metadata']['designer']['name']}, {ordinal[k]} try"
-        if name in s.names:  # mk.ai_step already made the second try
-            calls.append(m["onerror"][0])
-            continue
-        c = copy.deepcopy(calls[-1])
-        c.pop("onerror", None)
-        c["id"] = s._id(name)
-        c["metadata"]["designer"]["name"] = name
-        calls.append(c)
-    for i, c in enumerate(calls):
-        c["mapper"]["stopOnHttpError"] = i < len(calls) - 1
-    for i in range(len(calls) - 2, -1, -1):
-        nxt = calls[i + 1]
-        resume = {"id": s._id(f"_resume{s._next}"), "module": "builtin:Resume", "version": 1, "parameters": {},
-                  "mapper": {k: "{{" + f"{nxt['id']}.{k}" + "}}" for k in ("statusCode", "data", "headers")},
-                  "metadata": {"designer": {}}}
-        calls[i]["onerror"] = [nxt, resume]
-    return m
 
 
 def both(label: str, *conds: tuple[str, str, str]) -> dict:
@@ -292,9 +266,8 @@ def hire() -> Scenario:
     rows = "rs => (rs || []).map(r => r.day + '; ' + r.task + '; ' + r.owner).join('\\n')"
     vars_js = (f"{{ role: {H}.role, template_version: {TPL}.version, "
                f"template_tasks: ({rows})({TPL}.checklist), manager_notes: ({rows})({H}.notes) || '(none)' }}")
-    ai = s.ai_step("Step 6", ROOT / "recipes/R9.1/prompts/draft-checklist.md", vars_js, step2, max_tokens=1024, tries=2)
+    ai = s.ai_step("Step 6", ROOT / "recipes/R9.1/prompts/draft-checklist.md", vars_js, step2, max_tokens=1024, tries=3)
     with_body(ai[0], T, HIRE_FIELDS)
-    with_tries(s, ai[1], 3)
     call = s.ref("Step 6: AI call")
     directory = s.http("Step 7: Read the directory", "GET", cfg("directory_url") + "/users", query={"_wrap": "1"})
     check = rule(CHECK, N8N.CHECK_JS, {**step2, "Step 7: Read the directory": data("Step 7: Read the directory"),

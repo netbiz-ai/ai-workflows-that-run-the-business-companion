@@ -280,11 +280,12 @@ class Scenario:
         return {"id": self._id(name), "module": "util:FunctionSleep", "version": 1, "parameters": {},
                 "mapper": {"duration": seconds}, "metadata": self._meta(name, 0, 0)}
 
-    def with_tries(self, m: dict, n: int) -> dict:
+    def with_tries(self, m: dict, n: int, onerror: list[dict] | None = None) -> dict:
         """Make an HTTP step try up to n times (n <= 4): each failed try hands over to the next in
         its error route, and Make's Resume handler passes that try's response on as the step's own
         output, so the step after it sees the last answer (a non-2xx status if every try failed).
-        The step's own error route, if any, is replaced. Returns m."""
+        The step's own error route, if any, is replaced; onerror, if given, becomes the last try's
+        error route instead (that try then stops on an HTTP error). Returns m."""
         ordinal = {2: "second", 3: "third", 4: "fourth"}
         calls = [m]
         for k in range(2, n + 1):
@@ -296,7 +297,9 @@ class Scenario:
             c["metadata"]["designer"]["name"] = name
             calls.append(c)
         for i, c in enumerate(calls):
-            c["mapper"]["stopOnHttpError"] = i < len(calls) - 1
+            c["mapper"]["stopOnHttpError"] = i < len(calls) - 1 or onerror is not None
+        if onerror is not None:
+            calls[-1]["onerror"] = onerror
         for i in range(len(calls) - 2, -1, -1):
             nxt = calls[i + 1]
             resume = {"id": self._id(f"_resume{self._next}"), "module": "builtin:Resume", "version": 1, "parameters": {},

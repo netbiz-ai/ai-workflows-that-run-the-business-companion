@@ -8,7 +8,7 @@ Differences from the n8n build, all forced by Make:
 - The mailbox read and the AI call are tried three times, as in n8n (the book's failure table:
   "fails three retries"). Make allows one error handler per step and its Retry handler has no
   fallback route, so each try's error route holds the next try and a Resume handler that hands
-  that try's response back: one step's output is the first answer that came back, and after the
+  that try's response back (mk's with_tries()): one step's output is the first answer that came back, and after the
   third failed read the route adds the "mailbox error" row for Aisha and ends the run.
 - n8n's "Step 3: AI error" node runs inside "Step 4: Rule: checks" (on_ai_error), because Make
   branches never meet again; so the supplier list is also read when the AI call failed, a read
@@ -29,7 +29,6 @@ Differences from the n8n build, all forced by Make:
 - n8n's $now.toISODate() in the queue item is the UTC date here (Make Code runs in UTC).
 """
 
-import copy
 import json
 import sys
 from pathlib import Path
@@ -95,32 +94,8 @@ def rule(js: str, sources: dict[str, str], **kw) -> tuple[str, dict[str, str]]:
     return code, {**{f"t_{f}": "{{1." + f + "}}" for f in FIELDS}, **inputs}
 
 
-def resume(s: Scenario, step: dict) -> dict:
-    """Make's Resume handler: the failed step's output becomes this try's response."""
-    return {"id": s._id(f"_resume{s._next}"), "module": "builtin:Resume", "version": 1, "parameters": {},
-            "mapper": {k: "{{" + f"{step['id']}.{k}" + "}}" for k in ("statusCode", "data", "headers")},
-            "metadata": {"designer": {}}}
 
 
-def three_tries(s: Scenario, first: dict, last_onerror: list[dict] | None = None) -> None:
-    """Give an HTTP step two more tries, each in the error route of the one before (see the docstring).
-    last_onerror: the third try's own error route; without one, the third try hands on whatever
-    status it got, so the rule after it sees a non-200 as the failure."""
-    def again(name: str, stop: bool) -> dict:
-        m = copy.deepcopy(first)
-        m.pop("onerror", None)
-        m.pop("filter", None)
-        m["id"] = s._id(name)
-        m["metadata"] = s._meta(name, 0, 0)
-        m["mapper"]["stopOnHttpError"] = stop
-        return m
-    name = first["metadata"]["designer"]["name"]
-    second, third = again(f"{name}, second try", True), again(f"{name}, third try", last_onerror is not None)
-    if last_onerror:
-        third["onerror"] = last_onerror
-    second["onerror"] = [third, resume(s, third)]
-    first["mapper"]["stopOnHttpError"] = True
-    first["onerror"] = [second, resume(s, second)]
 
 
 def both(label: str, *conds: tuple[str, str, str]) -> dict:
@@ -140,7 +115,7 @@ def build() -> list[tuple[str, Scenario]]:
     # Step 1: read the attachment, three tries; then the AP reviewer keys it by hand.
     read = s.http(READ, "GET", cfg("mailbox_url") + "/attachments/{{encodeURL(1.attachment_id)}}", onerror=[])
     read["filter"] = s.continue_unless_stopped()
-    three_tries(s, read, last_onerror=[
+    s.with_tries(read, 3, onerror=[
         s.exception("Exception queue: mailbox error",
                     '{"recipe": "' + R + '", "item": "{{1.attachment_id}}", "reason": "mailbox error", '
                     '"detail": "Attachment could not be read after three tries; key it by hand", "owner": "' + cfg("ap_reviewer") + '"}'),
@@ -185,7 +160,7 @@ def build() -> list[tuple[str, Scenario]]:
                             bodies={"request_body": "JSON.stringify(out.request)"})
     attach = s.code(ATTACH, code, inputs)
     call["mapper"]["jsonStringBodyContent"] = "{{" + f"{attach['id']}.result.request_body" + "}}"
-    three_tries(s, call)
+    s.with_tries(call, 3)
     suppliers = s.http(SUPPLIERS, "GET", cfg("suppliers_url") + "/suppliers", query={"_wrap": "1"})
 
     # Step 4: the rules decide, not the AI; an AI error after three tries is flagged for a person.

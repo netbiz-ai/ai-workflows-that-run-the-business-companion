@@ -8,8 +8,8 @@ and 9) and the morning expiry check (schedule, every day at 07:00, step 8). Each
 trigger name in executed=, so n8n's "Morning expiry?" If node, which only asked which trigger
 ran, is dropped.
 Differences from the n8n build, all forced by Make:
-- The AI call is tried three times, as in n8n (step 9: "after two retries"), with R7.1's
-  three_tries(): each try's error route holds the next try and a Resume handler that hands its
+- The AI call is tried three times, as in n8n (step 9: "after two retries"), with mk's
+  ai_step (tries=3): each try's error route holds the next try and a Resume handler that hands its
   response back. n8n's "Step 9: AI error" node runs inside "Step 6: Rules: check the items"
   (on_ai_error), because Make branches never meet again.
 - Each branch repeats the closing steps (mark the key done, decision log), with the branch in the
@@ -36,7 +36,6 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "tools" / "make"))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from mk import Scenario, n8n_build, n8n_rule  # noqa: E402
-from r7_1 import three_tries  # noqa: E402
 
 R = "R14.1"
 N8N = n8n_build(R)
@@ -168,8 +167,7 @@ def transcript_saved() -> Scenario:
     sources.update({ATTENDEES: data(ATTENDEES), TRANSCRIPT: data(TRANSCRIPT)})
     vars_js = (f"{{ series: $('{REGISTERED}').first().json.series.name, "
                f"transcript: ($('{TRANSCRIPT}').first().json.lines || []).map(l => `${{l.time_stamp}} ${{l.speaker}}: ${{l.text}}`).join('\\n') }}")
-    ai = s.ai_step("Step 5", ROOT / "recipes/R14.1/prompts/propose-actions.md", vars_js, sources, max_tokens=2048, tries=1)
-    three_tries(s, ai[1])
+    ai = s.ai_step("Step 5", ROOT / "recipes/R14.1/prompts/propose-actions.md", vars_js, sources, max_tokens=2048, tries=3)
     in_scope += ai
 
     # Steps 6 and 9: the rules decide what is written; a failed check or an AI error goes to the chair.

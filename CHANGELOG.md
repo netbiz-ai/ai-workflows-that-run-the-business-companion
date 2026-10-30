@@ -9,6 +9,12 @@ Every change that affects a recipe is here, dated, newest first.
 - Where n8n loops back (R4.3's recheck, R15.1's redraft), the Make build runs a Repeater with a variable that later passes check, because a Make scenario cannot loop back.
 - R8.3's owner confirmation can reach Make while the same message's intake is still running, so its Make build waits 30 seconds once for the intake to finish before it reads the brief.
 
+## 2026-10-30: make ai reruns
+
+- Ran the golden sets of the 17 earlier Make builds with an AI step again, on blueprints rebuilt with the one-pass prompt fill; every case passes.
+- R5.3's Make build now gives its model the list of placeholders it may use; before, that list reached the model empty.
+- The Make builds that try a step three times now use the shared builder's retry steps; each scenario has the same steps as before, and only their order inside the blueprint file changed.
+
 ## 2026-10-29: make ai builds r6 3 r11 1
 
 - Added Make builds for R6.3 and R11.1: every golden-set case passes on Make (cloud service, Core plan), 13 of 13 each, including the cases that need Claude Haiku 5.5's live answer.
@@ -81,41 +87,41 @@ Every change that affects a recipe is here, dated, newest first.
 
 | Recipe | n8n golden-set run | Make golden-set run | Companion extensions to the golden set |
 |---|---|---|---|
-| [R4.1](recipes/R4.1/) | 2026-10-28, n8n 2.42.7: 8 of 8 cases passed | 2026-10-27, Make Core plan: 8 of 8 cases passed | Automatic sender, AI error, Write fails |
-| [R4.2](recipes/R4.2/) | 2026-10-28, n8n 2.42.7: 9 of 9 cases passed | 2026-10-27, Make Core plan: 9 of 9 cases passed | AI error, Attachment, Acknowledged |
+| [R4.1](recipes/R4.1/) | 2026-10-28, n8n 2.42.7: 8 of 8 cases passed | 2026-10-30, Make Core plan: 8 of 8 cases passed | Automatic sender, AI error, Write fails |
+| [R4.2](recipes/R4.2/) | 2026-10-28, n8n 2.42.7: 9 of 9 cases passed | 2026-10-30, Make Core plan: 9 of 9 cases passed | AI error, Attachment, Acknowledged |
 | [R4.3](recipes/R4.3/) | 2026-10-28, n8n 2.42.7: 13 of 13 cases passed | 2026-10-30, Make Core plan: 13 of 13 cases passed | Escalated, AI error, Lookup fails, Article out of date, Write fails, Draft outcome |
-| [R4.4](recipes/R4.4/) | 2026-10-28, n8n 2.42.7: 8 of 8 cases passed | 2026-10-27, Make Core plan: 8 of 8 cases passed | AI error, Write fails, Refuse, live model |
-| [R5.1](recipes/R5.1/) | 2026-10-28, n8n 2.42.7: 10 of 10 cases passed | 2026-10-27, Make Core plan: 10 of 10 cases passed | Incomplete, Company name only, AI error, CRM write fails |
-| [R5.2](recipes/R5.2/) | 2026-10-28, n8n 2.42.7: 8 of 8 cases passed | 2026-10-27, Make Core plan: 8 of 8 cases passed | AI error, Page not fetched, Write fails |
-| [R5.3](recipes/R5.3/) | 2026-10-28, n8n 2.42.7: 11 of 11 cases passed | 2026-10-27, Make Core plan: 11 of 11 cases passed | Stale price list, Off-list code, AI error, CRM read fails, Write fails, Expiry warning |
+| [R4.4](recipes/R4.4/) | 2026-10-28, n8n 2.42.7: 8 of 8 cases passed | 2026-10-30, Make Core plan: 8 of 8 cases passed | AI error, Write fails, Refuse, live model |
+| [R5.1](recipes/R5.1/) | 2026-10-28, n8n 2.42.7: 10 of 10 cases passed | 2026-10-30, Make Core plan: 10 of 10 cases passed | Incomplete, Company name only, AI error, CRM write fails |
+| [R5.2](recipes/R5.2/) | 2026-10-28, n8n 2.42.7: 8 of 8 cases passed | 2026-10-30, Make Core plan: 8 of 8 cases passed | AI error, Page not fetched, Write fails |
+| [R5.3](recipes/R5.3/) | 2026-10-28, n8n 2.42.7: 11 of 11 cases passed | 2026-10-30, Make Core plan: 11 of 11 cases passed | Stale price list, Off-list code, AI error, CRM read fails, Write fails, Expiry warning |
 | [R5.4](recipes/R5.4/) | 2026-10-19, n8n 2.42.7: 16 of 16 cases passed | 2026-10-25, Make Core plan: 16 of 16 cases passed | Request not sent, Deadline passed, Deputy asked, Returned at three times, Approved, Rejected, Not the approver, Price list replaced before approval, Sent unapproved, Write fails |
-| [R6.1](recipes/R6.1/) | 2026-10-28, n8n 2.42.7: 12 of 12 cases passed | 2026-10-27, Make Core plan: 12 of 12 cases passed | Several recipients, AI error, Write fails, Meeting note, Deal not open, Past date |
-| [R6.2](recipes/R6.2/) | 2026-10-28, n8n 2.42.7: 12 of 12 cases passed | 2026-10-27, Make Core plan: 12 of 12 cases passed | AI error, Write fails, Last reminder, Limit reached, Within the gap, Owner absent |
+| [R6.1](recipes/R6.1/) | 2026-10-28, n8n 2.42.7: 12 of 12 cases passed | 2026-10-30, Make Core plan: 12 of 12 cases passed | Several recipients, AI error, Write fails, Meeting note, Deal not open, Past date |
+| [R6.2](recipes/R6.2/) | 2026-10-28, n8n 2.42.7: 12 of 12 cases passed | 2026-10-30, Make Core plan: 12 of 12 cases passed | AI error, Write fails, Last reminder, Limit reached, Within the gap, Owner absent |
 | [R6.3](recipes/R6.3/) | 2026-10-28, n8n 2.42.7: 13 of 13 cases passed | 2026-10-29, Make Core plan: 13 of 13 cases passed | AI error, Export fails, Export short, Export changed, Queue write fails, Rejection, Reason names another field |
-| [R7.1](recipes/R7.1/) | 2026-10-28, n8n 2.42.7: 10 of 10 cases passed | 2026-10-27, Make Core plan: 10 of 10 cases passed | Not a PDF or image, AI error, Mailbox error, Save fails, Line objects |
+| [R7.1](recipes/R7.1/) | 2026-10-28, n8n 2.42.7: 10 of 10 cases passed | 2026-10-30, Make Core plan: 10 of 10 cases passed | Not a PDF or image, AI error, Mailbox error, Save fails, Line objects |
 | [R7.2](recipes/R7.2/) | 2026-10-28, n8n 2.42.7: 13 of 13 cases passed | 2026-10-30, Make Core plan: 13 of 13 cases passed | Supplier held, No receipt, Lookup error, AI error, Reservation fails partway, Rejected, Write fails, AI-paired line |
 | [R7.3](recipes/R7.3/) | 2026-10-19, n8n 2.42.7: 14 of 14 cases passed | 2026-10-26, Make Core plan: 14 of 14 cases passed | Changed account, Call to another number, Not confirmed, Confirmed change, New phone confirmed, Flow off, Hold write fails, Pre-run check |
-| [R7.4](recipes/R7.4/) | 2026-10-28, n8n 2.42.7: 11 of 11 cases passed | 2026-10-27, Make Core plan: 11 of 11 cases passed | AI error, Morning list, Write fails, Resolved above the limit, Rematch, Refuse, live model |
+| [R7.4](recipes/R7.4/) | 2026-10-28, n8n 2.42.7: 11 of 11 cases passed | 2026-10-30, Make Core plan: 11 of 11 cases passed | AI error, Morning list, Write fails, Resolved above the limit, Rematch, Refuse, live model |
 | [R8.1](recipes/R8.1/) | 2026-10-19, n8n 2.42.7: 16 of 16 cases passed | 2026-10-26, Make Core plan: 16 of 16 cases passed | Export stale, Export missing, No mailbox check, Send fails, Missing contact, List write fails, Final notice due, Final notice approved, Pause date passed |
 | [R8.2](recipes/R8.2/) | 2026-10-19, n8n 2.42.7: 10 of 10 cases passed | 2026-10-26, Make Core plan: 10 of 10 cases passed | Export late, Send fails, Rejected, In credit |
 | [R8.3](recipes/R8.3/) | 2026-10-28, n8n 2.42.7: 17 of 17 cases passed | 2026-10-30, Make Core plan: 17 of 17 cases passed | AI error, Automatic reply, Unmatched, Invoice-number match, Pause write fails, Mailbox error, Mailbox access lost, Confirmation without a brief, Already in dispute, Invoice on another account, Amount over the invoice |
-| [R9.1](recipes/R9.1/) | 2026-10-28, n8n 2.42.7: 11 of 11 cases passed | 2026-10-27, Make Core plan: 11 of 11 cases passed | Account creation fails, AI error, Manager silent, Welcome pack not sent, Incomplete hire, Start too near |
-| [R9.2](recipes/R9.2/) | 2026-10-28, n8n 2.42.7: 9 of 9 cases passed | 2026-10-27, Make Core plan: 9 of 9 cases passed | AI error, Reply not sent, Model obeys the injection |
+| [R9.1](recipes/R9.1/) | 2026-10-28, n8n 2.42.7: 11 of 11 cases passed | 2026-10-30, Make Core plan: 11 of 11 cases passed | Account creation fails, AI error, Manager silent, Welcome pack not sent, Incomplete hire, Start too near |
+| [R9.2](recipes/R9.2/) | 2026-10-28, n8n 2.42.7: 9 of 9 cases passed | 2026-10-30, Make Core plan: 9 of 9 cases passed | AI error, Reply not sent, Model obeys the injection |
 | [R9.3](recipes/R9.3/) | 2026-10-19, n8n 2.42.7: 10 of 10 cases passed | 2026-10-25, Make Core plan: 10 of 10 cases passed | Balance export missing, Employee notice fails, Manager silent, Unlisted requester, Cancellation |
 | [R9.4](recipes/R9.4/) | 2026-10-19, n8n 2.42.7: 10 of 10 cases passed | 2026-10-26, Make Core plan: 10 of 10 cases passed | Disable fails, Administrator does not tick, Administrator ticks, Close refused |
-| [R10.1](recipes/R10.1/) | 2026-10-28, n8n 2.42.7: 11 of 11 cases passed | 2026-10-27, Make Core plan: 11 of 11 cases passed | Changed order, AI error, Write fails, Late task |
-| [R10.2](recipes/R10.2/) | 2026-10-28, n8n 2.42.7: 12 of 12 cases passed | 2026-10-27, Make Core plan: 12 of 12 cases passed | AI error, Slot lookup fails, Trade reply, Slot set, Not delivered, Reminders |
-| [R10.3](recipes/R10.3/) | 2026-10-28, n8n 2.42.7: 7 of 7 cases passed | 2026-10-27, Make Core plan: 7 of 7 cases passed | AI error, Source credential expires |
+| [R10.1](recipes/R10.1/) | 2026-10-28, n8n 2.42.7: 11 of 11 cases passed | 2026-10-30, Make Core plan: 11 of 11 cases passed | Changed order, AI error, Write fails, Late task |
+| [R10.2](recipes/R10.2/) | 2026-10-28, n8n 2.42.7: 12 of 12 cases passed | 2026-10-30, Make Core plan: 12 of 12 cases passed | AI error, Slot lookup fails, Trade reply, Slot set, Not delivered, Reminders |
+| [R10.3](recipes/R10.3/) | 2026-10-28, n8n 2.42.7: 7 of 7 cases passed | 2026-10-30, Make Core plan: 7 of 7 cases passed | AI error, Source credential expires |
 | [R11.1](recipes/R11.1/) | 2026-10-28, n8n 2.42.7: 13 of 13 cases passed | 2026-10-29, Make Core plan: 13 of 13 cases passed | No attachment, Only a scan, Response table, Flags, Revision, AI error, Write fails, Shift check |
 | [R11.2](recipes/R11.2/) | 2026-10-19, n8n 2.42.7: 8 of 8 cases passed | 2026-10-26, Make Core plan: 8 of 8 cases passed | Failure, Backstop |
 | [R11.3](recipes/R11.3/) | 2026-10-19, n8n 2.42.7: 16 of 16 cases passed | 2026-10-26, Make Core plan: 16 of 16 cases passed | Over budget, Stale export, Release, Rejected, Reminder, Stand-in, Approver and stand-in away, Bill over commitment, Write fails |
 | [R12.1](recipes/R12.1/) | 2026-10-19, n8n 2.42.7: 9 of 9 cases passed | 2026-10-26, Make Core plan: 9 of 9 cases passed | Stale export, Fewer than 3, Rule not approved, Write fails |
-| [R12.2](recipes/R12.2/) | 2026-10-28, n8n 2.42.7: 11 of 11 cases passed | 2026-10-27, Make Core plan: 11 of 11 cases passed | AI error, Held back, Verified, Too late, Write fails, Missing measure |
+| [R12.2](recipes/R12.2/) | 2026-10-28, n8n 2.42.7: 11 of 11 cases passed | 2026-10-30, Make Core plan: 11 of 11 cases passed | AI error, Held back, Verified, Too late, Write fails, Missing measure |
 | [R12.3](recipes/R12.3/) | 2026-10-19, n8n 2.42.7: 9 of 9 cases passed | 2026-10-26, Make Core plan: 9 of 9 cases passed | Post fails, Post and email fail, Next week's line |
 | [R13.1](recipes/R13.1/) | 2026-10-28, n8n 2.42.7: 15 of 15 cases passed | 2026-10-30, Make Core plan: 15 of 15 cases passed | Personal HR question, Price question, Below the threshold, No source, AI error, Withdrawn since the search, Reported wrong, Write fails |
 | [R13.2](recipes/R13.2/) | 2026-10-19, n8n 2.42.7: 13 of 13 cases passed | 2026-10-26, Make Core plan: 13 of 13 cases passed | Vacation, Two actions, Index rebuild failed, Audience differs from sharing, Major version, Minor version, Write fails |
 | [R13.3](recipes/R13.3/) | 2026-10-28, n8n 2.42.7: 16 of 16 cases passed | 2026-10-30, Make Core plan: 16 of 16 cases passed | AI error, Same resolution twice, Not tagged, Approved, Approval blocked, Suggested update approved, Discarded, Publish write fails, Drafts pile up, Refuse, live model |
-| [R14.1](recipes/R14.1/) | 2026-10-28, n8n 2.42.7: 11 of 11 cases passed | 2026-10-27, Make Core plan: 11 of 11 cases passed | Not registered, AI error, Write fails, Expired |
+| [R14.1](recipes/R14.1/) | 2026-10-28, n8n 2.42.7: 11 of 11 cases passed | 2026-10-30, Make Core plan: 11 of 11 cases passed | Not registered, AI error, Write fails, Expired |
 | [R14.2](recipes/R14.2/) | 2026-10-19, n8n 2.42.7: 9 of 9 cases passed | 2026-10-26, Make Core plan: 9 of 9 cases passed | Owner has left, Task system down, Rerun, Outside owner |
 | [R14.3](recipes/R14.3/) | 2026-10-19, n8n 2.42.7: 10 of 10 cases passed | 2026-10-25, Make Core plan: 10 of 10 cases passed | Carried, Write fails, Holiday, New date, Closed since listed |
 | [R15.1](recipes/R15.1/) | 2026-10-28, n8n 2.42.7: 21 of 21 cases passed | 2026-10-30, Make Core plan: 21 of 21 cases passed | AI error, No clearance, Not reconfirmed, Last approver signs, Comparison struck, Ben approves, Send unchanged, Send changed, Price changed, Approver away, Write fails, Redraft, Redraft still fails, Untagged price, Bad output, Two channels |

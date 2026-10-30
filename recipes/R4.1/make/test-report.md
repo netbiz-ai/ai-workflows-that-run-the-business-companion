@@ -1,6 +1,6 @@
 # R4.1 Make build: golden-set run
 
-Run 2026-10-27 on Make (cloud service, Core plan, us2.make.com), against the companion's mock systems (`tools/mock-systems/`).
+Run 2026-10-30 on Make (cloud service, Core plan, us2.make.com), against the companion's mock systems (`tools/mock-systems/`).
 Result: 8 of 8 cases passed.
 Make credits used by the whole set: 122.
 

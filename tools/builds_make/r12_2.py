@@ -18,7 +18,7 @@ Where the Make build differs from the n8n canvas, and why:
 - The rules use Luxon's $now; Make's Code app has no Luxon and runs in UTC, so a small shim
   answers weekday, set() and comparison the same way for the tests' UTC times (NOW_SHIM).
 - The step 5 AI call tries three times, as the n8n build's does (tries=3), with the second and
-  third tries in nested error routes (ai_step_3_tries() from R6.1's build). n8n's "Step 11: AI
+  third tries in nested error routes (mk's ai_step, tries=3). n8n's "Step 11: AI
   error" node runs inside the steps 6 to 9 rule (on_ai_error), and "Step 14: Too late to draft"
   is the fixed answer that rule's node gives, passed to the draft record as data, because Make
   branches never meet again.
@@ -39,7 +39,6 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "tools" / "make"))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from mk import Scenario, n8n_build, n8n_rule  # noqa: E402
-from r6_1 import ai_step_3_tries  # noqa: E402
 
 R = "R12.2"
 N8N = n8n_build(R)
@@ -205,8 +204,8 @@ def draft(trigger: str, test_key: str, name: str, ev_name: str, fields: tuple[st
                    "table_rows: $('Step 4: Build the input').first().json.table_rows, must_mention_list: $('Step 4: Build the input').first().json.must_mention_list, "
                    "banned_cause_list: $('Step 4: Build the input').first().json.banned_cause_list, commentary: $('Step 4: Build the input').first().json.commentary_text }")
         step = f"Step 5 ({tag})"
-        ai = ai_step_3_tries(s, step, "recipes/R12.2/prompts/draft-narrative.md", vars_js,
-                             {"Config": cfg_all, INPUT: result(inp)}, 1500)
+        ai = s.ai_step(step, ROOT / "recipes/R12.2/prompts/draft-narrative.md", vars_js,
+                       {"Config": cfg_all, INPUT: result(inp)}, max_tokens=1500, tries=3)
         call = s.ref(f"{step}: AI call")
         code, inputs = n8n_rule(N8N.CHECK_JS, {"Config": cfg_all, INPUT: result(inp), "Step 5: AI call": "{{" + f"{call}.data" + "}}"},
                                 ai_status="{{" + f"{call}.statusCode" + "}}", on_ai_error=AI_ERROR_JS)

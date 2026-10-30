@@ -1,0 +1,3 @@
+- Ran the golden sets of the 17 earlier Make builds with an AI step again, on blueprints rebuilt with the one-pass prompt fill; every case passes.
+- R5.3's Make build now gives its model the list of placeholders it may use; before, that list reached the model empty.
+- The Make builds that try a step three times now use the shared builder's retry steps; each scenario has the same steps as before, and only their order inside the blueprint file changed.

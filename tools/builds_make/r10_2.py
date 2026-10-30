@@ -17,8 +17,8 @@ Differences from the n8n build, all forced by Make:
   and keeps it only if it is under pick_hours old (the latest row is the only one SQL could
   return); "Step 12: Read offers with no pick" reads R10.2's rows and keeps each offer older than
   pick_hours with no later row for its job.
-- "Step 10: Read open slots in the zone" is tried three times, as n8n's read is, with R7.1's
-  three_tries(): each try's error route holds the next try and a Resume handler; the third try
+- "Step 10: Read open slots in the zone" is tried three times, as n8n's read is, with mk's
+  with_tries(): each try's error route holds the next try and a Resume handler; the third try
   hands on whatever came back, so a failed lookup reaches the step 10 rule as an error body, as
   n8n's continue-on-error output does. "Read the job" likewise reads its own status (a missing job
   is no valid job reference) and retries only a failed connection.
@@ -42,7 +42,6 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "tools" / "make"))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from mk import Scenario, n8n_build, n8n_rule  # noqa: E402
-from r7_1 import three_tries  # noqa: E402
 
 R = "R10.2"
 N8N = n8n_build(R)
@@ -227,7 +226,7 @@ def customer_reply() -> Scenario:
     # Step 10: up to three open slots in the zone; a failed lookup, or none open, is a dispatcher task.
     slots = s.http("Step 10: Read open slots in the zone", "GET", cfg("scheduling_url") + "/slots", onerror=[],
                    query={"_wrap": "1", "zone": res(RULE8, "job.zone"), "status": "open"})
-    three_tries(s, slots)
+    s.with_tries(slots, 3)
     code, inputs = rule(N8N.STEP10_JS, {**sources, RULE8: "{{" + f"{step8['id']}.result" + "}}",
                                         "Step 10: Read open slots in the zone": "{{" + f"{slots['id']}.data" + "}}"},
                         REPLY, bodies={**CLOSE, "task_body": "JSON.stringify(out.task)", "message_body": "JSON.stringify(out.message)"})

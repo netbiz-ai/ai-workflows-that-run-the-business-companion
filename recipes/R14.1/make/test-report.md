@@ -1,12 +1,12 @@
 # R14.1 Make build: golden-set run
 
-Run 2026-10-27 on Make (cloud service, Core plan, us2.make.com), against the companion's mock systems (`tools/mock-systems/`).
+Run 2026-10-30 on Make (cloud service, Core plan, us2.make.com), against the companion's mock systems (`tools/mock-systems/`).
 Result: 11 of 11 cases passed.
 Make credits used by the whole set: 232.
 
 | Case | Input | Result | Credits | Checked |
 |---|---|---|---|---|
-| Normal | Three actions, names and dates said aloud | Pass | 33 | actions/items: 3 records; actions/items/OCC-1-000412-1.source_link = "https://companion-mocks.srv1319560.hstgr.cloud/77effde73109ccdce346754a58bc2003d91576b4/transcripts/view/TR-1?t=00%3A04%3A12"; actions/items/OCC-1-000730-1.source_link = "https://companion-mocks.srv1319560.hstgr.cloud/77effde73109ccdce346754a58bc2003d91576b4/transcripts/view/TR-1?t=00%3A07%3A30"; actions/items/OCC-1-001102-1.source_link = "https://companion-mocks.srv1319560.hstgr.cloud/77effde73109ccdce346754a58bc2003d91576b4/transcripts/view/TR-1?t=00%3A11%3A02"; actions/items/OCC-1-000412-1.status = "proposed"; messaging/messages: 1 records; select count(*) from exception_queue -> 0 |
+| Normal | Three actions, names and dates said aloud | Pass | 33 | actions/items: 3 records; actions/items/OCC-1-000412-1.source_link = "http://mocks:8080/transcripts/view/TR-1?t=00%3A04%3A12"; actions/items/OCC-1-000730-1.source_link = "http://mocks:8080/transcripts/view/TR-1?t=00%3A07%3A30"; actions/items/OCC-1-001102-1.source_link = "http://mocks:8080/transcripts/view/TR-1?t=00%3A11%3A02"; actions/items/OCC-1-000412-1.status = "proposed"; messaging/messages: 1 records; select count(*) from exception_queue -> 0 |
 | Edge | "We could maybe run a Saturday promotion" | Pass | 31 | actions/items/OCC-1-001305-1.agreement = "discussed, not agreed"; actions/items/OCC-1-001305-1.status = "proposed" |
 | Duplicate | Re-saved after the chair started | Pass | 19 | POST /anthropic/v1/messages: 0 call(s); GET /transcripts/transcripts/TR-1: 0 call(s); actions/items: 2 records; actions/items/OCC-1-000412-1.status = "approved"; actions/items/OCC-1-000730-1.status = "proposed"; messaging/messages: 0 records; select copies_skipped from key_log where recipe='R14.1' -> 1 |
 | Refuse | Titled "HR: seasonal hiring" | Pass | 18 | POST /anthropic/v1/messages: 0 call(s); GET /transcripts/transcripts/TR-1: 0 call(s); GET /calendar/attendees: 0 call(s); actions/items: 0 records; select reason || ' / ' || owner from exception_queue where recipe='R14.1' -> out of scope / tom@example.test; messaging/messages: 1 records; select status from key_log where recipe='R14.1' -> done |

@@ -11,7 +11,7 @@ own source, so the n8n "Email?" switch is gone; "Step 1: The item" is the same r
 Where the Make build differs from the n8n canvas, and why:
 - Both AI steps try three times, as the n8n build's AI calls do (tries=3): the second try runs
   in the first call's error route and the third in the second's, and Make's Resume handler hands
-  the answer back up (ai_step_3_tries()). mk.ai_step offers at most two tries.
+  the answer back up (mk's ai_step, tries=3).
 - n8n's "Step 5: AI error" and "Step 6: AI error" nodes run inside the rule after each call
   (on_ai_error), because Make branches never meet again.
 - n8n gathers every outcome into "Unmatched: reason" and "Result" before marking the key done
@@ -27,7 +27,6 @@ Where the Make build differs from the n8n canvas, and why:
   does not hand to a later body.
 """
 
-import copy
 import sys
 from pathlib import Path
 
@@ -74,29 +73,8 @@ def unmatched(acct: str = "null") -> dict[str, str]:
     }
 
 
-def resume_with(s: Scenario, call: dict) -> dict:
-    """Make's Resume handler: the failed call's output becomes this try's answer."""
-    return {"id": s._id(f"_resume{s._next}"), "module": "builtin:Resume", "version": 1, "parameters": {},
-            "mapper": {k: "{{" + f"{call['id']}.{k}" + "}}" for k in ("statusCode", "data", "headers")},
-            "metadata": {"designer": {}}}
 
 
-def ai_step_3_tries(s: Scenario, step: str, prompt: str, vars_js: str, sources: dict[str, str], max_tokens: int) -> list[dict]:
-    """The book's bounded AI step with three tries: [build the request, call]. The call's
-    {{N.statusCode}} and {{N.data}} are the first good answer, or the third try's error."""
-    build, first = s.ai_step(step, ROOT / prompt, vars_js, sources, max_tokens=max_tokens, tries=1)
-
-    def again(name: str, stop: bool) -> dict:
-        m = copy.deepcopy(first)
-        m["id"], m["metadata"] = s._id(name), s._meta(name, 0, 0)
-        m["mapper"]["stopOnHttpError"] = stop
-        return m
-    second = again(f"{step}: AI call, second try", True)
-    third = again(f"{step}: AI call, third try", False)
-    second["onerror"] = [third, resume_with(s, third)]
-    first["mapper"]["stopOnHttpError"] = True
-    first["onerror"] = [second, resume_with(s, second)]
-    return [build, first]
 
 
 def scenario(trigger: str, test_key: str, field: str, read: str, url_field: str, path: str) -> Scenario:
@@ -168,7 +146,8 @@ def scenario(trigger: str, test_key: str, field: str, read: str, url_field: str,
         src = dict(sources) if chose else {k: v for k, v in sources.items() if k != CHOOSE}
         sum_js = f"{{ message_type: {ITEM}.kind, message_date: {ITEM}.date, subject: {ITEM}.subject, body: {ITEM}.body }}"
         step = "Step 6" + sfx
-        ai = ai_step_3_tries(s, step, "recipes/R6.1/prompts/summarize.md", sum_js, {"Config": cfg_all, ITEM_STEP: result(ITEM_STEP)}, 400)
+        ai = s.ai_step(step, ROOT / "recipes/R6.1/prompts/summarize.md", sum_js, {"Config": cfg_all, ITEM_STEP: result(ITEM_STEP)},
+                       max_tokens=400, tries=3)
         call = s.ref(f"{step}: AI call")
         code, inputs = n8n_rule(N8N.CHECK_JS, {**src, "Step 6: AI call": "{{" + f"{call}.data" + "}}"},
                                 ai_status="{{" + f"{call}.statusCode" + "}}", on_ai_error=AI_ERROR_JS.format(n=6), bodies={
@@ -207,8 +186,8 @@ def scenario(trigger: str, test_key: str, field: str, read: str, url_field: str,
     deals_js = (f"{{ open_deals: $('{DEALS}').first().json.deals"
                 ".map(d => `${d.id}: ${d.name}; ${d.quote_ref || 'no quote reference'}`).join('\\n'), "
                 f"subject: {ITEM}.subject, body: {ITEM}.body }}")
-    choose_ai = ai_step_3_tries(s, "Step 5", "recipes/R6.1/prompts/choose-deal.md", deals_js,
-                                {"Config": cfg_all, ITEM_STEP: result(ITEM_STEP), DEALS: result(DEALS)}, 50)
+    choose_ai = s.ai_step("Step 5", ROOT / "recipes/R6.1/prompts/choose-deal.md", deals_js,
+                          {"Config": cfg_all, ITEM_STEP: result(ITEM_STEP), DEALS: result(DEALS)}, max_tokens=50, tries=3)
     call5 = s.ref("Step 5: AI call")
     code, inputs = n8n_rule(N8N.CHOOSE_JS, {**sources, "Step 5: AI call": "{{" + f"{call5}.data" + "}}"},
                             ai_status="{{" + f"{call5}.statusCode" + "}}", on_ai_error=AI_ERROR_JS.format(n=5),

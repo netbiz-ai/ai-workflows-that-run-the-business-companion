@@ -1,6 +1,6 @@
 # R7.4 Make build: golden-set run
 
-Run 2026-10-27 on Make (cloud service, Core plan, us2.make.com), against the companion's mock systems (`tools/mock-systems/`).
+Run 2026-10-30 on Make (cloud service, Core plan, us2.make.com), against the companion's mock systems (`tools/mock-systems/`).
 Result: 11 of 11 cases passed.
 Make credits used by the whole set: 159.
 
@@ -8,7 +8,7 @@ Make credits used by the whole set: 159.
 |---|---|---|---|---|
 | Normal | Quantity mismatch | Pass | 18 | queue/items/Q-1.owner = "tom@example.test"; teams/messages/1.to = "tom@example.test"; teams/messages/1.draft_check = "passed" |
 | Edge | Unknown reason code | Pass | 13 | queue/items/Q-1.owner = "aisha@example.test"; teams/messages/1.to = "aisha@example.test"; POST /anthropic/v1/messages: 0 call(s) |
-| Duplicate | Same invoice and reason twice | Pass | 26 | teams/messages: 1 records; queue/items/Q-1.status = "open"; queue/items/Q-1.notes = [{"on": "2026-10-27", "from_item": "Q-2", "raised_by": "R7.2", "details": "supplier held by R7.3, raised again"}]; queue/items/Q-2.status = "merged"; select copies_skipped from key_log where recipe='R7.4' -> 1 |
+| Duplicate | Same invoice and reason twice | Pass | 26 | teams/messages: 1 records; queue/items/Q-1.status = "open"; queue/items/Q-1.notes = [{"on": "2026-10-30", "from_item": "Q-2", "raised_by": "R7.2", "details": "supplier held by R7.3, raised again"}]; queue/items/Q-2.status = "merged"; select copies_skipped from key_log where recipe='R7.4' -> 1 |
 | Refuse | Draft says "we will pay on Friday" | Pass | 18 | teams/messages/1.draft = null; teams/messages/1.draft_check = "dropped: banned word pay"; queue/items/Q-1.status = "open"; queue/items/Q-1.owner = "tom@example.test" |
 | AI error | The AI call fails three times (companion extension) | Pass | 20 | POST /anthropic/v1/messages: 3 call(s); teams/messages/1.to = "tom@example.test"; teams/messages/1.draft = null; queue/items/Q-1.status = "open" |
 | Morning list | Two items past the aging limit, one new (companion extension) | Pass | 7 | teams/messages/1.to = "aisha@example.test"; teams/messages/1.items = ["Q-2", "Q-1"] |

@@ -10,8 +10,8 @@ so it is not built.
 
 Differences from the n8n build, all forced by Make:
 - "Step 2: Find the first item" is a table-API read of the key log (n8n runs it as SQL).
-- The n8n AI call tries three times. mk.ai_step makes two tries, so with_tries() adds the
-  third in the second try's error route, handed on by Make's Resume handler like the second.
+- The n8n AI call tries three times (mk's ai_step, tries=3): each try's error route holds the
+  next try, and Make's Resume handler hands the last answer on.
 - n8n's "Step 5: AI error" node runs inside "Step 5: Rule: check the draft" (on_ai_error), and
   "Step 4: No draft for this code" becomes bodies of "Step 3: Rule: assign the owner": Make
   branches never meet again, so n8n's "Step 5: Draft result" node, which only joins them, is
@@ -25,7 +25,6 @@ Differences from the n8n build, all forced by Make:
   which are IDs and codes from a fixed list, as the key log needs.
 """
 
-import copy
 import json
 import sys
 from pathlib import Path
@@ -77,31 +76,6 @@ FAILED = (f"JSON.stringify({{ recipe: '{R}', item: {ITEM}.id, reason: 'write fai
           f"detail: 'Queue or Teams write failed, never retried; tell the owner by hand', owner: {CFG}.workflow_owner }})")
 
 
-def with_tries(s: Scenario, m: dict, n: int) -> dict:
-    """Make an HTTP step try up to n times: each failed try hands over to the next in its error
-    route, and Make's Resume handler passes that try's response on as the step's own output, so
-    the step after it sees the last answer (a non-200 status if every try failed)."""
-    ordinal = {2: "second", 3: "third"}
-    calls = [m]
-    for k in range(2, n + 1):
-        name = f"{m['metadata']['designer']['name']}, {ordinal[k]} try"
-        if name in s.names:  # mk.ai_step already made the second try
-            calls.append(m["onerror"][0])
-            continue
-        c = copy.deepcopy(calls[-1])
-        c.pop("onerror", None)
-        c["id"] = s._id(name)
-        c["metadata"]["designer"]["name"] = name
-        calls.append(c)
-    for i, c in enumerate(calls):
-        c["mapper"]["stopOnHttpError"] = i < len(calls) - 1
-    for i in range(len(calls) - 2, -1, -1):
-        nxt = calls[i + 1]
-        resume = {"id": s._id(f"_resume{s._next}"), "module": "builtin:Resume", "version": 1, "parameters": {},
-                  "mapper": {k: "{{" + f"{nxt['id']}.{k}" + "}}" for k in ("statusCode", "data", "headers")},
-                  "metadata": {"designer": {}}}
-        calls[i]["onerror"] = [nxt, resume]
-    return m
 
 
 def start(s: Scenario, trigger: str | None):
@@ -190,8 +164,7 @@ def item_added() -> Scenario:
     # ---- Steps 4 and 5: the AI drafts a query; the rule decides whether the draft is kept ----
     vars_js = ("{ banned_words: $('Config').first().json.banned_words.join(', '), "
                f"invoice_id: {ITEM}.invoice_id, supplier: {ITEM}.supplier || '', reason_code: {ITEM}.reason_code, item_details: {ITEM}.details || '' }}")
-    ai = s.ai_step("Step 4", ROOT / "recipes/R7.4/prompts/draft-query.md", vars_js, step1, max_tokens=2048, tries=2)
-    with_tries(s, ai[1], 3)
+    ai = s.ai_step("Step 4", ROOT / "recipes/R7.4/prompts/draft-query.md", vars_js, step1, max_tokens=2048, tries=3)
     call = s.ref("Step 4: AI call")
     ck = "Step 5: Rule: check the draft"
     code, inputs = n8n_rule(N8N.CHECK_JS, {**step1, on: "{{" + f"{s.ref(on)}.result" + "}}", "Step 4: AI call": "{{" + f"{call}.data" + "}}"},

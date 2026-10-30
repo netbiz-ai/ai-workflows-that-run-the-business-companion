@@ -23,14 +23,13 @@ Differences from the n8n build, all forced by Make:
 - The priority write never retries, and its failure still sends the notices (book): it keeps
   its HTTP status (stopOnHttpError off), and a router marks the key failed with the exception
   row, or the key done, then always goes on to the notices.
-- The notice steps retry three times (book, n8n note): with_tries() makes each try's error
+- The notice steps retry three times (book, n8n note): mk's with_tries() makes each try's error
   route the next try, and Make's Resume handler hands the last answer on; a router adds the
   "notice failed" row after a third failure and always goes on, as n8n's error output does.
 - The rules read the webhook as n8n's $('Step 1: New message').first().json.body; a Make
   webhook's output cannot be mapped whole, so each field is its own input (with_body()).
 """
 
-import copy
 import json
 import sys
 from pathlib import Path
@@ -110,28 +109,6 @@ def with_body(m: dict) -> dict:
     return m
 
 
-def with_tries(s: Scenario, m: dict, n: int) -> dict:
-    """Make an HTTP step try up to n times: each failed try hands over to the next in its error
-    route, and Make's Resume handler passes that try's response on as the step's own output, so
-    the step after it sees the last answer (a non-2xx status if every try failed)."""
-    ordinal = {2: "second", 3: "third"}
-    calls = [m]
-    for k in range(2, n + 1):
-        name = f"{m['metadata']['designer']['name']}, {ordinal[k]} try"
-        c = copy.deepcopy(calls[-1])
-        c.pop("onerror", None)
-        c["id"] = s._id(name)
-        c["metadata"]["designer"]["name"] = name
-        calls.append(c)
-    for i, c in enumerate(calls):
-        c["mapper"]["stopOnHttpError"] = i < len(calls) - 1
-    for i in range(len(calls) - 2, -1, -1):
-        nxt = calls[i + 1]
-        resume = {"id": s._id(f"_resume{s._next}"), "module": "builtin:Resume", "version": 1, "parameters": {},
-                  "mapper": {k: "{{" + f"{nxt['id']}.{k}" + "}}" for k in ("statusCode", "data", "headers")},
-                  "metadata": {"designer": {}}}
-        calls[i]["onerror"] = [nxt, resume]
-    return m
 
 
 def failed_status(s: Scenario, step: str) -> tuple[dict, dict]:
@@ -145,8 +122,8 @@ def notices(s: Scenario, tag: str, b, cfg) -> list[dict]:
     A notice that fails after three tries adds an exception row, and the run goes on."""
     phone = cfg("phone_url")
     text, call = f"Step 5 and 6: Text the person ({tag})", f"Step 5 and 6: Call the person ({tag})"
-    t = with_tries(s, s.http(text, "POST", phone + "/texts", body=b("text_body"), parse=False), 3)
-    c = with_tries(s, s.http(call, "POST", phone + "/calls", body=b("call_body"), parse=False), 3)
+    t = s.with_tries(s.http(text, "POST", phone + "/texts", body=b("text_body"), parse=False), 3)
+    c = s.with_tries(s.http(call, "POST", phone + "/calls", body=b("call_body"), parse=False), 3)
     log = s.decision_log(f"Step 5 and 6: Log the notice; start the clock ({tag})", b("notice_log_body"))
     t_fail, _ = failed_status(s, text)
     c_fail, _ = failed_status(s, call)
