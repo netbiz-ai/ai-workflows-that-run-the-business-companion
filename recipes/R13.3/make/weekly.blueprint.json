@@ -1,0 +1,241 @@
+{
+  "name": "R13.3 Draft knowledge articles: each week",
+  "flow": [
+    {
+      "id": 1,
+      "module": "code:ExecuteCode",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "language": "javascript",
+        "inputFormat": "editor",
+        "dependencies": [],
+        "codeEditorJavascript": "// Config: edit these values for your company; nothing else in the scenario hard-codes them.\n// Schedule: set this scenario to run every Monday at 08:00; Make keeps the schedule outside the blueprint.\nreturn {\n  \"stop_flag_url\": \"https://<your stop list API>/stop_flags/R13.3\",\n  \"table_api_url\": \"https://<your table API for the key log, decision log and exception queue>\",\n  \"workflow_owner\": \"<your workflow owner>\",\n  \"helpdesk_url\": \"https://<your helpdesk API>\",\n  \"drafts_url\": \"https://<your drafts area API, read only by the article owner's team>\",\n  \"kb_url\": \"https://<your knowledge base API>\",\n  \"register_url\": \"https://<your source register API>\",\n  \"messaging_url\": \"https://<your messaging API>\",\n  \"reusable_tag\": \"reusable\",\n  \"access_code_field\": \"<your restricted access-code field>\",\n  \"personal_data_patterns\": [\n    {\n      \"name\": \"email\",\n      \"pattern\": \"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\\\.[A-Za-z]{2,}\"\n    },\n    {\n      \"name\": \"phone\",\n      \"pattern\": \"(?<![\\\\d])\\\\+?(?:\\\\d[\\\\s().-]?){8,13}\\\\d(?![\\\\d])\"\n    },\n    {\n      \"name\": \"order number\",\n      \"pattern\": \"<your order-number pattern>\"\n    }\n  ],\n  \"article_template\": \"<your article template>\",\n  \"price_list_link\": \"https://<your price list in the CRM>\",\n  \"policy_figures\": [\n    \"<your owner-approved policy figures, from R13.1's list>\"\n  ],\n  \"policy_topics\": [\n    {\n      \"keywords\": [\n        \"warranty\",\n        \"guarantee\"\n      ],\n      \"source\": \"<your returns and warranty source>\",\n      \"owner\": \"<its owner>\"\n    },\n    {\n      \"keywords\": [\n        \"return\",\n        \"refund\",\n        \"exchange\"\n      ],\n      \"source\": \"<your returns and warranty source>\",\n      \"owner\": \"<its owner>\"\n    },\n    {\n      \"keywords\": [\n        \"delivery\",\n        \"deliver\"\n      ],\n      \"source\": \"<your delivery source>\",\n      \"owner\": \"<its owner>\"\n    }\n  ],\n  \"title_match\": \"<your title-match threshold, 0 to 1>\",\n  \"article_owner\": \"<your knowledge-article owner>\",\n  \"article_audience\": [\n    \"<your customer service group>\"\n  ],\n  \"article_review_days\": \"<your review period for articles, in days>\",\n  \"expiry_after_review_days\": 30,\n  \"old_draft_days\": 14,\n  \"ai_model\": \"claude-haiku-5-5\",\n  \"ai_inference_geo\": \"us\",\n  \"ai_url\": \"https://api.anthropic.com/v1/messages\"\n};",
+        "input": []
+      },
+      "metadata": {
+        "designer": {
+          "x": 0,
+          "y": 0,
+          "name": "Config"
+        }
+      }
+    },
+    {
+      "id": 4,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{1.result.stop_flag_url}}",
+        "method": "get",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true
+      },
+      "metadata": {
+        "designer": {
+          "x": 300,
+          "y": 0,
+          "name": "Stop flag: read"
+        }
+      },
+      "onerror": [
+        {
+          "id": 2,
+          "module": "http:MakeRequest",
+          "version": 4,
+          "parameters": {},
+          "mapper": {
+            "url": "{{1.result.table_api_url}}/exception_queue",
+            "method": "post",
+            "timeout": "40",
+            "parseResponse": false,
+            "stopOnHttpError": true,
+            "allowRedirects": true,
+            "shareCookies": false,
+            "requestCompressedContent": true,
+            "contentType": "json",
+            "inputMethod": "jsonString",
+            "jsonStringBodyContent": "{\"recipe\": \"R13.3\", \"item\": \"run {{var.scenario.executionId}}\", \"reason\": \"stop list unreadable\", \"detail\": \"The stop list could not be read, so the run stopped\", \"owner\": \"{{1.result.workflow_owner}}\"}"
+          },
+          "metadata": {
+            "designer": {
+              "x": 300,
+              "y": 300,
+              "name": "Stop flag: list unreadable"
+            }
+          }
+        },
+        {
+          "id": 3,
+          "module": "builtin:Ignore",
+          "version": 1,
+          "metadata": {
+            "designer": {
+              "x": 600,
+              "y": 300
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{1.result.drafts_url}}/drafts",
+        "method": "get",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true,
+        "queryParameters": [
+          {
+            "name": "_wrap",
+            "value": "1"
+          },
+          {
+            "name": "status",
+            "value": "awaiting approval"
+          }
+        ]
+      },
+      "metadata": {
+        "designer": {
+          "x": 600,
+          "y": 0,
+          "name": "Read drafts awaiting approval"
+        }
+      },
+      "onerror": [
+        {
+          "id": 5,
+          "module": "builtin:Break",
+          "version": 1,
+          "parameters": {},
+          "mapper": {
+            "count": "3",
+            "retry": true,
+            "interval": "1"
+          },
+          "metadata": {
+            "designer": {
+              "x": 600,
+              "y": 600
+            }
+          }
+        }
+      ],
+      "filter": {
+        "name": "stop flag not set",
+        "conditions": [
+          [
+            {
+              "a": "{{4.data.stopped}}",
+              "b": "true",
+              "o": "text:notequal"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "id": 7,
+      "module": "code:ExecuteCode",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "language": "javascript",
+        "inputFormat": "editor",
+        "dependencies": [],
+        "codeEditorJavascript": "// Adapter: the rule below is the same JavaScript as the recipe's n8n build.\n// $('Step name') answers from this step's inputs: each is that step's output in this scenario.\nconst SOURCES = {\"Config\": \"in0_Config\", \"Read drafts awaiting approval\": \"in1_Readdraftsawaitingapprov\"};\nconst LISTS = [];\nconst EXECUTED = [];\nconst DATA = {};\nfor (const [node, key] of Object.entries(SOURCES)) {\n  const raw = input[key];\n  let v = raw;\n  if (typeof raw === 'string') { try { v = JSON.parse(raw); } catch (e) { v = raw; } }\n  DATA[node] = LISTS.includes(node) ? (v || []).map(i => (i && i.json !== undefined ? i : { json: i })) : [{ json: v }];\n}\nconst $ = (node) => {\n  const ran = node in DATA || EXECUTED.includes(node);\n  const list = () => { if (!(node in DATA)) throw new Error(`step ${node} has no data in this scenario`); return DATA[node]; };\n  return { isExecuted: ran, first: () => list()[0], last: () => list()[list().length - 1], all: () => list(),\n           get item() { return list()[0]; } };\n};\nconst INPUT = \"Read drafts awaiting approval\";\nconst $input = { all: () => $(INPUT).all(), first: () => $(INPUT).first(), last: () => $(INPUT).last(), get item() { return $(INPUT).first(); } };\nconst $execution = { id: input.run_id };\nconst BODIES = (out) => ({\"message\": out.count > 0 ? JSON.stringify({ to: $('Config').first().json.article_owner, subject: out.count + ' drafts waiting over ' + $('Config').first().json.old_draft_days + ' days', text: 'Approve or discard: ' + out.ids.join(', ') }) : null});\nconst one = (r) => (Array.isArray(r) ? r : [r]).filter(Boolean).map(i => (i.json !== undefined ? i.json : i));\nconst $json = INPUT && INPUT in DATA ? $input.first().json : {};\nconst __rule = () => {\n// Failure table: a weekly count of drafts over 14 days old, for the article owner to clear.\nconst cfg = $('Config').first().json;\nconst cutoff = new Date(Date.now() - cfg.old_draft_days * 86400000).toISOString().slice(0, 10);\nconst old = ($('Read drafts awaiting approval').first().json.items || []).filter(d => String(d.created) < cutoff);\nreturn [{ json: { count: old.length, ids: old.map(d => d.id) } }];\n};\nconst out = one(__rule())[0] || {};\nreturn Object.assign({}, out, BODIES(out));\n",
+        "input": [
+          {
+            "name": "in0_Config",
+            "value": "{{1.result}}"
+          },
+          {
+            "name": "in1_Readdraftsawaitingapprov",
+            "value": "{{6.data}}"
+          },
+          {
+            "name": "run_id",
+            "value": "{{var.scenario.executionId}}"
+          }
+        ]
+      },
+      "metadata": {
+        "designer": {
+          "x": 900,
+          "y": 0,
+          "name": "Rule: drafts over 14 days old"
+        }
+      }
+    },
+    {
+      "id": 8,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{1.result.messaging_url}}/messages",
+        "method": "post",
+        "timeout": "40",
+        "parseResponse": false,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true,
+        "contentType": "json",
+        "inputMethod": "jsonString",
+        "jsonStringBodyContent": "{{7.result.message}}"
+      },
+      "metadata": {
+        "designer": {
+          "x": 1200,
+          "y": 0,
+          "name": "Tell the article owner to clear them"
+        }
+      },
+      "filter": {
+        "name": "any old drafts",
+        "conditions": [
+          [
+            {
+              "a": "{{7.result.message}}",
+              "b": "",
+              "o": "exist"
+            }
+          ]
+        ]
+      }
+    }
+  ],
+  "metadata": {
+    "instant": false,
+    "version": 1,
+    "designer": {
+      "orphans": []
+    },
+    "scenario": {
+      "dlq": true,
+      "slots": null,
+      "dataloss": false,
+      "maxErrors": 3,
+      "autoCommit": true,
+      "roundtrips": 1,
+      "sequential": false,
+      "confidential": false,
+      "freshVariables": false,
+      "autoCommitTriggerLast": true
+    }
+  }
+}

@@ -11,7 +11,7 @@ It never replies, promises a credit, decides who is right, or lifts a pause.
 |---|---|---|
 | Tool-neutral | `build-spec.md` | Available |
 | n8n | [`n8n/workflow.json`](n8n/workflow.json) | Available: golden set passed on n8n 2.42.7, 2026-10-28 ([report](n8n/test-report.md)) |
-| Make | `make/blueprint.json` | Not yet available |
+| Make | [`make/blueprint.json`](make/blueprint.json) and [`make/confirm.blueprint.json`](make/confirm.blueprint.json) and [`make/morning-check.blueprint.json`](make/morning-check.blueprint.json) | Available: golden set passed on Make (Core plan), 2026-10-30 ([report](make/test-report.md)) |
 | Power Automate | `power-automate/` | Not yet available |
 | Zapier | `zapier.md` | Not yet available |
 

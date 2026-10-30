@@ -1,0 +1,1119 @@
+{
+  "name": "R13.3 Draft decided: publish it, or discard it",
+  "flow": [
+    {
+      "id": 1,
+      "module": "gateway:CustomWebHook",
+      "version": 1,
+      "parameters": {
+        "hook": null,
+        "maxResults": 1
+      },
+      "mapper": {},
+      "metadata": {
+        "designer": {
+          "x": 0,
+          "y": 0,
+          "name": "Step 10: Nadia approves or discards"
+        }
+      }
+    },
+    {
+      "id": 2,
+      "module": "code:ExecuteCode",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "language": "javascript",
+        "inputFormat": "editor",
+        "dependencies": [],
+        "codeEditorJavascript": "// Config: edit these values for your company; nothing else in the scenario hard-codes them.\nreturn {\n  \"stop_flag_url\": \"https://<your stop list API>/stop_flags/R13.3\",\n  \"table_api_url\": \"https://<your table API for the key log, decision log and exception queue>\",\n  \"workflow_owner\": \"<your workflow owner>\",\n  \"helpdesk_url\": \"https://<your helpdesk API>\",\n  \"drafts_url\": \"https://<your drafts area API, read only by the article owner's team>\",\n  \"kb_url\": \"https://<your knowledge base API>\",\n  \"register_url\": \"https://<your source register API>\",\n  \"messaging_url\": \"https://<your messaging API>\",\n  \"reusable_tag\": \"reusable\",\n  \"access_code_field\": \"<your restricted access-code field>\",\n  \"personal_data_patterns\": [\n    {\n      \"name\": \"email\",\n      \"pattern\": \"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\\\.[A-Za-z]{2,}\"\n    },\n    {\n      \"name\": \"phone\",\n      \"pattern\": \"(?<![\\\\d])\\\\+?(?:\\\\d[\\\\s().-]?){8,13}\\\\d(?![\\\\d])\"\n    },\n    {\n      \"name\": \"order number\",\n      \"pattern\": \"<your order-number pattern>\"\n    }\n  ],\n  \"article_template\": \"<your article template>\",\n  \"price_list_link\": \"https://<your price list in the CRM>\",\n  \"policy_figures\": [\n    \"<your owner-approved policy figures, from R13.1's list>\"\n  ],\n  \"policy_topics\": [\n    {\n      \"keywords\": [\n        \"warranty\",\n        \"guarantee\"\n      ],\n      \"source\": \"<your returns and warranty source>\",\n      \"owner\": \"<its owner>\"\n    },\n    {\n      \"keywords\": [\n        \"return\",\n        \"refund\",\n        \"exchange\"\n      ],\n      \"source\": \"<your returns and warranty source>\",\n      \"owner\": \"<its owner>\"\n    },\n    {\n      \"keywords\": [\n        \"delivery\",\n        \"deliver\"\n      ],\n      \"source\": \"<your delivery source>\",\n      \"owner\": \"<its owner>\"\n    }\n  ],\n  \"title_match\": \"<your title-match threshold, 0 to 1>\",\n  \"article_owner\": \"<your knowledge-article owner>\",\n  \"article_audience\": [\n    \"<your customer service group>\"\n  ],\n  \"article_review_days\": \"<your review period for articles, in days>\",\n  \"expiry_after_review_days\": 30,\n  \"old_draft_days\": 14,\n  \"ai_model\": \"claude-haiku-5-5\",\n  \"ai_inference_geo\": \"us\",\n  \"ai_url\": \"https://api.anthropic.com/v1/messages\"\n};",
+        "input": []
+      },
+      "metadata": {
+        "designer": {
+          "x": 300,
+          "y": 0,
+          "name": "Config"
+        }
+      }
+    },
+    {
+      "id": 5,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{2.result.stop_flag_url}}",
+        "method": "get",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true
+      },
+      "metadata": {
+        "designer": {
+          "x": 600,
+          "y": 0,
+          "name": "Stop flag: read"
+        }
+      },
+      "onerror": [
+        {
+          "id": 3,
+          "module": "http:MakeRequest",
+          "version": 4,
+          "parameters": {},
+          "mapper": {
+            "url": "{{2.result.table_api_url}}/exception_queue",
+            "method": "post",
+            "timeout": "40",
+            "parseResponse": false,
+            "stopOnHttpError": true,
+            "allowRedirects": true,
+            "shareCookies": false,
+            "requestCompressedContent": true,
+            "contentType": "json",
+            "inputMethod": "jsonString",
+            "jsonStringBodyContent": "{\"recipe\": \"R13.3\", \"item\": \"run {{var.scenario.executionId}}\", \"reason\": \"stop list unreadable\", \"detail\": \"The stop list could not be read, so the run stopped\", \"owner\": \"{{2.result.workflow_owner}}\"}"
+          },
+          "metadata": {
+            "designer": {
+              "x": 600,
+              "y": 300,
+              "name": "Stop flag: list unreadable"
+            }
+          }
+        },
+        {
+          "id": 4,
+          "module": "builtin:Ignore",
+          "version": 1,
+          "metadata": {
+            "designer": {
+              "x": 900,
+              "y": 300
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{2.result.drafts_url}}/drafts/{{encodeURL(1.draft_id)}}",
+        "method": "get",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true
+      },
+      "metadata": {
+        "designer": {
+          "x": 900,
+          "y": 0,
+          "name": "Read the draft"
+        }
+      },
+      "onerror": [
+        {
+          "id": 6,
+          "module": "builtin:Break",
+          "version": 1,
+          "parameters": {},
+          "mapper": {
+            "count": "3",
+            "retry": true,
+            "interval": "1"
+          },
+          "metadata": {
+            "designer": {
+              "x": 900,
+              "y": 600
+            }
+          }
+        }
+      ],
+      "filter": {
+        "name": "stop flag not set",
+        "conditions": [
+          [
+            {
+              "a": "{{5.data.stopped}}",
+              "b": "true",
+              "o": "text:notequal"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "id": 8,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{2.result.table_api_url}}/rpc/reserve_key",
+        "method": "post",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true,
+        "contentType": "json",
+        "inputMethod": "jsonString",
+        "jsonStringBodyContent": "{\"p_recipe\": \"R13.3\", \"p_key\": \"{{1.draft_id}}:{{1.decision}}\"}"
+      },
+      "metadata": {
+        "designer": {
+          "x": 1200,
+          "y": 0,
+          "name": "Step 10: Reserve key"
+        }
+      }
+    },
+    {
+      "id": 9,
+      "module": "code:ExecuteCode",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "language": "javascript",
+        "inputFormat": "editor",
+        "dependencies": [],
+        "codeEditorJavascript": "// Adapter: the rule below is the same JavaScript as the recipe's n8n build.\n// $('Step name') answers from this step's inputs: each is that step's output in this scenario.\nconst SOURCES = {\"Config\": \"in0_Config\", \"Read the draft\": \"in1_Readthedraft\"};\nconst LISTS = [];\nconst EXECUTED = [];\nconst DATA = {};\nfor (const [node, key] of Object.entries(SOURCES)) {\n  const raw = input[key];\n  let v = raw;\n  if (typeof raw === 'string') { try { v = JSON.parse(raw); } catch (e) { v = raw; } }\n  DATA[node] = LISTS.includes(node) ? (v || []).map(i => (i && i.json !== undefined ? i : { json: i })) : [{ json: v }];\n}\nconst $ = (node) => {\n  const ran = node in DATA || EXECUTED.includes(node);\n  const list = () => { if (!(node in DATA)) throw new Error(`step ${node} has no data in this scenario`); return DATA[node]; };\n  return { isExecuted: ran, first: () => list()[0], last: () => list()[list().length - 1], all: () => list(),\n           get item() { return list()[0]; } };\n};\nconst INPUT = \"Read the draft\";\nconst $input = { all: () => $(INPUT).all(), first: () => $(INPUT).first(), last: () => $(INPUT).last(), get item() { return $(INPUT).first(); } };\nconst $execution = { id: input.run_id };\n// The webhook's fields, as the rule reads them in n8n: $('Step 10: Nadia approves or discards').first().json.body.\nDATA[\"Step 10: Nadia approves or discards\"] = [{ json: { body: { \"draft_id\": input.t_draft_id, \"decision\": input.t_decision, \"by\": input.t_by } } }];\nconst BODIES = (out) => ({\"article_body\": out.article ? JSON.stringify(out.article) : null, \"register_body\": out.article ? JSON.stringify({ id: 'KB-@@article_id@@', title: out.article.title, owner: $('Config').first().json.article_owner, delegate: null, audience: $('Config').first().json.article_audience, review_date: out.review_date, expiry_date: out.expiry_date, status: 'current', version: '1.0', link: $('Config').first().json.kb_url + '/articles/@@article_id@@', kb_article: '@@article_id@@' }) : null, \"blocked_body\": out.outcome === 'refuse' ? JSON.stringify({ recipe: 'R13.3', item: $('Step 10: Nadia approves or discards').first().json.body.draft_id, reason: 'approval blocked', detail: out.reason, owner: $('Config').first().json.article_owner }) : null, \"done_body\": JSON.stringify({ status: 'done', result: out.outcome }), \"log_body\": JSON.stringify({ recipe: 'R13.3', item: $('Step 10: Nadia approves or discards').first().json.body.draft_id, decision: out.outcome === 'refuse' ? 'approval blocked' : out.outcome.replace('_', ' '), rules: { ticket: $('Read the draft').first().json.ticket_id, reason: out.reason || null }, approved_by: out.outcome === 'refuse' ? null : $('Step 10: Nadia approves or discards').first().json.body.by }), \"failed_body\": JSON.stringify({ recipe: 'R13.3', item: $('Step 10: Nadia approves or discards').first().json.body.draft_id, reason: 'write failed', detail: 'Publishing or registering failed part way; check the knowledge base and register, never retried', owner: $('Config').first().json.article_owner })});\nconst one = (r) => (Array.isArray(r) ? r : [r]).filter(Boolean).map(i => (i.json !== undefined ? i.json : i));\nconst $json = INPUT && INPUT in DATA ? $input.first().json : {};\nconst __rule = () => {\n// Step 10: only the article owner approves or discards; every \"needs source\" claim must be worded by its source's owner first.\nconst cfg = $('Config').first().json;\nconst ev = $('Step 10: Nadia approves or discards').first().json.body;\nconst d = $('Read the draft').first().json;\nconst blocked = reason => [{ json: { outcome: 'refuse', reason } }];\nif (String(ev.by).toLowerCase() !== String(cfg.article_owner).toLowerCase()) return blocked(`decision by ${ev.by}, not the article owner`);\nif (d.status !== 'awaiting approval') return blocked(`draft is ${d.status}`);\nif (ev.decision === 'discard') return [{ json: { outcome: 'discard' } }];\nif (ev.decision !== 'approve') return blocked(`unknown decision ${ev.decision}`);\nconst unworded = (d.claims || []).filter(c => c.needs_source && (!c.worded_by || String(c.worded_by).toLowerCase() !== String(c.owner).toLowerCase()));\nif (unworded.length) return blocked(`needs source, not yet worded by ${[...new Set(unworded.map(c => c.owner))].join(', ')}`);\n// Step 11: the register needs review and expiry dates, or R13.2 withdraws the article.\nconst DAY = 86400000, today = new Date(new Date().toISOString().slice(0, 10) + 'T00:00:00Z');\nconst review = Number(cfg.article_review_days);\nconst review_date = Number.isFinite(review) ? new Date(today.getTime() + review * DAY).toISOString().slice(0, 10) : null;\nconst expiry_date = review_date ? new Date(today.getTime() + (review + cfg.expiry_after_review_days) * DAY).toISOString().slice(0, 10) : null;\nconst article = { title: d.title, question: d.question, answer: d.answer, steps: d.steps,\n                  policy_statements: (d.claims || []).filter(c => c.field === 'policy_claims' || c.needs_source).map(c => c.text),\n                  source_ticket: d.ticket_id, owner: cfg.article_owner };\nreturn [{ json: { outcome: d.kind === 'suggested update' && d.updates_article ? 'publish_update' : 'publish_new', article, review_date, expiry_date } }];\n};\nconst out = one(__rule())[0] || {};\nreturn Object.assign({}, out, BODIES(out));\n",
+        "input": [
+          {
+            "name": "t_draft_id",
+            "value": "{{1.draft_id}}"
+          },
+          {
+            "name": "t_decision",
+            "value": "{{1.decision}}"
+          },
+          {
+            "name": "t_by",
+            "value": "{{1.by}}"
+          },
+          {
+            "name": "in0_Config",
+            "value": "{{2.result}}"
+          },
+          {
+            "name": "in1_Readthedraft",
+            "value": "{{7.data}}"
+          },
+          {
+            "name": "run_id",
+            "value": "{{var.scenario.executionId}}"
+          }
+        ]
+      },
+      "metadata": {
+        "designer": {
+          "x": 1500,
+          "y": 0,
+          "name": "Step 10: Rule: approved by the owner, every claim worded?"
+        }
+      },
+      "filter": {
+        "name": "new key (not a copy)",
+        "conditions": [
+          [
+            {
+              "a": "{{8.data}}",
+              "b": "true",
+              "o": "text:equal"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "id": 43,
+      "module": "builtin:BasicRouter",
+      "version": 1,
+      "mapper": null,
+      "routes": [
+        {
+          "flow": [
+            {
+              "id": 13,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.kb_url}}/articles",
+                "method": "post",
+                "timeout": "40",
+                "parseResponse": true,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{9.result.article_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 2100,
+                  "y": 0,
+                  "name": "Step 11: Publish the article"
+                }
+              },
+              "onerror": [
+                {
+                  "id": 10,
+                  "module": "http:MakeRequest",
+                  "version": 4,
+                  "parameters": {},
+                  "mapper": {
+                    "url": "{{2.result.table_api_url}}/key_log?recipe=eq.R13.3&key=eq.{{encodeURL(1.draft_id)}}%3A{{encodeURL(1.decision)}}",
+                    "method": "patch",
+                    "timeout": "40",
+                    "parseResponse": false,
+                    "stopOnHttpError": true,
+                    "allowRedirects": true,
+                    "shareCookies": false,
+                    "requestCompressedContent": true,
+                    "contentType": "json",
+                    "inputMethod": "jsonString",
+                    "jsonStringBodyContent": "{\"status\": \"failed\", \"result\": \"write failed\"}"
+                  },
+                  "metadata": {
+                    "designer": {
+                      "x": 2100,
+                      "y": 300,
+                      "name": "Step 11: Publish the article: mark key failed"
+                    }
+                  }
+                },
+                {
+                  "id": 11,
+                  "module": "http:MakeRequest",
+                  "version": 4,
+                  "parameters": {},
+                  "mapper": {
+                    "url": "{{2.result.table_api_url}}/exception_queue",
+                    "method": "post",
+                    "timeout": "40",
+                    "parseResponse": false,
+                    "stopOnHttpError": true,
+                    "allowRedirects": true,
+                    "shareCookies": false,
+                    "requestCompressedContent": true,
+                    "contentType": "json",
+                    "inputMethod": "jsonString",
+                    "jsonStringBodyContent": "{{9.result.failed_body}}"
+                  },
+                  "metadata": {
+                    "designer": {
+                      "x": 2400,
+                      "y": 300,
+                      "name": "Step 11: Publish the article: exception queue"
+                    }
+                  }
+                },
+                {
+                  "id": 12,
+                  "module": "builtin:Ignore",
+                  "version": 1,
+                  "metadata": {
+                    "designer": {
+                      "x": 2700,
+                      "y": 300
+                    }
+                  }
+                }
+              ],
+              "filter": {
+                "name": "publish new",
+                "conditions": [
+                  [
+                    {
+                      "a": "{{9.result.outcome}}",
+                      "b": "publish_new",
+                      "o": "text:equal"
+                    }
+                  ]
+                ]
+              }
+            },
+            {
+              "id": 17,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.register_url}}/sources",
+                "method": "post",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{replace(9.result.register_body; \"@@article_id@@\"; 13.data.id)}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 2400,
+                  "y": 0,
+                  "name": "Step 11: Register the article"
+                }
+              },
+              "onerror": [
+                {
+                  "id": 14,
+                  "module": "http:MakeRequest",
+                  "version": 4,
+                  "parameters": {},
+                  "mapper": {
+                    "url": "{{2.result.table_api_url}}/key_log?recipe=eq.R13.3&key=eq.{{encodeURL(1.draft_id)}}%3A{{encodeURL(1.decision)}}",
+                    "method": "patch",
+                    "timeout": "40",
+                    "parseResponse": false,
+                    "stopOnHttpError": true,
+                    "allowRedirects": true,
+                    "shareCookies": false,
+                    "requestCompressedContent": true,
+                    "contentType": "json",
+                    "inputMethod": "jsonString",
+                    "jsonStringBodyContent": "{\"status\": \"failed\", \"result\": \"write failed\"}"
+                  },
+                  "metadata": {
+                    "designer": {
+                      "x": 2400,
+                      "y": 600,
+                      "name": "Step 11: Register the article: mark key failed"
+                    }
+                  }
+                },
+                {
+                  "id": 15,
+                  "module": "http:MakeRequest",
+                  "version": 4,
+                  "parameters": {},
+                  "mapper": {
+                    "url": "{{2.result.table_api_url}}/exception_queue",
+                    "method": "post",
+                    "timeout": "40",
+                    "parseResponse": false,
+                    "stopOnHttpError": true,
+                    "allowRedirects": true,
+                    "shareCookies": false,
+                    "requestCompressedContent": true,
+                    "contentType": "json",
+                    "inputMethod": "jsonString",
+                    "jsonStringBodyContent": "{{9.result.failed_body}}"
+                  },
+                  "metadata": {
+                    "designer": {
+                      "x": 2700,
+                      "y": 600,
+                      "name": "Step 11: Register the article: exception queue"
+                    }
+                  }
+                },
+                {
+                  "id": 16,
+                  "module": "builtin:Ignore",
+                  "version": 1,
+                  "metadata": {
+                    "designer": {
+                      "x": 3000,
+                      "y": 600
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "id": 21,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.drafts_url}}/drafts/{{encodeURL(1.draft_id)}}",
+                "method": "patch",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{\"status\": \"published\"}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 2700,
+                  "y": 0,
+                  "name": "Step 11: Set the draft published (new article)"
+                }
+              },
+              "onerror": [
+                {
+                  "id": 18,
+                  "module": "http:MakeRequest",
+                  "version": 4,
+                  "parameters": {},
+                  "mapper": {
+                    "url": "{{2.result.table_api_url}}/key_log?recipe=eq.R13.3&key=eq.{{encodeURL(1.draft_id)}}%3A{{encodeURL(1.decision)}}",
+                    "method": "patch",
+                    "timeout": "40",
+                    "parseResponse": false,
+                    "stopOnHttpError": true,
+                    "allowRedirects": true,
+                    "shareCookies": false,
+                    "requestCompressedContent": true,
+                    "contentType": "json",
+                    "inputMethod": "jsonString",
+                    "jsonStringBodyContent": "{\"status\": \"failed\", \"result\": \"write failed\"}"
+                  },
+                  "metadata": {
+                    "designer": {
+                      "x": 2700,
+                      "y": 900,
+                      "name": "Step 11: Set the draft published (new article): mark key failed"
+                    }
+                  }
+                },
+                {
+                  "id": 19,
+                  "module": "http:MakeRequest",
+                  "version": 4,
+                  "parameters": {},
+                  "mapper": {
+                    "url": "{{2.result.table_api_url}}/exception_queue",
+                    "method": "post",
+                    "timeout": "40",
+                    "parseResponse": false,
+                    "stopOnHttpError": true,
+                    "allowRedirects": true,
+                    "shareCookies": false,
+                    "requestCompressedContent": true,
+                    "contentType": "json",
+                    "inputMethod": "jsonString",
+                    "jsonStringBodyContent": "{{9.result.failed_body}}"
+                  },
+                  "metadata": {
+                    "designer": {
+                      "x": 3000,
+                      "y": 900,
+                      "name": "Step 11: Set the draft published (new article): exception queue"
+                    }
+                  }
+                },
+                {
+                  "id": 20,
+                  "module": "builtin:Ignore",
+                  "version": 1,
+                  "metadata": {
+                    "designer": {
+                      "x": 3300,
+                      "y": 900
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "id": 22,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.table_api_url}}/key_log?recipe=eq.R13.3&key=eq.{{encodeURL(1.draft_id)}}%3A{{encodeURL(1.decision)}}",
+                "method": "patch",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{9.result.done_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 3000,
+                  "y": 0,
+                  "name": "Step 10: Mark key done (published new)"
+                }
+              }
+            },
+            {
+              "id": 23,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.table_api_url}}/decision_log",
+                "method": "post",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{9.result.log_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 3300,
+                  "y": 0,
+                  "name": "Step 10: Decision log (published new)"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "flow": [
+            {
+              "id": 27,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.kb_url}}/articles/{{encodeURL(7.data.updates_article)}}",
+                "method": "patch",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{9.result.article_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 2100,
+                  "y": 1200,
+                  "name": "Step 11: Publish the suggested update"
+                }
+              },
+              "onerror": [
+                {
+                  "id": 24,
+                  "module": "http:MakeRequest",
+                  "version": 4,
+                  "parameters": {},
+                  "mapper": {
+                    "url": "{{2.result.table_api_url}}/key_log?recipe=eq.R13.3&key=eq.{{encodeURL(1.draft_id)}}%3A{{encodeURL(1.decision)}}",
+                    "method": "patch",
+                    "timeout": "40",
+                    "parseResponse": false,
+                    "stopOnHttpError": true,
+                    "allowRedirects": true,
+                    "shareCookies": false,
+                    "requestCompressedContent": true,
+                    "contentType": "json",
+                    "inputMethod": "jsonString",
+                    "jsonStringBodyContent": "{\"status\": \"failed\", \"result\": \"write failed\"}"
+                  },
+                  "metadata": {
+                    "designer": {
+                      "x": 2100,
+                      "y": 1500,
+                      "name": "Step 11: Publish the suggested update: mark key failed"
+                    }
+                  }
+                },
+                {
+                  "id": 25,
+                  "module": "http:MakeRequest",
+                  "version": 4,
+                  "parameters": {},
+                  "mapper": {
+                    "url": "{{2.result.table_api_url}}/exception_queue",
+                    "method": "post",
+                    "timeout": "40",
+                    "parseResponse": false,
+                    "stopOnHttpError": true,
+                    "allowRedirects": true,
+                    "shareCookies": false,
+                    "requestCompressedContent": true,
+                    "contentType": "json",
+                    "inputMethod": "jsonString",
+                    "jsonStringBodyContent": "{{9.result.failed_body}}"
+                  },
+                  "metadata": {
+                    "designer": {
+                      "x": 2400,
+                      "y": 1500,
+                      "name": "Step 11: Publish the suggested update: exception queue"
+                    }
+                  }
+                },
+                {
+                  "id": 26,
+                  "module": "builtin:Ignore",
+                  "version": 1,
+                  "metadata": {
+                    "designer": {
+                      "x": 2700,
+                      "y": 1500
+                    }
+                  }
+                }
+              ],
+              "filter": {
+                "name": "publish update",
+                "conditions": [
+                  [
+                    {
+                      "a": "{{9.result.outcome}}",
+                      "b": "publish_update",
+                      "o": "text:equal"
+                    }
+                  ]
+                ]
+              }
+            },
+            {
+              "id": 31,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.drafts_url}}/drafts/{{encodeURL(1.draft_id)}}",
+                "method": "patch",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{\"status\": \"published\"}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 2400,
+                  "y": 1200,
+                  "name": "Step 11: Set the draft published (suggested update)"
+                }
+              },
+              "onerror": [
+                {
+                  "id": 28,
+                  "module": "http:MakeRequest",
+                  "version": 4,
+                  "parameters": {},
+                  "mapper": {
+                    "url": "{{2.result.table_api_url}}/key_log?recipe=eq.R13.3&key=eq.{{encodeURL(1.draft_id)}}%3A{{encodeURL(1.decision)}}",
+                    "method": "patch",
+                    "timeout": "40",
+                    "parseResponse": false,
+                    "stopOnHttpError": true,
+                    "allowRedirects": true,
+                    "shareCookies": false,
+                    "requestCompressedContent": true,
+                    "contentType": "json",
+                    "inputMethod": "jsonString",
+                    "jsonStringBodyContent": "{\"status\": \"failed\", \"result\": \"write failed\"}"
+                  },
+                  "metadata": {
+                    "designer": {
+                      "x": 2400,
+                      "y": 1800,
+                      "name": "Step 11: Set the draft published (suggested update): mark key failed"
+                    }
+                  }
+                },
+                {
+                  "id": 29,
+                  "module": "http:MakeRequest",
+                  "version": 4,
+                  "parameters": {},
+                  "mapper": {
+                    "url": "{{2.result.table_api_url}}/exception_queue",
+                    "method": "post",
+                    "timeout": "40",
+                    "parseResponse": false,
+                    "stopOnHttpError": true,
+                    "allowRedirects": true,
+                    "shareCookies": false,
+                    "requestCompressedContent": true,
+                    "contentType": "json",
+                    "inputMethod": "jsonString",
+                    "jsonStringBodyContent": "{{9.result.failed_body}}"
+                  },
+                  "metadata": {
+                    "designer": {
+                      "x": 2700,
+                      "y": 1800,
+                      "name": "Step 11: Set the draft published (suggested update): exception queue"
+                    }
+                  }
+                },
+                {
+                  "id": 30,
+                  "module": "builtin:Ignore",
+                  "version": 1,
+                  "metadata": {
+                    "designer": {
+                      "x": 3000,
+                      "y": 1800
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "id": 32,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.table_api_url}}/key_log?recipe=eq.R13.3&key=eq.{{encodeURL(1.draft_id)}}%3A{{encodeURL(1.decision)}}",
+                "method": "patch",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{9.result.done_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 2700,
+                  "y": 1200,
+                  "name": "Step 10: Mark key done (published update)"
+                }
+              }
+            },
+            {
+              "id": 33,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.table_api_url}}/decision_log",
+                "method": "post",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{9.result.log_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 3000,
+                  "y": 1200,
+                  "name": "Step 10: Decision log (published update)"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "flow": [
+            {
+              "id": 37,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.drafts_url}}/drafts/{{encodeURL(1.draft_id)}}",
+                "method": "patch",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{\"status\": \"discarded\"}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 2100,
+                  "y": 2100,
+                  "name": "Step 10: Set the draft discarded"
+                }
+              },
+              "onerror": [
+                {
+                  "id": 34,
+                  "module": "http:MakeRequest",
+                  "version": 4,
+                  "parameters": {},
+                  "mapper": {
+                    "url": "{{2.result.table_api_url}}/key_log?recipe=eq.R13.3&key=eq.{{encodeURL(1.draft_id)}}%3A{{encodeURL(1.decision)}}",
+                    "method": "patch",
+                    "timeout": "40",
+                    "parseResponse": false,
+                    "stopOnHttpError": true,
+                    "allowRedirects": true,
+                    "shareCookies": false,
+                    "requestCompressedContent": true,
+                    "contentType": "json",
+                    "inputMethod": "jsonString",
+                    "jsonStringBodyContent": "{\"status\": \"failed\", \"result\": \"write failed\"}"
+                  },
+                  "metadata": {
+                    "designer": {
+                      "x": 2100,
+                      "y": 2400,
+                      "name": "Step 10: Set the draft discarded: mark key failed"
+                    }
+                  }
+                },
+                {
+                  "id": 35,
+                  "module": "http:MakeRequest",
+                  "version": 4,
+                  "parameters": {},
+                  "mapper": {
+                    "url": "{{2.result.table_api_url}}/exception_queue",
+                    "method": "post",
+                    "timeout": "40",
+                    "parseResponse": false,
+                    "stopOnHttpError": true,
+                    "allowRedirects": true,
+                    "shareCookies": false,
+                    "requestCompressedContent": true,
+                    "contentType": "json",
+                    "inputMethod": "jsonString",
+                    "jsonStringBodyContent": "{{9.result.failed_body}}"
+                  },
+                  "metadata": {
+                    "designer": {
+                      "x": 2400,
+                      "y": 2400,
+                      "name": "Step 10: Set the draft discarded: exception queue"
+                    }
+                  }
+                },
+                {
+                  "id": 36,
+                  "module": "builtin:Ignore",
+                  "version": 1,
+                  "metadata": {
+                    "designer": {
+                      "x": 2700,
+                      "y": 2400
+                    }
+                  }
+                }
+              ],
+              "filter": {
+                "name": "discard",
+                "conditions": [
+                  [
+                    {
+                      "a": "{{9.result.outcome}}",
+                      "b": "discard",
+                      "o": "text:equal"
+                    }
+                  ]
+                ]
+              }
+            },
+            {
+              "id": 38,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.table_api_url}}/key_log?recipe=eq.R13.3&key=eq.{{encodeURL(1.draft_id)}}%3A{{encodeURL(1.decision)}}",
+                "method": "patch",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{9.result.done_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 2400,
+                  "y": 2100,
+                  "name": "Step 10: Mark key done (discarded)"
+                }
+              }
+            },
+            {
+              "id": 39,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.table_api_url}}/decision_log",
+                "method": "post",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{9.result.log_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 2700,
+                  "y": 2100,
+                  "name": "Step 10: Decision log (discarded)"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "flow": [
+            {
+              "id": 40,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.table_api_url}}/exception_queue",
+                "method": "post",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{9.result.blocked_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 2100,
+                  "y": 2700,
+                  "name": "Step 10: Exception queue: approval blocked"
+                }
+              },
+              "filter": {
+                "name": "refuse",
+                "conditions": [
+                  [
+                    {
+                      "a": "{{9.result.outcome}}",
+                      "b": "refuse",
+                      "o": "text:equal"
+                    }
+                  ]
+                ]
+              }
+            },
+            {
+              "id": 41,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.table_api_url}}/key_log?recipe=eq.R13.3&key=eq.{{encodeURL(1.draft_id)}}%3A{{encodeURL(1.decision)}}",
+                "method": "patch",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{9.result.done_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 2400,
+                  "y": 2700,
+                  "name": "Step 10: Mark key done (approval blocked)"
+                }
+              }
+            },
+            {
+              "id": 42,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.table_api_url}}/decision_log",
+                "method": "post",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{9.result.log_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 2700,
+                  "y": 2700,
+                  "name": "Step 10: Decision log (approval blocked)"
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "designer": {
+          "x": 1800,
+          "y": 0,
+          "name": "Decision"
+        }
+      }
+    }
+  ],
+  "metadata": {
+    "instant": true,
+    "version": 1,
+    "designer": {
+      "orphans": []
+    },
+    "scenario": {
+      "dlq": true,
+      "slots": null,
+      "dataloss": false,
+      "maxErrors": 3,
+      "autoCommit": true,
+      "roundtrips": 1,
+      "sequential": false,
+      "confidential": false,
+      "freshVariables": false,
+      "autoCommitTriggerLast": true
+    }
+  }
+}

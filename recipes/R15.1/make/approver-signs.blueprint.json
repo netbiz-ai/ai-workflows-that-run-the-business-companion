@@ -1,0 +1,524 @@
+{
+  "name": "R15.1 Draft campaign copy and check every claim: approver signs",
+  "flow": [
+    {
+      "id": 1,
+      "module": "gateway:CustomWebHook",
+      "version": 1,
+      "parameters": {
+        "hook": null,
+        "maxResults": 1
+      },
+      "mapper": {},
+      "metadata": {
+        "designer": {
+          "x": 0,
+          "y": 0,
+          "name": "Step 8: Approver signs"
+        }
+      }
+    },
+    {
+      "id": 2,
+      "module": "code:ExecuteCode",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "language": "javascript",
+        "inputFormat": "editor",
+        "dependencies": [],
+        "codeEditorJavascript": "// Config: edit these values for your company; nothing else in the scenario hard-codes them.\nreturn {\n  \"stop_flag_url\": \"https://<your stop list API>/stop_flags/R15.1\",\n  \"table_api_url\": \"https://<your table API for the key log, decision log and exception queue>\",\n  \"workflow_owner\": \"<your workflow owner>\",\n  \"briefs_url\": \"https://<your brief list API>\",\n  \"claims_url\": \"https://<your claims list API>\",\n  \"prices_url\": \"https://<your CRM price list API>\",\n  \"style_sheet_url\": \"https://<your style sheet API>\",\n  \"drafts_url\": \"https://<your drafts and claims report API>\",\n  \"messaging_url\": \"https://<your messaging API>\",\n  \"approvers\": {\n    \"price\": \"<your price approver>\",\n    \"time\": \"<your delivery and installation approver>\",\n    \"warranty\": \"<your warranty approver>\",\n    \"comparison\": \"<your comparison approver>\",\n    \"environmental\": \"<your environmental claim approver>\"\n  },\n  \"final_approver\": \"<your campaign owner>\",\n  \"ai_owner\": \"<your workflow builder>\",\n  \"stand_in_namer\": \"<your workflow owner>\",\n  \"signoff_wait_days\": 2,\n  \"scan_words\": [\n    \"free\",\n    \"warranty\",\n    \"guarantee\",\n    \"best\",\n    \"today\",\n    \"tonight\",\n    \"tomorrow\",\n    \"day\",\n    \"days\",\n    \"week\",\n    \"weeks\",\n    \"weekend\",\n    \"month\",\n    \"hour\",\n    \"hours\",\n    \"monday\",\n    \"tuesday\",\n    \"wednesday\",\n    \"thursday\",\n    \"friday\",\n    \"saturday\",\n    \"sunday\"\n  ],\n  \"prompt_version\": \"<your prompt version>\",\n  \"ai_model\": \"claude-haiku-5-5\",\n  \"ai_inference_geo\": \"us\",\n  \"ai_url\": \"https://api.anthropic.com/v1/messages\"\n};",
+        "input": []
+      },
+      "metadata": {
+        "designer": {
+          "x": 300,
+          "y": 0,
+          "name": "Config"
+        }
+      }
+    },
+    {
+      "id": 5,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{2.result.stop_flag_url}}",
+        "method": "get",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true
+      },
+      "metadata": {
+        "designer": {
+          "x": 600,
+          "y": 0,
+          "name": "Stop flag: read"
+        }
+      },
+      "onerror": [
+        {
+          "id": 3,
+          "module": "http:MakeRequest",
+          "version": 4,
+          "parameters": {},
+          "mapper": {
+            "url": "{{2.result.table_api_url}}/exception_queue",
+            "method": "post",
+            "timeout": "40",
+            "parseResponse": false,
+            "stopOnHttpError": true,
+            "allowRedirects": true,
+            "shareCookies": false,
+            "requestCompressedContent": true,
+            "contentType": "json",
+            "inputMethod": "jsonString",
+            "jsonStringBodyContent": "{\"recipe\": \"R15.1\", \"item\": \"run {{var.scenario.executionId}}\", \"reason\": \"stop list unreadable\", \"detail\": \"The stop list could not be read, so the run stopped\", \"owner\": \"{{2.result.workflow_owner}}\"}"
+          },
+          "metadata": {
+            "designer": {
+              "x": 600,
+              "y": 300,
+              "name": "Stop flag: list unreadable"
+            }
+          }
+        },
+        {
+          "id": 4,
+          "module": "builtin:Ignore",
+          "version": 1,
+          "metadata": {
+            "designer": {
+              "x": 900,
+              "y": 300
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{2.result.drafts_url}}/versions/{{encodeURL(1.version_id)}}",
+        "method": "get",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true
+      },
+      "metadata": {
+        "designer": {
+          "x": 900,
+          "y": 0,
+          "name": "Read the version to sign"
+        }
+      },
+      "onerror": [
+        {
+          "id": 6,
+          "module": "builtin:Break",
+          "version": 1,
+          "parameters": {},
+          "mapper": {
+            "count": "3",
+            "retry": true,
+            "interval": "1"
+          },
+          "metadata": {
+            "designer": {
+              "x": 900,
+              "y": 600
+            }
+          }
+        }
+      ],
+      "filter": {
+        "name": "stop flag not set",
+        "conditions": [
+          [
+            {
+              "a": "{{5.data.stopped}}",
+              "b": "true",
+              "o": "text:notequal"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "id": 8,
+      "module": "code:ExecuteCode",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "language": "javascript",
+        "inputFormat": "editor",
+        "dependencies": [],
+        "codeEditorJavascript": "// Adapter: the rule below is the same JavaScript as the recipe's n8n build.\n// $('Step name') answers from this step's inputs: each is that step's output in this scenario.\nconst SOURCES = {\"Config\": \"in0_Config\", \"Read the version to sign\": \"in1_Readtheversiontosign\"};\nconst LISTS = [];\nconst EXECUTED = [];\nconst DATA = {};\nfor (const [node, key] of Object.entries(SOURCES)) {\n  const raw = input[key];\n  let v = raw;\n  if (typeof raw === 'string') { try { v = JSON.parse(raw); } catch (e) { v = raw; } }\n  DATA[node] = LISTS.includes(node) ? (v || []).map(i => (i && i.json !== undefined ? i : { json: i })) : [{ json: v }];\n}\nconst $ = (node) => {\n  const ran = node in DATA || EXECUTED.includes(node);\n  const list = () => { if (!(node in DATA)) throw new Error(`step ${node} has no data in this scenario`); return DATA[node]; };\n  return { isExecuted: ran, first: () => list()[0], last: () => list()[list().length - 1], all: () => list(),\n           get item() { return list()[0]; } };\n};\nconst INPUT = \"Read the version to sign\";\nconst $input = { all: () => $(INPUT).all(), first: () => $(INPUT).first(), last: () => $(INPUT).last(), get item() { return $(INPUT).first(); } };\nconst $execution = { id: input.run_id };\n// The webhook's fields, as the rule reads them in n8n: $('Step 8: Approver signs').first().json.body.\nDATA[\"Step 8: Approver signs\"] = [{ json: { body: { \"version_id\": input.t_version_id, \"approver\": input.t_approver, \"decision\": input.t_decision } } }];\nconst BODIES = (out) => ({\"id_q\": encodeURIComponent(out.version_id), \"patch_body\": JSON.stringify(out.body), \"has_message\": !!out.message, \"message_body\": out.message ? JSON.stringify(out.message) : '', \"log_body\": JSON.stringify({ recipe: 'R15.1', item: out.version_id, decision: out.decision, rules: {} }), \"failed_body\": JSON.stringify({ recipe: 'R15.1', item: String($('Step 8: Approver signs').first().json.body.version_id), reason: 'write failed', detail: 'write failed; never retried', owner: $('Config').first().json.ai_owner })});\nconst one = (r) => (Array.isArray(r) ? r : [r]).filter(Boolean).map(i => (i.json !== undefined ? i.json : i));\nconst $json = INPUT && INPUT in DATA ? $input.first().json : {};\nconst __rule = () => {\n// Step 8: a named approver signs or strikes; when every one has signed, Ben is asked (step 9).\nconst cfg = $('Config').first().json;\nconst b = $('Step 8: Approver signs').first().json.body;\nconst v = $json;\nconst a = JSON.parse(JSON.stringify(v.approvals || {}));\nif (v.status !== 'waiting for sign-off' || !a[b.approver]) {\n  return [{ json: { version_id: v.id, record: false, message: null,\n    decision: 'sign-off ignored: ' + (!a[b.approver] ? 'not a named approver for this version' : 'version is ' + v.status) } }];\n}\na[b.approver].status = b.decision === 'struck' ? 'struck' : 'signed';\na[b.approver].at = new Date().toISOString();\nlet status = 'waiting for sign-off', message = null;\nif (b.decision === 'struck') {\n  status = 'returned to Ben';\n  message = { to: [cfg.final_approver], subject: `Campaign copy ${v.id} returned`, text: `${b.approver} struck: ${a[b.approver].claims.join(', ')}` };\n} else if (Object.values(a).every(x => x.status === 'signed')) {\n  status = 'waiting for Ben';\n  message = { to: [cfg.final_approver], subject: `Campaign copy ${v.id}: every approver signed`, text: 'Read the final copy and approve.\\n\\n' + v.text };\n}\nreturn [{ json: { version_id: v.id, record: true, body: { approvals: a, status }, message, decision: `${b.approver} ${a[b.approver].status}; ${status}` } }];\n};\nconst out = one(__rule())[0] || {};\nreturn Object.assign({}, out, BODIES(out));\n",
+        "input": [
+          {
+            "name": "t_version_id",
+            "value": "{{1.version_id}}"
+          },
+          {
+            "name": "t_approver",
+            "value": "{{1.approver}}"
+          },
+          {
+            "name": "t_decision",
+            "value": "{{1.decision}}"
+          },
+          {
+            "name": "in0_Config",
+            "value": "{{2.result}}"
+          },
+          {
+            "name": "in1_Readtheversiontosign",
+            "value": "{{7.data}}"
+          },
+          {
+            "name": "run_id",
+            "value": "{{var.scenario.executionId}}"
+          }
+        ]
+      },
+      "metadata": {
+        "designer": {
+          "x": 1200,
+          "y": 0,
+          "name": "Step 8: Rule: record the sign-off"
+        }
+      }
+    },
+    {
+      "id": 19,
+      "module": "builtin:BasicRouter",
+      "version": 1,
+      "mapper": null,
+      "routes": [
+        {
+          "flow": [
+            {
+              "id": 11,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.drafts_url}}/versions/{{8.result.id_q}}",
+                "method": "patch",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{8.result.patch_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 1800,
+                  "y": 0,
+                  "name": "Step 8: Update the version"
+                }
+              },
+              "onerror": [
+                {
+                  "id": 9,
+                  "module": "http:MakeRequest",
+                  "version": 4,
+                  "parameters": {},
+                  "mapper": {
+                    "url": "{{2.result.table_api_url}}/exception_queue",
+                    "method": "post",
+                    "timeout": "40",
+                    "parseResponse": false,
+                    "stopOnHttpError": true,
+                    "allowRedirects": true,
+                    "shareCookies": false,
+                    "requestCompressedContent": true,
+                    "contentType": "json",
+                    "inputMethod": "jsonString",
+                    "jsonStringBodyContent": "{{8.result.failed_body}}"
+                  },
+                  "metadata": {
+                    "designer": {
+                      "x": 1800,
+                      "y": 300,
+                      "name": "Step 8: Update the version: exception queue"
+                    }
+                  }
+                },
+                {
+                  "id": 10,
+                  "module": "builtin:Ignore",
+                  "version": 1,
+                  "metadata": {
+                    "designer": {
+                      "x": 2100,
+                      "y": 300
+                    }
+                  }
+                }
+              ],
+              "filter": {
+                "name": "record it",
+                "conditions": [
+                  [
+                    {
+                      "a": "{{8.result.record}}",
+                      "b": "true",
+                      "o": "text:equal"
+                    }
+                  ]
+                ]
+              }
+            },
+            {
+              "id": 17,
+              "module": "builtin:BasicRouter",
+              "version": 1,
+              "mapper": null,
+              "routes": [
+                {
+                  "flow": [
+                    {
+                      "id": 14,
+                      "module": "http:MakeRequest",
+                      "version": 4,
+                      "parameters": {},
+                      "mapper": {
+                        "url": "{{2.result.messaging_url}}/messages",
+                        "method": "post",
+                        "timeout": "40",
+                        "parseResponse": false,
+                        "stopOnHttpError": true,
+                        "allowRedirects": true,
+                        "shareCookies": false,
+                        "requestCompressedContent": true,
+                        "contentType": "json",
+                        "inputMethod": "jsonString",
+                        "jsonStringBodyContent": "{{8.result.message_body}}"
+                      },
+                      "metadata": {
+                        "designer": {
+                          "x": 2400,
+                          "y": 0,
+                          "name": "Step 8: Message"
+                        }
+                      },
+                      "onerror": [
+                        {
+                          "id": 12,
+                          "module": "http:MakeRequest",
+                          "version": 4,
+                          "parameters": {},
+                          "mapper": {
+                            "url": "{{2.result.table_api_url}}/exception_queue",
+                            "method": "post",
+                            "timeout": "40",
+                            "parseResponse": false,
+                            "stopOnHttpError": true,
+                            "allowRedirects": true,
+                            "shareCookies": false,
+                            "requestCompressedContent": true,
+                            "contentType": "json",
+                            "inputMethod": "jsonString",
+                            "jsonStringBodyContent": "{{8.result.failed_body}}"
+                          },
+                          "metadata": {
+                            "designer": {
+                              "x": 2400,
+                              "y": 300,
+                              "name": "Step 8: Message: exception queue"
+                            }
+                          }
+                        },
+                        {
+                          "id": 13,
+                          "module": "builtin:Ignore",
+                          "version": 1,
+                          "metadata": {
+                            "designer": {
+                              "x": 2700,
+                              "y": 300
+                            }
+                          }
+                        }
+                      ],
+                      "filter": {
+                        "name": "a message",
+                        "conditions": [
+                          [
+                            {
+                              "a": "{{8.result.has_message}}",
+                              "b": "true",
+                              "o": "text:equal"
+                            }
+                          ]
+                        ]
+                      }
+                    },
+                    {
+                      "id": 15,
+                      "module": "http:MakeRequest",
+                      "version": 4,
+                      "parameters": {},
+                      "mapper": {
+                        "url": "{{2.result.table_api_url}}/decision_log",
+                        "method": "post",
+                        "timeout": "40",
+                        "parseResponse": false,
+                        "stopOnHttpError": true,
+                        "allowRedirects": true,
+                        "shareCookies": false,
+                        "requestCompressedContent": true,
+                        "contentType": "json",
+                        "inputMethod": "jsonString",
+                        "jsonStringBodyContent": "{{8.result.log_body}}"
+                      },
+                      "metadata": {
+                        "designer": {
+                          "x": 2700,
+                          "y": 0,
+                          "name": "Step 8: Decision log (message)"
+                        }
+                      }
+                    }
+                  ]
+                },
+                {
+                  "flow": [
+                    {
+                      "id": 16,
+                      "module": "http:MakeRequest",
+                      "version": 4,
+                      "parameters": {},
+                      "mapper": {
+                        "url": "{{2.result.table_api_url}}/decision_log",
+                        "method": "post",
+                        "timeout": "40",
+                        "parseResponse": false,
+                        "stopOnHttpError": true,
+                        "allowRedirects": true,
+                        "shareCookies": false,
+                        "requestCompressedContent": true,
+                        "contentType": "json",
+                        "inputMethod": "jsonString",
+                        "jsonStringBodyContent": "{{8.result.log_body}}"
+                      },
+                      "metadata": {
+                        "designer": {
+                          "x": 2400,
+                          "y": 600,
+                          "name": "Step 8: Decision log (no message)"
+                        }
+                      },
+                      "filter": {
+                        "name": "no message",
+                        "conditions": [
+                          [
+                            {
+                              "a": "{{8.result.has_message}}",
+                              "b": "true",
+                              "o": "text:notequal"
+                            }
+                          ]
+                        ]
+                      }
+                    }
+                  ]
+                }
+              ],
+              "metadata": {
+                "designer": {
+                  "x": 2100,
+                  "y": 0,
+                  "name": "Step 8: Tell someone?"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "flow": [
+            {
+              "id": 18,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.table_api_url}}/decision_log",
+                "method": "post",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{8.result.log_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 1800,
+                  "y": 600,
+                  "name": "Step 8: Decision log (not recorded)"
+                }
+              },
+              "filter": {
+                "name": "not recorded",
+                "conditions": [
+                  [
+                    {
+                      "a": "{{8.result.record}}",
+                      "b": "true",
+                      "o": "text:notequal"
+                    }
+                  ]
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "designer": {
+          "x": 1500,
+          "y": 0,
+          "name": "Step 8: Record it?"
+        }
+      }
+    }
+  ],
+  "metadata": {
+    "instant": true,
+    "version": 1,
+    "designer": {
+      "orphans": []
+    },
+    "scenario": {
+      "dlq": true,
+      "slots": null,
+      "dataloss": false,
+      "maxErrors": 3,
+      "autoCommit": true,
+      "roundtrips": 1,
+      "sequential": false,
+      "confidential": false,
+      "freshVariables": false,
+      "autoCommitTriggerLast": true
+    }
+  }
+}

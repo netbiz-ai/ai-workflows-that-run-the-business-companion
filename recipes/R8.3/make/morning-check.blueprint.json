@@ -1,0 +1,320 @@
+{
+  "name": "R8.3 Take in a dispute: morning mailbox check",
+  "flow": [
+    {
+      "id": 1,
+      "module": "code:ExecuteCode",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "language": "javascript",
+        "inputFormat": "editor",
+        "dependencies": [],
+        "codeEditorJavascript": "// Config: edit these values for your company; nothing else in the scenario hard-codes them.\n// Schedule: set this scenario to run every day at 06:00, before R8.1 runs; Make keeps the schedule outside the blueprint.\nreturn {\n  \"stop_flag_url\": \"https://<your stop list API>/stop_flags/R8.3\",\n  \"table_api_url\": \"https://<your table API for the key log, decision log and exception queue>\",\n  \"workflow_owner\": \"<your workflow owner>\",\n  \"mail_url\": \"https://<your AR mailbox API>\",\n  \"sharepoint_url\": \"https://<your SharePoint lists API>\",\n  \"crm_url\": \"https://<your CRM API>\",\n  \"messaging_url\": \"https://<your Teams or messaging API>\",\n  \"ar_lead\": \"<your AR lead, who works the unlinked queue>\",\n  \"own_domains\": [\n    \"<your company's email domain>\"\n  ],\n  \"invoice_number_pattern\": \"<your invoice-number pattern, as a regular expression>\",\n  \"escalation_keywords\": [\n    \"<your R4.2 safety and legal keyword list>\"\n  ],\n  \"summary_max_words\": 80,\n  \"ai_model\": \"claude-haiku-5-5\",\n  \"ai_inference_geo\": \"us\",\n  \"ai_url\": \"https://api.anthropic.com/v1/messages\"\n};",
+        "input": []
+      },
+      "metadata": {
+        "designer": {
+          "x": 0,
+          "y": 0,
+          "name": "Config"
+        }
+      }
+    },
+    {
+      "id": 4,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{1.result.stop_flag_url}}",
+        "method": "get",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true
+      },
+      "metadata": {
+        "designer": {
+          "x": 300,
+          "y": 0,
+          "name": "Stop flag: read"
+        }
+      },
+      "onerror": [
+        {
+          "id": 2,
+          "module": "http:MakeRequest",
+          "version": 4,
+          "parameters": {},
+          "mapper": {
+            "url": "{{1.result.table_api_url}}/exception_queue",
+            "method": "post",
+            "timeout": "40",
+            "parseResponse": false,
+            "stopOnHttpError": true,
+            "allowRedirects": true,
+            "shareCookies": false,
+            "requestCompressedContent": true,
+            "contentType": "json",
+            "inputMethod": "jsonString",
+            "jsonStringBodyContent": "{\"recipe\": \"R8.3\", \"item\": \"run {{var.scenario.executionId}}\", \"reason\": \"stop list unreadable\", \"detail\": \"The stop list could not be read, so the run stopped\", \"owner\": \"{{1.result.workflow_owner}}\"}"
+          },
+          "metadata": {
+            "designer": {
+              "x": 300,
+              "y": 300,
+              "name": "Stop flag: list unreadable"
+            }
+          }
+        },
+        {
+          "id": 3,
+          "module": "builtin:Ignore",
+          "version": 1,
+          "metadata": {
+            "designer": {
+              "x": 600,
+              "y": 300
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{1.result.mail_url}}/messages",
+        "method": "get",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true,
+        "queryParameters": [
+          {
+            "name": "_wrap",
+            "value": "1"
+          }
+        ]
+      },
+      "metadata": {
+        "designer": {
+          "x": 600,
+          "y": 0,
+          "name": "Step 1: Check the mailbox"
+        }
+      },
+      "onerror": [
+        {
+          "id": 6,
+          "module": "http:MakeRequest",
+          "version": 4,
+          "parameters": {},
+          "mapper": {
+            "url": "{{1.result.mail_url}}/messages",
+            "method": "get",
+            "timeout": "40",
+            "parseResponse": true,
+            "stopOnHttpError": true,
+            "allowRedirects": true,
+            "shareCookies": false,
+            "requestCompressedContent": true,
+            "queryParameters": [
+              {
+                "name": "_wrap",
+                "value": "1"
+              }
+            ]
+          },
+          "metadata": {
+            "designer": {
+              "x": 600,
+              "y": 600,
+              "name": "Step 1: Check the mailbox, second try"
+            }
+          },
+          "onerror": [
+            {
+              "id": 7,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{1.result.mail_url}}/messages",
+                "method": "get",
+                "timeout": "40",
+                "parseResponse": true,
+                "stopOnHttpError": false,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "queryParameters": [
+                  {
+                    "name": "_wrap",
+                    "value": "1"
+                  }
+                ]
+              },
+              "metadata": {
+                "designer": {
+                  "x": 600,
+                  "y": 900,
+                  "name": "Step 1: Check the mailbox, third try"
+                }
+              }
+            },
+            {
+              "id": 8,
+              "module": "builtin:Resume",
+              "version": 1,
+              "parameters": {},
+              "mapper": {
+                "statusCode": "{{7.statusCode}}",
+                "data": "{{7.data}}",
+                "headers": "{{7.headers}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 900,
+                  "y": 900
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": 9,
+          "module": "builtin:Resume",
+          "version": 1,
+          "parameters": {},
+          "mapper": {
+            "statusCode": "{{6.statusCode}}",
+            "data": "{{6.data}}",
+            "headers": "{{6.headers}}"
+          },
+          "metadata": {
+            "designer": {
+              "x": 900,
+              "y": 600
+            }
+          }
+        }
+      ],
+      "filter": {
+        "name": "stop flag not set",
+        "conditions": [
+          [
+            {
+              "a": "{{4.data.stopped}}",
+              "b": "true",
+              "o": "text:notequal"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "id": 12,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{1.result.sharepoint_url}}/status/mailbox-check",
+        "method": "put",
+        "timeout": "40",
+        "parseResponse": false,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true,
+        "contentType": "json",
+        "inputMethod": "jsonString",
+        "jsonStringBodyContent": "{\"id\": \"mailbox-check\", \"last_check\": \"{{formatDate(now; \"YYYY-MM-DDTHH:mm:ss.SSSZ\"; \"UTC\")}}\"}"
+      },
+      "metadata": {
+        "designer": {
+          "x": 900,
+          "y": 0,
+          "name": "Step 1: Write the check time"
+        }
+      },
+      "onerror": [
+        {
+          "id": 10,
+          "module": "http:MakeRequest",
+          "version": 4,
+          "parameters": {},
+          "mapper": {
+            "url": "{{1.result.table_api_url}}/exception_queue",
+            "method": "post",
+            "timeout": "40",
+            "parseResponse": false,
+            "stopOnHttpError": true,
+            "allowRedirects": true,
+            "shareCookies": false,
+            "requestCompressedContent": true,
+            "contentType": "json",
+            "inputMethod": "jsonString",
+            "jsonStringBodyContent": "{\"recipe\": \"R8.3\", \"item\": \"mailbox-check\", \"reason\": \"write failed\", \"detail\": \"The mailbox check time was not written; R8.1 will hold\", \"owner\": \"{{1.result.ar_lead}}\"}"
+          },
+          "metadata": {
+            "designer": {
+              "x": 900,
+              "y": 300,
+              "name": "Exception queue: status write failed"
+            }
+          }
+        },
+        {
+          "id": 11,
+          "module": "builtin:Ignore",
+          "version": 1,
+          "metadata": {
+            "designer": {
+              "x": 1200,
+              "y": 300
+            }
+          }
+        }
+      ],
+      "filter": {
+        "name": "mailbox reached",
+        "conditions": [
+          [
+            {
+              "a": "{{5.statusCode}}",
+              "b": "200",
+              "o": "text:equal"
+            }
+          ]
+        ]
+      }
+    }
+  ],
+  "metadata": {
+    "instant": false,
+    "version": 1,
+    "designer": {
+      "orphans": []
+    },
+    "scenario": {
+      "dlq": true,
+      "slots": null,
+      "dataloss": false,
+      "maxErrors": 3,
+      "autoCommit": true,
+      "roundtrips": 1,
+      "sequential": false,
+      "confidential": false,
+      "freshVariables": false,
+      "autoCommitTriggerLast": true
+    }
+  }
+}

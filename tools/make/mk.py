@@ -260,12 +260,32 @@ class Scenario:
                   "metadata": {"designer": {}}}
         return [build, call(f"{step}: AI call", onerror=[second, resume])]
 
+    def repeater(self, name: str, repeats: str) -> dict:
+        """One bundle per pass, i = 1 to repeats; each runs the steps after it before the next starts.
+        Make cannot loop back, so a loop is a Repeater with a variable that later passes check."""
+        return {"id": self._id(name), "module": "builtin:BasicRepeater", "version": 1, "parameters": {},
+                "mapper": {"start": "1", "repeats": repeats, "step": "1"}, "metadata": self._meta(name, 0, 0)}
+
+    def set_var(self, name: str, var: str, value: str) -> dict:
+        """Set a variable for the rest of this run (Make's "Set variable", scope: one cycle)."""
+        return {"id": self._id(name), "module": "util:SetVariable2", "version": 1, "parameters": {},
+                "mapper": {"name": var, "scope": "roundtrip", "value": value}, "metadata": self._meta(name, 0, 0)}
+
+    def get_var(self, name: str, var: str) -> dict:
+        return {"id": self._id(name), "module": "util:GetVariable2", "version": 1, "parameters": {},
+                "mapper": {"name": var}, "metadata": self._meta(name, 0, 0)}
+
+    def sleep(self, name: str, seconds: str) -> dict:
+        """Wait in the run (Make's Sleep, at most 300 seconds)."""
+        return {"id": self._id(name), "module": "util:FunctionSleep", "version": 1, "parameters": {},
+                "mapper": {"duration": seconds}, "metadata": self._meta(name, 0, 0)}
+
     def with_tries(self, m: dict, n: int) -> dict:
-        """Make an HTTP step try up to n times (n <= 3): each failed try hands over to the next in
+        """Make an HTTP step try up to n times (n <= 4): each failed try hands over to the next in
         its error route, and Make's Resume handler passes that try's response on as the step's own
         output, so the step after it sees the last answer (a non-2xx status if every try failed).
         The step's own error route, if any, is replaced. Returns m."""
-        ordinal = {2: "second", 3: "third"}
+        ordinal = {2: "second", 3: "third", 4: "fourth"}
         calls = [m]
         for k in range(2, n + 1):
             name = f"{m['metadata']['designer']['name']}, {ordinal[k]} try"

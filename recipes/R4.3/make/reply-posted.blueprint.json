@@ -1,0 +1,473 @@
+{
+  "name": "R4.3 Draft a reply from approved sources: reply posted",
+  "flow": [
+    {
+      "id": 1,
+      "module": "gateway:CustomWebHook",
+      "version": 1,
+      "parameters": {
+        "hook": null,
+        "maxResults": 1
+      },
+      "mapper": {},
+      "metadata": {
+        "designer": {
+          "x": 0,
+          "y": 0,
+          "name": "Step 8: Reply posted"
+        }
+      }
+    },
+    {
+      "id": 2,
+      "module": "code:ExecuteCode",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "language": "javascript",
+        "inputFormat": "editor",
+        "dependencies": [],
+        "codeEditorJavascript": "// Config: edit these values for your company; nothing else in the scenario hard-codes them.\nreturn {\n  \"stop_flag_url\": \"https://<your stop list API>/stop_flags/R4.3\",\n  \"table_api_url\": \"https://<your table API for the key log, decision log and exception queue>\",\n  \"workflow_owner\": \"<your workflow owner>\",\n  \"helpdesk_url\": \"https://<your helpdesk API>\",\n  \"articles_url\": \"https://<your knowledge base API>\",\n  \"orders_url\": \"https://<your order system API>\",\n  \"draft_queues\": [\n    {\n      \"queue\": \"<your warranty queue>\",\n      \"article_topic\": \"warranty\",\n      \"order\": false\n    },\n    {\n      \"queue\": \"<your returns queue>\",\n      \"article_topic\": \"returns\",\n      \"order\": true\n    },\n    {\n      \"queue\": \"<your delivery queue>\",\n      \"article_topic\": null,\n      \"order\": true\n    }\n  ],\n  \"r42_recheck_seconds\": 300,\n  \"r42_rechecks\": 3,\n  \"commitment_words\": [\n    \"free\",\n    \"refund\",\n    \"replace\",\n    \"credit\",\n    \"visit\"\n  ],\n  \"claim_words\": [\n    \"<your policy words, such as warranty, return, price>\"\n  ],\n  \"edited_min_share\": 0.5,\n  \"flag_owner\": \"<your draft owner>\",\n  \"ai_model\": \"claude-haiku-5-5\",\n  \"ai_inference_geo\": \"us\",\n  \"ai_url\": \"https://api.anthropic.com/v1/messages\"\n};",
+        "input": []
+      },
+      "metadata": {
+        "designer": {
+          "x": 300,
+          "y": 0,
+          "name": "Config"
+        }
+      }
+    },
+    {
+      "id": 5,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{2.result.stop_flag_url}}",
+        "method": "get",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true
+      },
+      "metadata": {
+        "designer": {
+          "x": 600,
+          "y": 0,
+          "name": "Stop flag: read"
+        }
+      },
+      "onerror": [
+        {
+          "id": 3,
+          "module": "http:MakeRequest",
+          "version": 4,
+          "parameters": {},
+          "mapper": {
+            "url": "{{2.result.table_api_url}}/exception_queue",
+            "method": "post",
+            "timeout": "40",
+            "parseResponse": false,
+            "stopOnHttpError": true,
+            "allowRedirects": true,
+            "shareCookies": false,
+            "requestCompressedContent": true,
+            "contentType": "json",
+            "inputMethod": "jsonString",
+            "jsonStringBodyContent": "{\"recipe\": \"R4.3\", \"item\": \"run {{var.scenario.executionId}}\", \"reason\": \"stop list unreadable\", \"detail\": \"The stop list could not be read, so the run stopped\", \"owner\": \"{{2.result.workflow_owner}}\"}"
+          },
+          "metadata": {
+            "designer": {
+              "x": 600,
+              "y": 300,
+              "name": "Stop flag: list unreadable"
+            }
+          }
+        },
+        {
+          "id": 4,
+          "module": "builtin:Ignore",
+          "version": 1,
+          "metadata": {
+            "designer": {
+              "x": 900,
+              "y": 300
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{2.result.table_api_url}}/rpc/reserve_key",
+        "method": "post",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true,
+        "contentType": "json",
+        "inputMethod": "jsonString",
+        "jsonStringBodyContent": "{\"p_recipe\": \"R4.3\", \"p_key\": \"reply:{{1.reply_id}}\"}"
+      },
+      "metadata": {
+        "designer": {
+          "x": 900,
+          "y": 0,
+          "name": "Step 8: Reserve key"
+        }
+      },
+      "filter": {
+        "name": "stop flag not set",
+        "conditions": [
+          [
+            {
+              "a": "{{5.data.stopped}}",
+              "b": "true",
+              "o": "text:notequal"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "id": 8,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{2.result.table_api_url}}/decision_log?recipe=eq.R4.3&item=eq.{{encodeURL(1.ticket_id)}}&decision=eq.draft%20saved&order=id.desc&limit=1",
+        "method": "get",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true
+      },
+      "metadata": {
+        "designer": {
+          "x": 1200,
+          "y": 0,
+          "name": "Step 8: Find the draft"
+        }
+      },
+      "onerror": [
+        {
+          "id": 7,
+          "module": "builtin:Break",
+          "version": 1,
+          "parameters": {},
+          "mapper": {
+            "count": "3",
+            "retry": true,
+            "interval": "1"
+          },
+          "metadata": {
+            "designer": {
+              "x": 1200,
+              "y": 300
+            }
+          }
+        }
+      ],
+      "filter": {
+        "name": "new key (not a copy)",
+        "conditions": [
+          [
+            {
+              "a": "{{6.data}}",
+              "b": "true",
+              "o": "text:equal"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "id": 17,
+      "module": "builtin:BasicRouter",
+      "version": 1,
+      "mapper": null,
+      "routes": [
+        {
+          "flow": [
+            {
+              "id": 10,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.helpdesk_url}}/notes/{{encodeURL(8.data[1].rules.note_id)}}",
+                "method": "get",
+                "timeout": "40",
+                "parseResponse": true,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true
+              },
+              "metadata": {
+                "designer": {
+                  "x": 1800,
+                  "y": 0,
+                  "name": "Step 8: Read the draft note"
+                }
+              },
+              "onerror": [
+                {
+                  "id": 9,
+                  "module": "builtin:Break",
+                  "version": 1,
+                  "parameters": {},
+                  "mapper": {
+                    "count": "3",
+                    "retry": true,
+                    "interval": "1"
+                  },
+                  "metadata": {
+                    "designer": {
+                      "x": 1800,
+                      "y": 300
+                    }
+                  }
+                }
+              ],
+              "filter": {
+                "name": "a draft was saved",
+                "conditions": [
+                  [
+                    {
+                      "a": "{{8.data[1].rules.note_id}}",
+                      "b": "",
+                      "o": "exist"
+                    }
+                  ]
+                ]
+              }
+            },
+            {
+              "id": 12,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.helpdesk_url}}/replies/{{encodeURL(1.reply_id)}}",
+                "method": "get",
+                "timeout": "40",
+                "parseResponse": true,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true
+              },
+              "metadata": {
+                "designer": {
+                  "x": 2100,
+                  "y": 0,
+                  "name": "Step 8: Read the reply"
+                }
+              },
+              "onerror": [
+                {
+                  "id": 11,
+                  "module": "builtin:Break",
+                  "version": 1,
+                  "parameters": {},
+                  "mapper": {
+                    "count": "3",
+                    "retry": true,
+                    "interval": "1"
+                  },
+                  "metadata": {
+                    "designer": {
+                      "x": 2100,
+                      "y": 300
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "id": 13,
+              "module": "code:ExecuteCode",
+              "version": 1,
+              "parameters": {},
+              "mapper": {
+                "language": "javascript",
+                "inputFormat": "editor",
+                "dependencies": [],
+                "codeEditorJavascript": "// Adapter: the rule below is the same JavaScript as the recipe's n8n build.\n// $('Step name') answers from this step's inputs: each is that step's output in this scenario.\nconst SOURCES = {\"Config\": \"in0_Config\", \"Was there a draft?\": \"in1_Wasthereadraft\", \"Step 8: Read the draft note\": \"in2_Step8Readthedraftnote\", \"Step 8: Read the reply\": \"in3_Step8Readthereply\"};\nconst LISTS = [];\nconst EXECUTED = [];\nconst DATA = {};\nfor (const [node, key] of Object.entries(SOURCES)) {\n  const raw = input[key];\n  let v = raw;\n  if (typeof raw === 'string') { try { v = JSON.parse(raw); } catch (e) { v = raw; } }\n  DATA[node] = LISTS.includes(node) ? (v || []).map(i => (i && i.json !== undefined ? i : { json: i })) : [{ json: v }];\n}\nconst $ = (node) => {\n  const ran = node in DATA || EXECUTED.includes(node);\n  const list = () => { if (!(node in DATA)) throw new Error(`step ${node} has no data in this scenario`); return DATA[node]; };\n  return { isExecuted: ran, first: () => list()[0], last: () => list()[list().length - 1], all: () => list(),\n           get item() { return list()[0]; } };\n};\nconst INPUT = \"Step 8: Read the reply\";\nconst $input = { all: () => $(INPUT).all(), first: () => $(INPUT).first(), last: () => $(INPUT).last(), get item() { return $(INPUT).first(); } };\nconst $execution = { id: input.run_id };\n// The webhook's fields, as the rule reads them in n8n: $('Step 8: Reply posted').first().json.body.\nDATA[\"Step 8: Reply posted\"] = [{ json: { body: { \"ticket_id\": input.t_ticket_id, \"reply_id\": input.t_reply_id } } }];\nconst BODIES = (out) => ({\"log_body\": JSON.stringify({ recipe: 'R4.3', item: $('Step 8: Reply posted').first().json.body.ticket_id, decision: 'draft ' + out.outcome, rules: { reply_id: $('Step 8: Reply posted').first().json.body.reply_id, note_id: $('Was there a draft?').first().json.note_id, words_kept: out.share } })});\nconst one = (r) => (Array.isArray(r) ? r : [r]).filter(Boolean).map(i => (i.json !== undefined ? i.json : i));\nconst $json = INPUT && INPUT in DATA ? $input.first().json : {};\nconst __rule = () => {\n// Step 8: compare the posted reply with the saved draft: unchanged, edited or discarded.\nconst cfg = $('Config').first().json;\nconst norm = s => String(s || '').replace(/\\n\\nSources:.*$/s, '').replace(/\\[[^\\]\\n]+\\]/g, ' ').replace(/\\s+/g, ' ').trim().toLowerCase();\nconst draft = norm($('Step 8: Read the draft note').first().json.text);\nconst reply = norm($('Step 8: Read the reply').first().json.text);\nconst words = draft.split(' ').filter(Boolean);\nconst inReply = new Set(reply.split(' '));\nconst share = words.length ? words.filter(w => inReply.has(w)).length / words.length : 0;\nconst outcome = draft === reply ? 'unchanged' : share >= cfg.edited_min_share ? 'edited' : 'discarded';\nreturn [{ json: { outcome, share: Math.round(share * 100) / 100 } }];\n};\nconst out = one(__rule())[0] || {};\nreturn Object.assign({}, out, BODIES(out));\n",
+                "input": [
+                  {
+                    "name": "t_ticket_id",
+                    "value": "{{1.ticket_id}}"
+                  },
+                  {
+                    "name": "t_reply_id",
+                    "value": "{{1.reply_id}}"
+                  },
+                  {
+                    "name": "in0_Config",
+                    "value": "{{2.result}}"
+                  },
+                  {
+                    "name": "in1_Wasthereadraft",
+                    "value": "{{8.data[1].rules}}"
+                  },
+                  {
+                    "name": "in2_Step8Readthedraftnote",
+                    "value": "{{10.data}}"
+                  },
+                  {
+                    "name": "in3_Step8Readthereply",
+                    "value": "{{12.data}}"
+                  },
+                  {
+                    "name": "run_id",
+                    "value": "{{var.scenario.executionId}}"
+                  }
+                ]
+              },
+              "metadata": {
+                "designer": {
+                  "x": 2400,
+                  "y": 0,
+                  "name": "Step 8: Rule: unchanged, edited or discarded?"
+                }
+              }
+            },
+            {
+              "id": 14,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.table_api_url}}/decision_log",
+                "method": "post",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{13.result.log_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 2700,
+                  "y": 0,
+                  "name": "Step 8: Decision log: draft outcome"
+                }
+              }
+            },
+            {
+              "id": 15,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.table_api_url}}/key_log?recipe=eq.R4.3&key=eq.reply%3A{{encodeURL(1.reply_id)}}",
+                "method": "patch",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{\"status\": \"done\", \"result\": \"outcome logged\"}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 3000,
+                  "y": 0,
+                  "name": "Step 8: Mark key done"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "flow": [
+            {
+              "id": 16,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.table_api_url}}/key_log?recipe=eq.R4.3&key=eq.reply%3A{{encodeURL(1.reply_id)}}",
+                "method": "patch",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{\"status\": \"done\", \"result\": \"no draft to compare\"}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 1800,
+                  "y": 600,
+                  "name": "Step 8: Mark key done: no draft"
+                }
+              },
+              "filter": {
+                "name": "no draft",
+                "conditions": [
+                  [
+                    {
+                      "a": "{{8.data[1].rules.note_id}}",
+                      "b": "",
+                      "o": "notexist"
+                    }
+                  ]
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "designer": {
+          "x": 1500,
+          "y": 0,
+          "name": "Was there a draft?"
+        }
+      }
+    }
+  ],
+  "metadata": {
+    "instant": true,
+    "version": 1,
+    "designer": {
+      "orphans": []
+    },
+    "scenario": {
+      "dlq": true,
+      "slots": null,
+      "dataloss": false,
+      "maxErrors": 3,
+      "autoCommit": true,
+      "roundtrips": 1,
+      "sequential": false,
+      "confidential": false,
+      "freshVariables": false,
+      "autoCommitTriggerLast": true
+    }
+  }
+}

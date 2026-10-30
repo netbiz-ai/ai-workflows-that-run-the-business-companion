@@ -1,0 +1,560 @@
+{
+  "name": "R7.2 Approval decided: record it and release a rejected invoice's reservations",
+  "flow": [
+    {
+      "id": 1,
+      "module": "gateway:CustomWebHook",
+      "version": 1,
+      "parameters": {
+        "hook": null,
+        "maxResults": 1
+      },
+      "mapper": {},
+      "metadata": {
+        "designer": {
+          "x": 0,
+          "y": 0,
+          "name": "Step 8: Approval decided"
+        }
+      }
+    },
+    {
+      "id": 2,
+      "module": "code:ExecuteCode",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "language": "javascript",
+        "inputFormat": "editor",
+        "dependencies": [],
+        "codeEditorJavascript": "// Config: edit these values for your company; nothing else in the scenario hard-codes them.\nreturn {\n  \"stop_flag_url\": \"https://<your stop list API>/stop_flags/R7.2\",\n  \"table_api_url\": \"https://<your table API for the key log, decision log and exception queue>\",\n  \"workflow_owner\": \"<your workflow owner>\",\n  \"review_url\": \"https://<your review list API>\",\n  \"checks_url\": \"https://<your R7.3 check list API>\",\n  \"ledger_url\": \"https://<your accounting platform API>\",\n  \"map_url\": \"https://<your supplier-item map API>\",\n  \"reservations_url\": \"https://<your reservation list API>\",\n  \"approvals_url\": \"https://<your approval list API>\",\n  \"queue_url\": \"https://<your R7.4 queue list API>\",\n  \"messaging_url\": \"https://<your messaging API>\",\n  \"tolerance_version\": \"<your Table 7.1 version>\",\n  \"price_tolerance_pct\": \"<your unit price tolerance, percent>\",\n  \"freight_tolerance\": \"<your freight tolerance, amount>\",\n  \"tax_rate_pct\": \"<your tax rate, percent>\",\n  \"tax_rounding\": \"<your tax rounding, amount>\",\n  \"approval_limit\": 10000,\n  \"approver_to_limit\": \"<your approver up to the limit>\",\n  \"approver_above\": \"<your approver above the limit>\",\n  \"approver_own_items\": \"<who approves the approvers' own items>\",\n  \"purchasing\": \"<your purchasing map keeper>\",\n  \"ai_model\": \"claude-haiku-5-5\",\n  \"ai_inference_geo\": \"us\",\n  \"ai_url\": \"https://api.anthropic.com/v1/messages\"\n};",
+        "input": []
+      },
+      "metadata": {
+        "designer": {
+          "x": 300,
+          "y": 0,
+          "name": "Config"
+        }
+      }
+    },
+    {
+      "id": 5,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{2.result.stop_flag_url}}",
+        "method": "get",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true
+      },
+      "metadata": {
+        "designer": {
+          "x": 600,
+          "y": 0,
+          "name": "Stop flag: read"
+        }
+      },
+      "onerror": [
+        {
+          "id": 3,
+          "module": "http:MakeRequest",
+          "version": 4,
+          "parameters": {},
+          "mapper": {
+            "url": "{{2.result.table_api_url}}/exception_queue",
+            "method": "post",
+            "timeout": "40",
+            "parseResponse": false,
+            "stopOnHttpError": true,
+            "allowRedirects": true,
+            "shareCookies": false,
+            "requestCompressedContent": true,
+            "contentType": "json",
+            "inputMethod": "jsonString",
+            "jsonStringBodyContent": "{\"recipe\": \"R7.2\", \"item\": \"run {{var.scenario.executionId}}\", \"reason\": \"stop list unreadable\", \"detail\": \"The stop list could not be read, so the run stopped\", \"owner\": \"{{2.result.workflow_owner}}\"}"
+          },
+          "metadata": {
+            "designer": {
+              "x": 600,
+              "y": 300,
+              "name": "Stop flag: list unreadable"
+            }
+          }
+        },
+        {
+          "id": 4,
+          "module": "builtin:Ignore",
+          "version": 1,
+          "metadata": {
+            "designer": {
+              "x": 900,
+              "y": 300
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{2.result.approvals_url}}/approvals/{{encodeURL(1.invoice_id)}}",
+        "method": "get",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true
+      },
+      "metadata": {
+        "designer": {
+          "x": 900,
+          "y": 0,
+          "name": "Step 8: Read the approval"
+        }
+      },
+      "onerror": [
+        {
+          "id": 6,
+          "module": "builtin:Break",
+          "version": 1,
+          "parameters": {},
+          "mapper": {
+            "count": "3",
+            "retry": true,
+            "interval": "1"
+          },
+          "metadata": {
+            "designer": {
+              "x": 900,
+              "y": 600
+            }
+          }
+        }
+      ],
+      "filter": {
+        "name": "stop flag not set",
+        "conditions": [
+          [
+            {
+              "a": "{{5.data.stopped}}",
+              "b": "true",
+              "o": "text:notequal"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "id": 8,
+      "module": "code:ExecuteCode",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "language": "javascript",
+        "inputFormat": "editor",
+        "dependencies": [],
+        "codeEditorJavascript": "// Adapter: the rule below is the same JavaScript as the recipe's n8n build.\n// $('Step name') answers from this step's inputs: each is that step's output in this scenario.\nconst SOURCES = {\"Config\": \"in0_Config\", \"Step 8: Read the approval\": \"in1_Step8Readtheapproval\"};\nconst LISTS = [];\nconst EXECUTED = [];\nconst DATA = {};\nfor (const [node, key] of Object.entries(SOURCES)) {\n  const raw = input[key];\n  let v = raw;\n  if (typeof raw === 'string') { try { v = JSON.parse(raw); } catch (e) { v = raw; } }\n  DATA[node] = LISTS.includes(node) ? (v || []).map(i => (i && i.json !== undefined ? i : { json: i })) : [{ json: v }];\n}\nconst $ = (node) => {\n  const ran = node in DATA || EXECUTED.includes(node);\n  const list = () => { if (!(node in DATA)) throw new Error(`step ${node} has no data in this scenario`); return DATA[node]; };\n  return { isExecuted: ran, first: () => list()[0], last: () => list()[list().length - 1], all: () => list(),\n           get item() { return list()[0]; } };\n};\nconst INPUT = \"Step 8: Read the approval\";\nconst $input = { all: () => $(INPUT).all(), first: () => $(INPUT).first(), last: () => $(INPUT).last(), get item() { return $(INPUT).first(); } };\nconst $execution = { id: input.run_id };\n// The webhook's fields, as the rule reads them in n8n: $('Step 8: Approval decided').first().json.body.\nDATA[\"Step 8: Approval decided\"] = [{ json: { body: { \"invoice_id\": input.t_invoice_id, \"decision\": input.t_decision, \"decided_by\": input.t_decided_by } } }];\nconst BODIES = (out) => ({\"decision_body\": JSON.stringify({ status: $('Step 8: Approval decided').first().json.body.decision, decided_by: $('Step 8: Approval decided').first().json.body.decided_by, decided_at: new Date().toISOString() }), \"log_body\": JSON.stringify({ recipe: 'R7.2', item: $('Step 8: Approval decided').first().json.body.invoice_id, decision: 'approval ' + $('Step 8: Approval decided').first().json.body.decision, rules: { approver: $('Step 8: Read the approval').first().json.approver, tolerance_version: $('Step 8: Read the approval').first().json.tolerance_version }, approved_by: $('Step 8: Approval decided').first().json.body.decided_by }), \"message_body\": JSON.stringify({ to: $('Config').first().json.purchasing, subject: 'Confirm AI pairings for invoice ' + $('Step 8: Approval decided').first().json.body.invoice_id, text: 'Approved with AI-paired lines; add the ones you confirm to the supplier-item map: ' + ($('Step 8: Read the approval').first().json.lines || []).filter(l => l.ai_paired).map(l => l.description + ' -> ' + l.order_line_id).join('; ') })});\nconst one = (r) => (Array.isArray(r) ? r : [r]).filter(Boolean).map(i => (i.json !== undefined ? i.json : i));\nconst $json = INPUT && INPUT in DATA ? $input.first().json : {};\nconst __rule = () => {\n// The step 8 and 9 bodies, as the n8n build writes them inline.\nconst ap = $('Step 8: Read the approval').first().json;\nreturn [{ json: { ai_paired: (ap.lines || []).some(l => l.ai_paired) ? 'yes' : 'no' } }];\n};\nconst out = one(__rule())[0] || {};\nreturn Object.assign({}, out, BODIES(out));\n",
+        "input": [
+          {
+            "name": "t_invoice_id",
+            "value": "{{1.invoice_id}}"
+          },
+          {
+            "name": "t_decision",
+            "value": "{{1.decision}}"
+          },
+          {
+            "name": "t_decided_by",
+            "value": "{{1.decided_by}}"
+          },
+          {
+            "name": "in0_Config",
+            "value": "{{2.result}}"
+          },
+          {
+            "name": "in1_Step8Readtheapproval",
+            "value": "{{7.data}}"
+          },
+          {
+            "name": "run_id",
+            "value": "{{var.scenario.executionId}}"
+          }
+        ]
+      },
+      "metadata": {
+        "designer": {
+          "x": 1200,
+          "y": 0,
+          "name": "Step 8: Rule: the decision's bodies"
+        }
+      }
+    },
+    {
+      "id": 11,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{2.result.approvals_url}}/approvals/{{encodeURL(1.invoice_id)}}",
+        "method": "patch",
+        "timeout": "40",
+        "parseResponse": false,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true,
+        "contentType": "json",
+        "inputMethod": "jsonString",
+        "jsonStringBodyContent": "{{8.result.decision_body}}"
+      },
+      "metadata": {
+        "designer": {
+          "x": 1500,
+          "y": 0,
+          "name": "Step 8: Record the decision"
+        }
+      },
+      "onerror": [
+        {
+          "id": 9,
+          "module": "http:MakeRequest",
+          "version": 4,
+          "parameters": {},
+          "mapper": {
+            "url": "{{2.result.table_api_url}}/exception_queue",
+            "method": "post",
+            "timeout": "40",
+            "parseResponse": false,
+            "stopOnHttpError": true,
+            "allowRedirects": true,
+            "shareCookies": false,
+            "requestCompressedContent": true,
+            "contentType": "json",
+            "inputMethod": "jsonString",
+            "jsonStringBodyContent": "{\"recipe\": \"R7.2\", \"item\": \"{{1.invoice_id}}\", \"reason\": \"write failed\", \"detail\": \"A result, approval or queue write failed, never retried; check the invoice before it rematches\", \"owner\": \"{{2.result.workflow_owner}}\"}"
+          },
+          "metadata": {
+            "designer": {
+              "x": 1500,
+              "y": 300,
+              "name": "Step 8: Record the decision: exception queue"
+            }
+          }
+        },
+        {
+          "id": 10,
+          "module": "builtin:Ignore",
+          "version": 1,
+          "metadata": {
+            "designer": {
+              "x": 1800,
+              "y": 300
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 12,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{2.result.table_api_url}}/decision_log",
+        "method": "post",
+        "timeout": "40",
+        "parseResponse": false,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true,
+        "contentType": "json",
+        "inputMethod": "jsonString",
+        "jsonStringBodyContent": "{{8.result.log_body}}"
+      },
+      "metadata": {
+        "designer": {
+          "x": 1800,
+          "y": 0,
+          "name": "Step 8: Log the approval"
+        }
+      }
+    },
+    {
+      "id": 22,
+      "module": "builtin:BasicRouter",
+      "version": 1,
+      "mapper": null,
+      "routes": [
+        {
+          "flow": [
+            {
+              "id": 14,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.reservations_url}}/reservations",
+                "method": "get",
+                "timeout": "40",
+                "parseResponse": true,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "queryParameters": [
+                  {
+                    "name": "_wrap",
+                    "value": "1"
+                  },
+                  {
+                    "name": "invoice_id",
+                    "value": "{{1.invoice_id}}"
+                  }
+                ]
+              },
+              "metadata": {
+                "designer": {
+                  "x": 2400,
+                  "y": 0,
+                  "name": "Step 8: Read this invoice's reservations"
+                }
+              },
+              "onerror": [
+                {
+                  "id": 13,
+                  "module": "builtin:Break",
+                  "version": 1,
+                  "parameters": {},
+                  "mapper": {
+                    "count": "3",
+                    "retry": true,
+                    "interval": "1"
+                  },
+                  "metadata": {
+                    "designer": {
+                      "x": 2400,
+                      "y": 300
+                    }
+                  }
+                }
+              ],
+              "filter": {
+                "name": "rejected",
+                "conditions": [
+                  [
+                    {
+                      "a": "{{1.decision}}",
+                      "b": "rejected",
+                      "o": "text:equal"
+                    }
+                  ]
+                ]
+              }
+            },
+            {
+              "id": 15,
+              "module": "builtin:BasicFeeder",
+              "version": 1,
+              "parameters": {},
+              "mapper": {
+                "array": "{{14.data.items}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 2700,
+                  "y": 0,
+                  "name": "Step 8: Reservations to release"
+                }
+              }
+            },
+            {
+              "id": 18,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.reservations_url}}/reservations/{{15.id}}",
+                "method": "delete",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true
+              },
+              "metadata": {
+                "designer": {
+                  "x": 3000,
+                  "y": 0,
+                  "name": "Step 8: Release reservation"
+                }
+              },
+              "onerror": [
+                {
+                  "id": 16,
+                  "module": "http:MakeRequest",
+                  "version": 4,
+                  "parameters": {},
+                  "mapper": {
+                    "url": "{{2.result.table_api_url}}/exception_queue",
+                    "method": "post",
+                    "timeout": "40",
+                    "parseResponse": false,
+                    "stopOnHttpError": true,
+                    "allowRedirects": true,
+                    "shareCookies": false,
+                    "requestCompressedContent": true,
+                    "contentType": "json",
+                    "inputMethod": "jsonString",
+                    "jsonStringBodyContent": "{\"recipe\": \"R7.2\", \"item\": \"{{1.invoice_id}}\", \"reason\": \"write failed\", \"detail\": \"A result, approval or queue write failed, never retried; check the invoice before it rematches\", \"owner\": \"{{2.result.workflow_owner}}\"}"
+                  },
+                  "metadata": {
+                    "designer": {
+                      "x": 3000,
+                      "y": 300,
+                      "name": "Step 8: Release reservation: exception queue"
+                    }
+                  }
+                },
+                {
+                  "id": 17,
+                  "module": "builtin:Ignore",
+                  "version": 1,
+                  "metadata": {
+                    "designer": {
+                      "x": 3300,
+                      "y": 300
+                    }
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "flow": [
+            {
+              "id": 21,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.messaging_url}}/messages",
+                "method": "post",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{8.result.message_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 2400,
+                  "y": 600,
+                  "name": "Step 9: Ask purchasing to add the AI pairings"
+                }
+              },
+              "onerror": [
+                {
+                  "id": 19,
+                  "module": "http:MakeRequest",
+                  "version": 4,
+                  "parameters": {},
+                  "mapper": {
+                    "url": "{{2.result.table_api_url}}/exception_queue",
+                    "method": "post",
+                    "timeout": "40",
+                    "parseResponse": false,
+                    "stopOnHttpError": true,
+                    "allowRedirects": true,
+                    "shareCookies": false,
+                    "requestCompressedContent": true,
+                    "contentType": "json",
+                    "inputMethod": "jsonString",
+                    "jsonStringBodyContent": "{\"recipe\": \"R7.2\", \"item\": \"{{1.invoice_id}}\", \"reason\": \"write failed\", \"detail\": \"A result, approval or queue write failed, never retried; check the invoice before it rematches\", \"owner\": \"{{2.result.workflow_owner}}\"}"
+                  },
+                  "metadata": {
+                    "designer": {
+                      "x": 2400,
+                      "y": 900,
+                      "name": "Step 9: Ask purchasing to add the AI pairings: exception queue"
+                    }
+                  }
+                },
+                {
+                  "id": 20,
+                  "module": "builtin:Ignore",
+                  "version": 1,
+                  "metadata": {
+                    "designer": {
+                      "x": 2700,
+                      "y": 900
+                    }
+                  }
+                }
+              ],
+              "filter": {
+                "name": "approved, AI-paired lines",
+                "conditions": [
+                  [
+                    {
+                      "a": "{{1.decision}}",
+                      "b": "rejected",
+                      "o": "text:notequal"
+                    },
+                    {
+                      "a": "{{8.result.ai_paired}}",
+                      "b": "yes",
+                      "o": "text:equal"
+                    }
+                  ]
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "designer": {
+          "x": 2100,
+          "y": 0,
+          "name": "Rejected?"
+        }
+      }
+    }
+  ],
+  "metadata": {
+    "instant": true,
+    "version": 1,
+    "designer": {
+      "orphans": []
+    },
+    "scenario": {
+      "dlq": true,
+      "slots": null,
+      "dataloss": false,
+      "maxErrors": 3,
+      "autoCommit": true,
+      "roundtrips": 1,
+      "sequential": false,
+      "confidential": false,
+      "freshVariables": false,
+      "autoCommitTriggerLast": true
+    }
+  }
+}

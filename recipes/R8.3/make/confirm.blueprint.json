@@ -1,0 +1,1280 @@
+{
+  "name": "R8.3 Take in a dispute: owner confirms the invoices",
+  "flow": [
+    {
+      "id": 1,
+      "module": "gateway:CustomWebHook",
+      "version": 1,
+      "parameters": {
+        "hook": null,
+        "maxResults": 1
+      },
+      "mapper": {},
+      "metadata": {
+        "designer": {
+          "x": 0,
+          "y": 0,
+          "name": "Step 9: Owner confirms the invoices"
+        }
+      }
+    },
+    {
+      "id": 2,
+      "module": "code:ExecuteCode",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "language": "javascript",
+        "inputFormat": "editor",
+        "dependencies": [],
+        "codeEditorJavascript": "// Config: edit these values for your company; nothing else in the scenario hard-codes them.\nreturn {\n  \"stop_flag_url\": \"https://<your stop list API>/stop_flags/R8.3\",\n  \"table_api_url\": \"https://<your table API for the key log, decision log and exception queue>\",\n  \"workflow_owner\": \"<your workflow owner>\",\n  \"mail_url\": \"https://<your AR mailbox API>\",\n  \"sharepoint_url\": \"https://<your SharePoint lists API>\",\n  \"crm_url\": \"https://<your CRM API>\",\n  \"messaging_url\": \"https://<your Teams or messaging API>\",\n  \"ar_lead\": \"<your AR lead, who works the unlinked queue>\",\n  \"own_domains\": [\n    \"<your company's email domain>\"\n  ],\n  \"invoice_number_pattern\": \"<your invoice-number pattern, as a regular expression>\",\n  \"escalation_keywords\": [\n    \"<your R4.2 safety and legal keyword list>\"\n  ],\n  \"summary_max_words\": 80,\n  \"ai_model\": \"claude-haiku-5-5\",\n  \"ai_inference_geo\": \"us\",\n  \"ai_url\": \"https://api.anthropic.com/v1/messages\"\n};",
+        "input": []
+      },
+      "metadata": {
+        "designer": {
+          "x": 300,
+          "y": 0,
+          "name": "Config"
+        }
+      }
+    },
+    {
+      "id": 5,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{2.result.stop_flag_url}}",
+        "method": "get",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true
+      },
+      "metadata": {
+        "designer": {
+          "x": 600,
+          "y": 0,
+          "name": "Stop flag: read"
+        }
+      },
+      "onerror": [
+        {
+          "id": 3,
+          "module": "http:MakeRequest",
+          "version": 4,
+          "parameters": {},
+          "mapper": {
+            "url": "{{2.result.table_api_url}}/exception_queue",
+            "method": "post",
+            "timeout": "40",
+            "parseResponse": false,
+            "stopOnHttpError": true,
+            "allowRedirects": true,
+            "shareCookies": false,
+            "requestCompressedContent": true,
+            "contentType": "json",
+            "inputMethod": "jsonString",
+            "jsonStringBodyContent": "{\"recipe\": \"R8.3\", \"item\": \"run {{var.scenario.executionId}}\", \"reason\": \"stop list unreadable\", \"detail\": \"The stop list could not be read, so the run stopped\", \"owner\": \"{{2.result.workflow_owner}}\"}"
+          },
+          "metadata": {
+            "designer": {
+              "x": 600,
+              "y": 300,
+              "name": "Stop flag: list unreadable"
+            }
+          }
+        },
+        {
+          "id": 4,
+          "module": "builtin:Ignore",
+          "version": 1,
+          "metadata": {
+            "designer": {
+              "x": 900,
+              "y": 300
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{2.result.table_api_url}}/key_log",
+        "method": "get",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true,
+        "queryParameters": [
+          {
+            "name": "recipe",
+            "value": "eq.R8.3"
+          },
+          {
+            "name": "key",
+            "value": "eq.{{1.message_id}}"
+          },
+          {
+            "name": "select",
+            "value": "status"
+          }
+        ]
+      },
+      "metadata": {
+        "designer": {
+          "x": 900,
+          "y": 0,
+          "name": "Step 9: Read the message's key"
+        }
+      },
+      "onerror": [
+        {
+          "id": 6,
+          "module": "builtin:Break",
+          "version": 1,
+          "parameters": {},
+          "mapper": {
+            "count": "3",
+            "retry": true,
+            "interval": "1"
+          },
+          "metadata": {
+            "designer": {
+              "x": 900,
+              "y": 600
+            }
+          }
+        }
+      ],
+      "filter": {
+        "name": "stop flag not set",
+        "conditions": [
+          [
+            {
+              "a": "{{5.data.stopped}}",
+              "b": "true",
+              "o": "text:notequal"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "id": 47,
+      "module": "builtin:BasicRouter",
+      "version": 1,
+      "mapper": null,
+      "routes": [
+        {
+          "flow": [
+            {
+              "id": 8,
+              "module": "util:FunctionSleep",
+              "version": 1,
+              "parameters": {},
+              "mapper": {
+                "duration": "30"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 1500,
+                  "y": 0,
+                  "name": "Wait for the intake to finish"
+                }
+              },
+              "filter": {
+                "name": "intake not finished",
+                "conditions": [
+                  [
+                    {
+                      "a": "{{7.data[1].status}}",
+                      "b": "done",
+                      "o": "text:notequal"
+                    },
+                    {
+                      "a": "{{7.data[1].status}}",
+                      "b": "failed",
+                      "o": "text:notequal"
+                    }
+                  ]
+                ]
+              }
+            },
+            {
+              "id": 10,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.table_api_url}}/decision_log",
+                "method": "get",
+                "timeout": "40",
+                "parseResponse": true,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "queryParameters": [
+                  {
+                    "name": "recipe",
+                    "value": "eq.R8.3"
+                  },
+                  {
+                    "name": "item",
+                    "value": "eq.{{1.message_id}}"
+                  },
+                  {
+                    "name": "decision",
+                    "value": "like.briefed*"
+                  },
+                  {
+                    "name": "select",
+                    "value": "decision,category:rules->>category"
+                  },
+                  {
+                    "name": "order",
+                    "value": "id.desc"
+                  },
+                  {
+                    "name": "limit",
+                    "value": "1"
+                  }
+                ]
+              },
+              "metadata": {
+                "designer": {
+                  "x": 1800,
+                  "y": 0,
+                  "name": "Step 9: Read the brief (after waiting)"
+                }
+              },
+              "onerror": [
+                {
+                  "id": 9,
+                  "module": "builtin:Break",
+                  "version": 1,
+                  "parameters": {},
+                  "mapper": {
+                    "count": "3",
+                    "retry": true,
+                    "interval": "1"
+                  },
+                  "metadata": {
+                    "designer": {
+                      "x": 1800,
+                      "y": 300
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "id": 11,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.sharepoint_url}}/disputes/pause-{{encodeURL(1.message_id)}}",
+                "method": "get",
+                "timeout": "40",
+                "parseResponse": true,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true
+              },
+              "metadata": {
+                "designer": {
+                  "x": 2100,
+                  "y": 0,
+                  "name": "Step 9: Read the pause (after waiting)"
+                }
+              },
+              "onerror": [
+                {
+                  "id": 12,
+                  "module": "http:MakeRequest",
+                  "version": 4,
+                  "parameters": {},
+                  "mapper": {
+                    "url": "{{2.result.sharepoint_url}}/disputes/pause-{{encodeURL(1.message_id)}}",
+                    "method": "get",
+                    "timeout": "40",
+                    "parseResponse": true,
+                    "stopOnHttpError": true,
+                    "allowRedirects": true,
+                    "shareCookies": false,
+                    "requestCompressedContent": true
+                  },
+                  "metadata": {
+                    "designer": {
+                      "x": 2100,
+                      "y": 300,
+                      "name": "Step 9: Read the pause (after waiting), second try"
+                    }
+                  },
+                  "onerror": [
+                    {
+                      "id": 13,
+                      "module": "http:MakeRequest",
+                      "version": 4,
+                      "parameters": {},
+                      "mapper": {
+                        "url": "{{2.result.sharepoint_url}}/disputes/pause-{{encodeURL(1.message_id)}}",
+                        "method": "get",
+                        "timeout": "40",
+                        "parseResponse": true,
+                        "stopOnHttpError": false,
+                        "allowRedirects": true,
+                        "shareCookies": false,
+                        "requestCompressedContent": true
+                      },
+                      "metadata": {
+                        "designer": {
+                          "x": 2100,
+                          "y": 600,
+                          "name": "Step 9: Read the pause (after waiting), third try"
+                        }
+                      }
+                    },
+                    {
+                      "id": 14,
+                      "module": "builtin:Resume",
+                      "version": 1,
+                      "parameters": {},
+                      "mapper": {
+                        "statusCode": "{{13.statusCode}}",
+                        "data": "{{13.data}}",
+                        "headers": "{{13.headers}}"
+                      },
+                      "metadata": {
+                        "designer": {
+                          "x": 2400,
+                          "y": 600
+                        }
+                      }
+                    }
+                  ]
+                },
+                {
+                  "id": 15,
+                  "module": "builtin:Resume",
+                  "version": 1,
+                  "parameters": {},
+                  "mapper": {
+                    "statusCode": "{{12.statusCode}}",
+                    "data": "{{12.data}}",
+                    "headers": "{{12.headers}}"
+                  },
+                  "metadata": {
+                    "designer": {
+                      "x": 2400,
+                      "y": 300
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "id": 16,
+              "module": "code:ExecuteCode",
+              "version": 1,
+              "parameters": {},
+              "mapper": {
+                "language": "javascript",
+                "inputFormat": "editor",
+                "dependencies": [],
+                "codeEditorJavascript": "// Adapter: the rule below is the same JavaScript as the recipe's n8n build.\n// $('Step name') answers from this step's inputs: each is that step's output in this scenario.\nconst SOURCES = {\"Config\": \"in0_Config\", \"Step 9: Read the brief\": \"in1_Step9Readthebrief\", \"Step 9: Read the pause\": \"in2_Step9Readthepause\"};\nconst LISTS = [];\nconst EXECUTED = [];\nconst DATA = {};\nfor (const [node, key] of Object.entries(SOURCES)) {\n  const raw = input[key];\n  let v = raw;\n  if (typeof raw === 'string') { try { v = JSON.parse(raw); } catch (e) { v = raw; } }\n  DATA[node] = LISTS.includes(node) ? (v || []).map(i => (i && i.json !== undefined ? i : { json: i })) : [{ json: v }];\n}\nconst $ = (node) => {\n  const ran = node in DATA || EXECUTED.includes(node);\n  const list = () => { if (!(node in DATA)) throw new Error(`step ${node} has no data in this scenario`); return DATA[node]; };\n  return { isExecuted: ran, first: () => list()[0], last: () => list()[list().length - 1], all: () => list(),\n           get item() { return list()[0]; } };\n};\nconst INPUT = \"Step 9: Read the pause\";\nconst $input = { all: () => $(INPUT).all(), first: () => $(INPUT).first(), last: () => $(INPUT).last(), get item() { return $(INPUT).first(); } };\nconst $execution = { id: input.run_id };\n// The webhook's fields, as the rule reads them in n8n: $('Step 9: Owner confirms the invoices').first().json.body.\nconst __list = v => {\n  if (typeof v === 'string') { let p; try { p = JSON.parse(v); } catch (e) { p = null; }\n    v = p && typeof p === 'object' ? p : v.split(',').map(x => x.trim()).filter(Boolean); }\n  if (typeof v === 'number') v = [String(v)];\n  const list = Array.isArray(v) ? v : v && typeof v === 'object' ? Object.values(v) : [];\n  return list.map(x => (x && typeof x === 'object' ? Object.values(x)[0] : x)); };\nDATA[\"Step 9: Owner confirms the invoices\"] = [{ json: { body: { \"message_id\": input.t_message_id, \"invoices\": __list(input.t_invoices), \"by\": input.t_by, \"until\": input.t_until } } }];\nif (Number(input.pause_status) !== 200) DATA['Step 9: Read the pause'] = [];  // no pause read: n8n's output 0 is empty\n// n8n's SQL gives one row or an empty item; the table API gives a list of at most one row.\nDATA['Step 9: Read the brief'] = DATA['Step 9: Read the brief'].map(i => ({ json: Array.isArray(i.json) ? (i.json[0] || {}) : (i.json || {}) }));\nconst BODIES = (out) => ({\"id_q\": out.refused ? '' : encodeURIComponent(out.id), \"pause_body\": out.refused ? null : JSON.stringify({ id: out.id, invoice: out.invoice, account: out.account, status: 'open', kind: out.kind, set_by: out.by, why: 'reply ' + out.message_id + ', confirmed by the owner', message_id: out.message_id, until: out.until }), \"narrow_body\": out.refused ? null : JSON.stringify({ status: 'narrowed', narrowed_by: out.by, narrowed_at: new Date().toISOString(), covers: out.invoices }), \"narrowed_log\": out.refused ? null : JSON.stringify({ recipe: 'R8.3', item: out.message_id, decision: 'pause narrowed to ' + out.invoices.join(', '), rules: { by: out.by, invoices: out.invoices, kind: out.kind, until: out.until } }), \"not_narrowed_log\": JSON.stringify({ recipe: 'R8.3', item: String($('Step 9: Owner confirms the invoices').first().json.body.message_id), decision: 'pause not narrowed: ' + out.reason, rules: { by: $('Step 9: Owner confirms the invoices').first().json.body.by || null } }), \"failed_body\": JSON.stringify({ recipe: 'R8.3', item: String($('Step 9: Owner confirms the invoices').first().json.body.message_id), reason: 'write failed', detail: 'Narrowing the pause failed; the whole-account pause stays until it is fixed', owner: $('Config').first().json.ar_lead })});\nconst one = (r) => (Array.isArray(r) ? r : [r]).filter(Boolean).map(i => (i.json !== undefined ? i.json : i));\nconst $json = INPUT && INPUT in DATA ? $input.first().json : {};\nconst __rule = () => {\n// Step 9: only a briefed reply with its whole-account pause still open narrows, to the invoices the owner names.\nconst b = $('Step 9: Owner confirms the invoices').first().json.body;\nconst brief = $('Step 9: Read the brief').first().json;\nconst p = $('Step 9: Read the pause').all(0);\nconst pause = p.length ? p[0].json : null;\nconst invoices = Array.isArray(b.invoices) ? b.invoices.map(String).filter(Boolean) : [];\nconst refuse = reason => [{ json: { refused: true, reason }, pairedItem: 0 }];\nif (!brief || !brief.decision) return refuse('no brief for this message');\nif (!pause || pause.status !== 'open') return refuse('no open whole-account pause');\nif (!invoices.length) return refuse('no invoices confirmed');\nreturn invoices.map(n => ({ json: { refused: false, id: n + '-' + b.message_id, invoice: n, account: pause.account,\n  kind: brief.category, message_id: b.message_id, by: b.by || null, until: b.until || null, invoices }, pairedItem: 0 }));\n};\nreturn { items: one(__rule()).map(o => Object.assign({}, o, BODIES(o))) };\n",
+                "input": [
+                  {
+                    "name": "t_message_id",
+                    "value": "{{1.message_id}}"
+                  },
+                  {
+                    "name": "t_invoices",
+                    "value": "{{1.invoices}}"
+                  },
+                  {
+                    "name": "t_by",
+                    "value": "{{1.by}}"
+                  },
+                  {
+                    "name": "t_until",
+                    "value": "{{1.until}}"
+                  },
+                  {
+                    "name": "in0_Config",
+                    "value": "{{2.result}}"
+                  },
+                  {
+                    "name": "in1_Step9Readthebrief",
+                    "value": "{{10.data}}"
+                  },
+                  {
+                    "name": "in2_Step9Readthepause",
+                    "value": "{{11.data}}"
+                  },
+                  {
+                    "name": "run_id",
+                    "value": "{{var.scenario.executionId}}"
+                  },
+                  {
+                    "name": "pause_status",
+                    "value": "{{11.statusCode}}"
+                  }
+                ]
+              },
+              "metadata": {
+                "designer": {
+                  "x": 2400,
+                  "y": 0,
+                  "name": "Step 9: Rule: briefed, paused, invoices named? (after waiting)"
+                }
+              }
+            },
+            {
+              "id": 27,
+              "module": "builtin:BasicRouter",
+              "version": 1,
+              "mapper": null,
+              "routes": [
+                {
+                  "flow": [
+                    {
+                      "id": 17,
+                      "module": "builtin:BasicFeeder",
+                      "version": 1,
+                      "parameters": {},
+                      "mapper": {
+                        "array": "{{16.result.items}}"
+                      },
+                      "metadata": {
+                        "designer": {
+                          "x": 3000,
+                          "y": 0,
+                          "name": "Each confirmed invoice (after waiting)"
+                        }
+                      },
+                      "filter": {
+                        "name": "narrow it",
+                        "conditions": [
+                          [
+                            {
+                              "a": "{{16.result.items[1].refused}}",
+                              "b": "false",
+                              "o": "text:equal"
+                            }
+                          ]
+                        ]
+                      }
+                    },
+                    {
+                      "id": 24,
+                      "module": "http:MakeRequest",
+                      "version": 4,
+                      "parameters": {},
+                      "mapper": {
+                        "url": "{{2.result.sharepoint_url}}/disputes/{{17.id_q}}",
+                        "method": "put",
+                        "timeout": "40",
+                        "parseResponse": false,
+                        "stopOnHttpError": true,
+                        "allowRedirects": true,
+                        "shareCookies": false,
+                        "requestCompressedContent": true,
+                        "contentType": "json",
+                        "inputMethod": "jsonString",
+                        "jsonStringBodyContent": "{{17.pause_body}}"
+                      },
+                      "metadata": {
+                        "designer": {
+                          "x": 3300,
+                          "y": 0,
+                          "name": "Step 9: Pause the confirmed invoices (after waiting)"
+                        }
+                      },
+                      "onerror": [
+                        {
+                          "id": 22,
+                          "module": "http:MakeRequest",
+                          "version": 4,
+                          "parameters": {},
+                          "mapper": {
+                            "url": "{{2.result.table_api_url}}/exception_queue",
+                            "method": "post",
+                            "timeout": "40",
+                            "parseResponse": false,
+                            "stopOnHttpError": true,
+                            "allowRedirects": true,
+                            "shareCookies": false,
+                            "requestCompressedContent": true,
+                            "contentType": "json",
+                            "inputMethod": "jsonString",
+                            "jsonStringBodyContent": "{{17.failed_body}}"
+                          },
+                          "metadata": {
+                            "designer": {
+                              "x": 3300,
+                              "y": 300,
+                              "name": "Step 9: Pause the confirmed invoices (after waiting): exception queue"
+                            }
+                          }
+                        },
+                        {
+                          "id": 23,
+                          "module": "builtin:Ignore",
+                          "version": 1,
+                          "metadata": {
+                            "designer": {
+                              "x": 3600,
+                              "y": 300
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "id": 18,
+                      "module": "builtin:BasicAggregator",
+                      "version": 1,
+                      "parameters": {
+                        "feeder": 17
+                      },
+                      "mapper": {
+                        "id_q": "{{17.id_q}}"
+                      },
+                      "metadata": {
+                        "designer": {
+                          "x": 3600,
+                          "y": 0,
+                          "name": "Invoices paused (after waiting)"
+                        }
+                      }
+                    },
+                    {
+                      "id": 21,
+                      "module": "http:MakeRequest",
+                      "version": 4,
+                      "parameters": {},
+                      "mapper": {
+                        "url": "{{2.result.sharepoint_url}}/disputes/pause-{{encodeURL(1.message_id)}}",
+                        "method": "patch",
+                        "timeout": "40",
+                        "parseResponse": false,
+                        "stopOnHttpError": true,
+                        "allowRedirects": true,
+                        "shareCookies": false,
+                        "requestCompressedContent": true,
+                        "contentType": "json",
+                        "inputMethod": "jsonString",
+                        "jsonStringBodyContent": "{{16.result.items[1].narrow_body}}"
+                      },
+                      "metadata": {
+                        "designer": {
+                          "x": 3900,
+                          "y": 0,
+                          "name": "Step 9: Narrow the whole-account pause (after waiting)"
+                        }
+                      },
+                      "onerror": [
+                        {
+                          "id": 19,
+                          "module": "http:MakeRequest",
+                          "version": 4,
+                          "parameters": {},
+                          "mapper": {
+                            "url": "{{2.result.table_api_url}}/exception_queue",
+                            "method": "post",
+                            "timeout": "40",
+                            "parseResponse": false,
+                            "stopOnHttpError": true,
+                            "allowRedirects": true,
+                            "shareCookies": false,
+                            "requestCompressedContent": true,
+                            "contentType": "json",
+                            "inputMethod": "jsonString",
+                            "jsonStringBodyContent": "{{16.result.items[1].failed_body}}"
+                          },
+                          "metadata": {
+                            "designer": {
+                              "x": 3900,
+                              "y": 300,
+                              "name": "Step 9: Narrow the whole-account pause (after waiting): exception queue"
+                            }
+                          }
+                        },
+                        {
+                          "id": 20,
+                          "module": "builtin:Ignore",
+                          "version": 1,
+                          "metadata": {
+                            "designer": {
+                              "x": 4200,
+                              "y": 300
+                            }
+                          }
+                        }
+                      ],
+                      "filter": {
+                        "name": "an invoice was paused",
+                        "conditions": [
+                          [
+                            {
+                              "a": "{{length(18.array)}}",
+                              "b": "0",
+                              "o": "number:greater"
+                            }
+                          ]
+                        ]
+                      }
+                    },
+                    {
+                      "id": 25,
+                      "module": "http:MakeRequest",
+                      "version": 4,
+                      "parameters": {},
+                      "mapper": {
+                        "url": "{{2.result.table_api_url}}/decision_log",
+                        "method": "post",
+                        "timeout": "40",
+                        "parseResponse": false,
+                        "stopOnHttpError": true,
+                        "allowRedirects": true,
+                        "shareCookies": false,
+                        "requestCompressedContent": true,
+                        "contentType": "json",
+                        "inputMethod": "jsonString",
+                        "jsonStringBodyContent": "{{16.result.items[1].narrowed_log}}"
+                      },
+                      "metadata": {
+                        "designer": {
+                          "x": 4200,
+                          "y": 0,
+                          "name": "Step 9: Decision log: narrowed (after waiting)"
+                        }
+                      }
+                    }
+                  ]
+                },
+                {
+                  "flow": [
+                    {
+                      "id": 26,
+                      "module": "http:MakeRequest",
+                      "version": 4,
+                      "parameters": {},
+                      "mapper": {
+                        "url": "{{2.result.table_api_url}}/decision_log",
+                        "method": "post",
+                        "timeout": "40",
+                        "parseResponse": false,
+                        "stopOnHttpError": true,
+                        "allowRedirects": true,
+                        "shareCookies": false,
+                        "requestCompressedContent": true,
+                        "contentType": "json",
+                        "inputMethod": "jsonString",
+                        "jsonStringBodyContent": "{{16.result.items[1].not_narrowed_log}}"
+                      },
+                      "metadata": {
+                        "designer": {
+                          "x": 3000,
+                          "y": 300,
+                          "name": "Step 9: Decision log: not narrowed (after waiting)"
+                        }
+                      },
+                      "filter": {
+                        "name": "refused",
+                        "conditions": [
+                          [
+                            {
+                              "a": "{{16.result.items[1].refused}}",
+                              "b": "false",
+                              "o": "text:notequal"
+                            }
+                          ]
+                        ]
+                      }
+                    }
+                  ]
+                }
+              ],
+              "metadata": {
+                "designer": {
+                  "x": 2700,
+                  "y": 0,
+                  "name": "Narrow it? (after waiting)"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "flow": [
+            {
+              "id": 29,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.table_api_url}}/decision_log",
+                "method": "get",
+                "timeout": "40",
+                "parseResponse": true,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "queryParameters": [
+                  {
+                    "name": "recipe",
+                    "value": "eq.R8.3"
+                  },
+                  {
+                    "name": "item",
+                    "value": "eq.{{1.message_id}}"
+                  },
+                  {
+                    "name": "decision",
+                    "value": "like.briefed*"
+                  },
+                  {
+                    "name": "select",
+                    "value": "decision,category:rules->>category"
+                  },
+                  {
+                    "name": "order",
+                    "value": "id.desc"
+                  },
+                  {
+                    "name": "limit",
+                    "value": "1"
+                  }
+                ]
+              },
+              "metadata": {
+                "designer": {
+                  "x": 1500,
+                  "y": 900,
+                  "name": "Step 9: Read the brief (intake finished)"
+                }
+              },
+              "onerror": [
+                {
+                  "id": 28,
+                  "module": "builtin:Break",
+                  "version": 1,
+                  "parameters": {},
+                  "mapper": {
+                    "count": "3",
+                    "retry": true,
+                    "interval": "1"
+                  },
+                  "metadata": {
+                    "designer": {
+                      "x": 1500,
+                      "y": 1200
+                    }
+                  }
+                }
+              ],
+              "filter": {
+                "name": "intake finished",
+                "conditions": [
+                  [
+                    {
+                      "a": "{{7.data[1].status}}",
+                      "b": "done",
+                      "o": "text:equal"
+                    }
+                  ],
+                  [
+                    {
+                      "a": "{{7.data[1].status}}",
+                      "b": "failed",
+                      "o": "text:equal"
+                    }
+                  ]
+                ]
+              }
+            },
+            {
+              "id": 30,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{2.result.sharepoint_url}}/disputes/pause-{{encodeURL(1.message_id)}}",
+                "method": "get",
+                "timeout": "40",
+                "parseResponse": true,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true
+              },
+              "metadata": {
+                "designer": {
+                  "x": 1800,
+                  "y": 900,
+                  "name": "Step 9: Read the pause (intake finished)"
+                }
+              },
+              "onerror": [
+                {
+                  "id": 31,
+                  "module": "http:MakeRequest",
+                  "version": 4,
+                  "parameters": {},
+                  "mapper": {
+                    "url": "{{2.result.sharepoint_url}}/disputes/pause-{{encodeURL(1.message_id)}}",
+                    "method": "get",
+                    "timeout": "40",
+                    "parseResponse": true,
+                    "stopOnHttpError": true,
+                    "allowRedirects": true,
+                    "shareCookies": false,
+                    "requestCompressedContent": true
+                  },
+                  "metadata": {
+                    "designer": {
+                      "x": 1800,
+                      "y": 1200,
+                      "name": "Step 9: Read the pause (intake finished), second try"
+                    }
+                  },
+                  "onerror": [
+                    {
+                      "id": 32,
+                      "module": "http:MakeRequest",
+                      "version": 4,
+                      "parameters": {},
+                      "mapper": {
+                        "url": "{{2.result.sharepoint_url}}/disputes/pause-{{encodeURL(1.message_id)}}",
+                        "method": "get",
+                        "timeout": "40",
+                        "parseResponse": true,
+                        "stopOnHttpError": false,
+                        "allowRedirects": true,
+                        "shareCookies": false,
+                        "requestCompressedContent": true
+                      },
+                      "metadata": {
+                        "designer": {
+                          "x": 1800,
+                          "y": 1500,
+                          "name": "Step 9: Read the pause (intake finished), third try"
+                        }
+                      }
+                    },
+                    {
+                      "id": 33,
+                      "module": "builtin:Resume",
+                      "version": 1,
+                      "parameters": {},
+                      "mapper": {
+                        "statusCode": "{{32.statusCode}}",
+                        "data": "{{32.data}}",
+                        "headers": "{{32.headers}}"
+                      },
+                      "metadata": {
+                        "designer": {
+                          "x": 2100,
+                          "y": 1500
+                        }
+                      }
+                    }
+                  ]
+                },
+                {
+                  "id": 34,
+                  "module": "builtin:Resume",
+                  "version": 1,
+                  "parameters": {},
+                  "mapper": {
+                    "statusCode": "{{31.statusCode}}",
+                    "data": "{{31.data}}",
+                    "headers": "{{31.headers}}"
+                  },
+                  "metadata": {
+                    "designer": {
+                      "x": 2100,
+                      "y": 1200
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "id": 35,
+              "module": "code:ExecuteCode",
+              "version": 1,
+              "parameters": {},
+              "mapper": {
+                "language": "javascript",
+                "inputFormat": "editor",
+                "dependencies": [],
+                "codeEditorJavascript": "// Adapter: the rule below is the same JavaScript as the recipe's n8n build.\n// $('Step name') answers from this step's inputs: each is that step's output in this scenario.\nconst SOURCES = {\"Config\": \"in0_Config\", \"Step 9: Read the brief\": \"in1_Step9Readthebrief\", \"Step 9: Read the pause\": \"in2_Step9Readthepause\"};\nconst LISTS = [];\nconst EXECUTED = [];\nconst DATA = {};\nfor (const [node, key] of Object.entries(SOURCES)) {\n  const raw = input[key];\n  let v = raw;\n  if (typeof raw === 'string') { try { v = JSON.parse(raw); } catch (e) { v = raw; } }\n  DATA[node] = LISTS.includes(node) ? (v || []).map(i => (i && i.json !== undefined ? i : { json: i })) : [{ json: v }];\n}\nconst $ = (node) => {\n  const ran = node in DATA || EXECUTED.includes(node);\n  const list = () => { if (!(node in DATA)) throw new Error(`step ${node} has no data in this scenario`); return DATA[node]; };\n  return { isExecuted: ran, first: () => list()[0], last: () => list()[list().length - 1], all: () => list(),\n           get item() { return list()[0]; } };\n};\nconst INPUT = \"Step 9: Read the pause\";\nconst $input = { all: () => $(INPUT).all(), first: () => $(INPUT).first(), last: () => $(INPUT).last(), get item() { return $(INPUT).first(); } };\nconst $execution = { id: input.run_id };\n// The webhook's fields, as the rule reads them in n8n: $('Step 9: Owner confirms the invoices').first().json.body.\nconst __list = v => {\n  if (typeof v === 'string') { let p; try { p = JSON.parse(v); } catch (e) { p = null; }\n    v = p && typeof p === 'object' ? p : v.split(',').map(x => x.trim()).filter(Boolean); }\n  if (typeof v === 'number') v = [String(v)];\n  const list = Array.isArray(v) ? v : v && typeof v === 'object' ? Object.values(v) : [];\n  return list.map(x => (x && typeof x === 'object' ? Object.values(x)[0] : x)); };\nDATA[\"Step 9: Owner confirms the invoices\"] = [{ json: { body: { \"message_id\": input.t_message_id, \"invoices\": __list(input.t_invoices), \"by\": input.t_by, \"until\": input.t_until } } }];\nif (Number(input.pause_status) !== 200) DATA['Step 9: Read the pause'] = [];  // no pause read: n8n's output 0 is empty\n// n8n's SQL gives one row or an empty item; the table API gives a list of at most one row.\nDATA['Step 9: Read the brief'] = DATA['Step 9: Read the brief'].map(i => ({ json: Array.isArray(i.json) ? (i.json[0] || {}) : (i.json || {}) }));\nconst BODIES = (out) => ({\"id_q\": out.refused ? '' : encodeURIComponent(out.id), \"pause_body\": out.refused ? null : JSON.stringify({ id: out.id, invoice: out.invoice, account: out.account, status: 'open', kind: out.kind, set_by: out.by, why: 'reply ' + out.message_id + ', confirmed by the owner', message_id: out.message_id, until: out.until }), \"narrow_body\": out.refused ? null : JSON.stringify({ status: 'narrowed', narrowed_by: out.by, narrowed_at: new Date().toISOString(), covers: out.invoices }), \"narrowed_log\": out.refused ? null : JSON.stringify({ recipe: 'R8.3', item: out.message_id, decision: 'pause narrowed to ' + out.invoices.join(', '), rules: { by: out.by, invoices: out.invoices, kind: out.kind, until: out.until } }), \"not_narrowed_log\": JSON.stringify({ recipe: 'R8.3', item: String($('Step 9: Owner confirms the invoices').first().json.body.message_id), decision: 'pause not narrowed: ' + out.reason, rules: { by: $('Step 9: Owner confirms the invoices').first().json.body.by || null } }), \"failed_body\": JSON.stringify({ recipe: 'R8.3', item: String($('Step 9: Owner confirms the invoices').first().json.body.message_id), reason: 'write failed', detail: 'Narrowing the pause failed; the whole-account pause stays until it is fixed', owner: $('Config').first().json.ar_lead })});\nconst one = (r) => (Array.isArray(r) ? r : [r]).filter(Boolean).map(i => (i.json !== undefined ? i.json : i));\nconst $json = INPUT && INPUT in DATA ? $input.first().json : {};\nconst __rule = () => {\n// Step 9: only a briefed reply with its whole-account pause still open narrows, to the invoices the owner names.\nconst b = $('Step 9: Owner confirms the invoices').first().json.body;\nconst brief = $('Step 9: Read the brief').first().json;\nconst p = $('Step 9: Read the pause').all(0);\nconst pause = p.length ? p[0].json : null;\nconst invoices = Array.isArray(b.invoices) ? b.invoices.map(String).filter(Boolean) : [];\nconst refuse = reason => [{ json: { refused: true, reason }, pairedItem: 0 }];\nif (!brief || !brief.decision) return refuse('no brief for this message');\nif (!pause || pause.status !== 'open') return refuse('no open whole-account pause');\nif (!invoices.length) return refuse('no invoices confirmed');\nreturn invoices.map(n => ({ json: { refused: false, id: n + '-' + b.message_id, invoice: n, account: pause.account,\n  kind: brief.category, message_id: b.message_id, by: b.by || null, until: b.until || null, invoices }, pairedItem: 0 }));\n};\nreturn { items: one(__rule()).map(o => Object.assign({}, o, BODIES(o))) };\n",
+                "input": [
+                  {
+                    "name": "t_message_id",
+                    "value": "{{1.message_id}}"
+                  },
+                  {
+                    "name": "t_invoices",
+                    "value": "{{1.invoices}}"
+                  },
+                  {
+                    "name": "t_by",
+                    "value": "{{1.by}}"
+                  },
+                  {
+                    "name": "t_until",
+                    "value": "{{1.until}}"
+                  },
+                  {
+                    "name": "in0_Config",
+                    "value": "{{2.result}}"
+                  },
+                  {
+                    "name": "in1_Step9Readthebrief",
+                    "value": "{{29.data}}"
+                  },
+                  {
+                    "name": "in2_Step9Readthepause",
+                    "value": "{{30.data}}"
+                  },
+                  {
+                    "name": "run_id",
+                    "value": "{{var.scenario.executionId}}"
+                  },
+                  {
+                    "name": "pause_status",
+                    "value": "{{30.statusCode}}"
+                  }
+                ]
+              },
+              "metadata": {
+                "designer": {
+                  "x": 2100,
+                  "y": 900,
+                  "name": "Step 9: Rule: briefed, paused, invoices named? (intake finished)"
+                }
+              }
+            },
+            {
+              "id": 46,
+              "module": "builtin:BasicRouter",
+              "version": 1,
+              "mapper": null,
+              "routes": [
+                {
+                  "flow": [
+                    {
+                      "id": 36,
+                      "module": "builtin:BasicFeeder",
+                      "version": 1,
+                      "parameters": {},
+                      "mapper": {
+                        "array": "{{35.result.items}}"
+                      },
+                      "metadata": {
+                        "designer": {
+                          "x": 2700,
+                          "y": 900,
+                          "name": "Each confirmed invoice (intake finished)"
+                        }
+                      },
+                      "filter": {
+                        "name": "narrow it",
+                        "conditions": [
+                          [
+                            {
+                              "a": "{{35.result.items[1].refused}}",
+                              "b": "false",
+                              "o": "text:equal"
+                            }
+                          ]
+                        ]
+                      }
+                    },
+                    {
+                      "id": 43,
+                      "module": "http:MakeRequest",
+                      "version": 4,
+                      "parameters": {},
+                      "mapper": {
+                        "url": "{{2.result.sharepoint_url}}/disputes/{{36.id_q}}",
+                        "method": "put",
+                        "timeout": "40",
+                        "parseResponse": false,
+                        "stopOnHttpError": true,
+                        "allowRedirects": true,
+                        "shareCookies": false,
+                        "requestCompressedContent": true,
+                        "contentType": "json",
+                        "inputMethod": "jsonString",
+                        "jsonStringBodyContent": "{{36.pause_body}}"
+                      },
+                      "metadata": {
+                        "designer": {
+                          "x": 3000,
+                          "y": 900,
+                          "name": "Step 9: Pause the confirmed invoices (intake finished)"
+                        }
+                      },
+                      "onerror": [
+                        {
+                          "id": 41,
+                          "module": "http:MakeRequest",
+                          "version": 4,
+                          "parameters": {},
+                          "mapper": {
+                            "url": "{{2.result.table_api_url}}/exception_queue",
+                            "method": "post",
+                            "timeout": "40",
+                            "parseResponse": false,
+                            "stopOnHttpError": true,
+                            "allowRedirects": true,
+                            "shareCookies": false,
+                            "requestCompressedContent": true,
+                            "contentType": "json",
+                            "inputMethod": "jsonString",
+                            "jsonStringBodyContent": "{{36.failed_body}}"
+                          },
+                          "metadata": {
+                            "designer": {
+                              "x": 3000,
+                              "y": 1200,
+                              "name": "Step 9: Pause the confirmed invoices (intake finished): exception queue"
+                            }
+                          }
+                        },
+                        {
+                          "id": 42,
+                          "module": "builtin:Ignore",
+                          "version": 1,
+                          "metadata": {
+                            "designer": {
+                              "x": 3300,
+                              "y": 1200
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "id": 37,
+                      "module": "builtin:BasicAggregator",
+                      "version": 1,
+                      "parameters": {
+                        "feeder": 36
+                      },
+                      "mapper": {
+                        "id_q": "{{36.id_q}}"
+                      },
+                      "metadata": {
+                        "designer": {
+                          "x": 3300,
+                          "y": 900,
+                          "name": "Invoices paused (intake finished)"
+                        }
+                      }
+                    },
+                    {
+                      "id": 40,
+                      "module": "http:MakeRequest",
+                      "version": 4,
+                      "parameters": {},
+                      "mapper": {
+                        "url": "{{2.result.sharepoint_url}}/disputes/pause-{{encodeURL(1.message_id)}}",
+                        "method": "patch",
+                        "timeout": "40",
+                        "parseResponse": false,
+                        "stopOnHttpError": true,
+                        "allowRedirects": true,
+                        "shareCookies": false,
+                        "requestCompressedContent": true,
+                        "contentType": "json",
+                        "inputMethod": "jsonString",
+                        "jsonStringBodyContent": "{{35.result.items[1].narrow_body}}"
+                      },
+                      "metadata": {
+                        "designer": {
+                          "x": 3600,
+                          "y": 900,
+                          "name": "Step 9: Narrow the whole-account pause (intake finished)"
+                        }
+                      },
+                      "onerror": [
+                        {
+                          "id": 38,
+                          "module": "http:MakeRequest",
+                          "version": 4,
+                          "parameters": {},
+                          "mapper": {
+                            "url": "{{2.result.table_api_url}}/exception_queue",
+                            "method": "post",
+                            "timeout": "40",
+                            "parseResponse": false,
+                            "stopOnHttpError": true,
+                            "allowRedirects": true,
+                            "shareCookies": false,
+                            "requestCompressedContent": true,
+                            "contentType": "json",
+                            "inputMethod": "jsonString",
+                            "jsonStringBodyContent": "{{35.result.items[1].failed_body}}"
+                          },
+                          "metadata": {
+                            "designer": {
+                              "x": 3600,
+                              "y": 1200,
+                              "name": "Step 9: Narrow the whole-account pause (intake finished): exception queue"
+                            }
+                          }
+                        },
+                        {
+                          "id": 39,
+                          "module": "builtin:Ignore",
+                          "version": 1,
+                          "metadata": {
+                            "designer": {
+                              "x": 3900,
+                              "y": 1200
+                            }
+                          }
+                        }
+                      ],
+                      "filter": {
+                        "name": "an invoice was paused",
+                        "conditions": [
+                          [
+                            {
+                              "a": "{{length(37.array)}}",
+                              "b": "0",
+                              "o": "number:greater"
+                            }
+                          ]
+                        ]
+                      }
+                    },
+                    {
+                      "id": 44,
+                      "module": "http:MakeRequest",
+                      "version": 4,
+                      "parameters": {},
+                      "mapper": {
+                        "url": "{{2.result.table_api_url}}/decision_log",
+                        "method": "post",
+                        "timeout": "40",
+                        "parseResponse": false,
+                        "stopOnHttpError": true,
+                        "allowRedirects": true,
+                        "shareCookies": false,
+                        "requestCompressedContent": true,
+                        "contentType": "json",
+                        "inputMethod": "jsonString",
+                        "jsonStringBodyContent": "{{35.result.items[1].narrowed_log}}"
+                      },
+                      "metadata": {
+                        "designer": {
+                          "x": 3900,
+                          "y": 900,
+                          "name": "Step 9: Decision log: narrowed (intake finished)"
+                        }
+                      }
+                    }
+                  ]
+                },
+                {
+                  "flow": [
+                    {
+                      "id": 45,
+                      "module": "http:MakeRequest",
+                      "version": 4,
+                      "parameters": {},
+                      "mapper": {
+                        "url": "{{2.result.table_api_url}}/decision_log",
+                        "method": "post",
+                        "timeout": "40",
+                        "parseResponse": false,
+                        "stopOnHttpError": true,
+                        "allowRedirects": true,
+                        "shareCookies": false,
+                        "requestCompressedContent": true,
+                        "contentType": "json",
+                        "inputMethod": "jsonString",
+                        "jsonStringBodyContent": "{{35.result.items[1].not_narrowed_log}}"
+                      },
+                      "metadata": {
+                        "designer": {
+                          "x": 2700,
+                          "y": 1200,
+                          "name": "Step 9: Decision log: not narrowed (intake finished)"
+                        }
+                      },
+                      "filter": {
+                        "name": "refused",
+                        "conditions": [
+                          [
+                            {
+                              "a": "{{35.result.items[1].refused}}",
+                              "b": "false",
+                              "o": "text:notequal"
+                            }
+                          ]
+                        ]
+                      }
+                    }
+                  ]
+                }
+              ],
+              "metadata": {
+                "designer": {
+                  "x": 2400,
+                  "y": 900,
+                  "name": "Narrow it? (intake finished)"
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "designer": {
+          "x": 1200,
+          "y": 0,
+          "name": "Intake finished?"
+        }
+      }
+    }
+  ],
+  "metadata": {
+    "instant": true,
+    "version": 1,
+    "designer": {
+      "orphans": []
+    },
+    "scenario": {
+      "dlq": true,
+      "slots": null,
+      "dataloss": false,
+      "maxErrors": 3,
+      "autoCommit": true,
+      "roundtrips": 1,
+      "sequential": false,
+      "confidential": false,
+      "freshVariables": false,
+      "autoCommitTriggerLast": true
+    }
+  }
+}

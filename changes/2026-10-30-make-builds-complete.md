@@ -1,0 +1,3 @@
+- Added Make builds for the last six recipes, R4.3, R7.2, R8.3, R13.1, R13.3 and R15.1: every golden-set case passes on Make (cloud service, Core plan), including the cases that need Claude Haiku 5.5's live answer; all 40 recipes now have a tested Make build.
+- Where n8n loops back (R4.3's recheck, R15.1's redraft), the Make build runs a Repeater with a variable that later passes check, because a Make scenario cannot loop back.
+- R8.3's owner confirmation can reach Make while the same message's intake is still running, so its Make build waits 30 seconds once for the intake to finish before it reads the brief.

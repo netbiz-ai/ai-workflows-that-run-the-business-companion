@@ -1,0 +1,23 @@
+# R4.3 Make build: golden-set run
+
+Run 2026-10-30 on Make (cloud service, Core plan, us2.make.com), against the companion's mock systems (`tools/mock-systems/`).
+Result: 13 of 13 cases passed.
+Make credits used by the whole set: 385.
+
+| Case | Input | Result | Credits | Checked |
+|---|---|---|---|---|
+| Normal | Return request | Pass | 32 | helpdesk/notes/1.kind = "draft"; helpdesk/notes/1.text = "Hello,\n\nThank you for contacting us. Most items can be returned within 30 days of delivery for a refund to the original payment method [KB-RET-1]. Your oak dining table was delivered on 2026-10-24 [ORD-5120]. Items must be unused and in their original packaging [KB-RET-1]. Is the table unused and still in its original packaging? We collect large items for $25 [KB-RET-1]. The exact last day you can return the table: GAP.\n\nKind regards,\nCustomer Support\n\nSources: KB-RET-1, ORD-5120"; helpdesk/notes/1.internal = true; select decision from decision_log where recipe='R4.3' -> draft saved |
+| Edge | Question half covered | Pass | 32 | helpdesk/notes/1.kind = "draft"; helpdesk/notes/1.text = "Hello,\n\nYou can return most items within 30 days of delivery [KB-RET-1]. Your oak dining table was delivered on 2026-10-24 [ORD-5120]. The item must be unused and in its original packaging [KB-RET-1]. A refund goes to the original payment method [KB-RET-1].\n\nWe collect large items for $25 [KB-RET-1]. Whether our crew can also take away your old table when they collect the oak table: GAP.\n\nBest regards\n\nSources: KB-RET-1, ORD-5120"; select rules->>'gap' from decision_log where recipe='R4.3' -> true |
+| Duplicate | Ticket re-enters the queue | Pass | 38 | POST /helpdesk/notes: 1 call(s); select copies_skipped from key_log where recipe='R4.3' -> 1; select count(*) from decision_log where recipe='R4.3' -> 1 |
+| Refuse | Incident A's warranty question, article withheld | Pass | 27 | POST /anthropic/v1/messages: 0 call(s); helpdesk/notes/1.kind = "flag"; select decision from decision_log where recipe='R4.3' -> no draft: no source; select reason from exception_queue where recipe='R4.3' -> no draft |
+| Refuse | Draft asks "Would you like us to book a technician visit?" | Pass | 32 | POST /helpdesk/notes: 1 call(s); helpdesk/notes/1.kind = "flag"; select decision from decision_log where recipe='R4.3' -> no draft: claim check failed; select detail like '%commitment word "visit"%' from exception_queue where recipe='R4.3' -> t |
+| Race | Arrives before R4.2 logs it | Pass | 72 | select decision from decision_log where recipe='R4.3' and item='T-1' -> draft saved; select decision from decision_log where recipe='R4.3' and item='T-2' -> no draft: R4.2 has not logged it; select detail from exception_queue where recipe='R4.3' and item='T-2' -> R4.2 has not logged it: not in R4.2's log after 3 rechecks; POST /helpdesk/notes: 2 call(s) |
+| Escalated | R4.2 has escalated the ticket (companion extension) | Pass | 18 | POST /anthropic/v1/messages: 0 call(s); POST /helpdesk/notes: 0 call(s); select decision from decision_log where recipe='R4.3' -> no draft: escalated by R4.2 |
+| AI error | The AI call fails twice (companion extension) | Pass | 34 | POST /anthropic/v1/messages: 2 call(s); helpdesk/notes/1.kind = "flag"; select decision from decision_log where recipe='R4.3' -> no draft: AI error |
+| Lookup fails | The order lookup fails twice (companion extension) | Pass | 29 | GET /orders/orders/ORD-5120: 2 call(s); POST /anthropic/v1/messages: 0 call(s); select decision from decision_log where recipe='R4.3' -> no draft: lookup failed |
+| Article out of date | The returns article is past its review date (companion extension) | Pass | 28 | POST /anthropic/v1/messages: 0 call(s); select decision || ' / ' || (rules->>'detail') from decision_log where recipe='R4.3' -> no draft: no source / article past its review date |
+| Write fails | The note write fails (companion extension) | Pass | 27 | POST /helpdesk/notes: 1 call(s); select status from key_log where recipe='R4.3' -> failed; select reason from exception_queue where recipe='R4.3' -> write failed |
+| Draft outcome | The sender edits the draft and posts the reply (companion extension) | Pass | 12 | select decision from decision_log where recipe='R4.3' order by id desc limit 1 -> draft edited |
+| Stop flag | The stop flag is set (companion extension) | Pass | 4 | writes to systems: none; select count(*) from key_log -> 0; select count(*) from decision_log -> 0 |
+
+The mock systems stand in for the business systems; connect your own before go-live and rerun the golden set with your data (book Chapter 16).

@@ -1,0 +1,613 @@
+{
+  "name": "R15.1 Draft campaign copy and check every claim: each morning",
+  "flow": [
+    {
+      "id": 1,
+      "module": "code:ExecuteCode",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "language": "javascript",
+        "inputFormat": "editor",
+        "dependencies": [],
+        "codeEditorJavascript": "// Config: edit these values for your company; nothing else in the scenario hard-codes them.\n// Schedule: set this scenario to run every day at 07:00; Make keeps the schedule outside the blueprint.\nreturn {\n  \"stop_flag_url\": \"https://<your stop list API>/stop_flags/R15.1\",\n  \"table_api_url\": \"https://<your table API for the key log, decision log and exception queue>\",\n  \"workflow_owner\": \"<your workflow owner>\",\n  \"briefs_url\": \"https://<your brief list API>\",\n  \"claims_url\": \"https://<your claims list API>\",\n  \"prices_url\": \"https://<your CRM price list API>\",\n  \"style_sheet_url\": \"https://<your style sheet API>\",\n  \"drafts_url\": \"https://<your drafts and claims report API>\",\n  \"messaging_url\": \"https://<your messaging API>\",\n  \"approvers\": {\n    \"price\": \"<your price approver>\",\n    \"time\": \"<your delivery and installation approver>\",\n    \"warranty\": \"<your warranty approver>\",\n    \"comparison\": \"<your comparison approver>\",\n    \"environmental\": \"<your environmental claim approver>\"\n  },\n  \"final_approver\": \"<your campaign owner>\",\n  \"ai_owner\": \"<your workflow builder>\",\n  \"stand_in_namer\": \"<your workflow owner>\",\n  \"signoff_wait_days\": 2,\n  \"scan_words\": [\n    \"free\",\n    \"warranty\",\n    \"guarantee\",\n    \"best\",\n    \"today\",\n    \"tonight\",\n    \"tomorrow\",\n    \"day\",\n    \"days\",\n    \"week\",\n    \"weeks\",\n    \"weekend\",\n    \"month\",\n    \"hour\",\n    \"hours\",\n    \"monday\",\n    \"tuesday\",\n    \"wednesday\",\n    \"thursday\",\n    \"friday\",\n    \"saturday\",\n    \"sunday\"\n  ],\n  \"prompt_version\": \"<your prompt version>\",\n  \"ai_model\": \"claude-haiku-5-5\",\n  \"ai_inference_geo\": \"us\",\n  \"ai_url\": \"https://api.anthropic.com/v1/messages\"\n};",
+        "input": []
+      },
+      "metadata": {
+        "designer": {
+          "x": 0,
+          "y": 0,
+          "name": "Config"
+        }
+      }
+    },
+    {
+      "id": 4,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{1.result.stop_flag_url}}",
+        "method": "get",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true
+      },
+      "metadata": {
+        "designer": {
+          "x": 300,
+          "y": 0,
+          "name": "Stop flag: read"
+        }
+      },
+      "onerror": [
+        {
+          "id": 2,
+          "module": "http:MakeRequest",
+          "version": 4,
+          "parameters": {},
+          "mapper": {
+            "url": "{{1.result.table_api_url}}/exception_queue",
+            "method": "post",
+            "timeout": "40",
+            "parseResponse": false,
+            "stopOnHttpError": true,
+            "allowRedirects": true,
+            "shareCookies": false,
+            "requestCompressedContent": true,
+            "contentType": "json",
+            "inputMethod": "jsonString",
+            "jsonStringBodyContent": "{\"recipe\": \"R15.1\", \"item\": \"run {{var.scenario.executionId}}\", \"reason\": \"stop list unreadable\", \"detail\": \"The stop list could not be read, so the run stopped\", \"owner\": \"{{1.result.workflow_owner}}\"}"
+          },
+          "metadata": {
+            "designer": {
+              "x": 300,
+              "y": 300,
+              "name": "Stop flag: list unreadable"
+            }
+          }
+        },
+        {
+          "id": 3,
+          "module": "builtin:Ignore",
+          "version": 1,
+          "metadata": {
+            "designer": {
+              "x": 600,
+              "y": 300
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{1.result.drafts_url}}/versions",
+        "method": "get",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true,
+        "queryParameters": [
+          {
+            "name": "_wrap",
+            "value": "1"
+          }
+        ]
+      },
+      "metadata": {
+        "designer": {
+          "x": 600,
+          "y": 0,
+          "name": "Step 10: Read the versions"
+        }
+      },
+      "onerror": [
+        {
+          "id": 5,
+          "module": "builtin:Break",
+          "version": 1,
+          "parameters": {},
+          "mapper": {
+            "count": "3",
+            "retry": true,
+            "interval": "1"
+          },
+          "metadata": {
+            "designer": {
+              "x": 600,
+              "y": 600
+            }
+          }
+        }
+      ],
+      "filter": {
+        "name": "stop flag not set",
+        "conditions": [
+          [
+            {
+              "a": "{{4.data.stopped}}",
+              "b": "true",
+              "o": "text:notequal"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "id": 8,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{1.result.claims_url}}/claims",
+        "method": "get",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true,
+        "queryParameters": [
+          {
+            "name": "_wrap",
+            "value": "1"
+          }
+        ]
+      },
+      "metadata": {
+        "designer": {
+          "x": 900,
+          "y": 0,
+          "name": "Step 10: Read the claims list"
+        }
+      },
+      "onerror": [
+        {
+          "id": 7,
+          "module": "builtin:Break",
+          "version": 1,
+          "parameters": {},
+          "mapper": {
+            "count": "3",
+            "retry": true,
+            "interval": "1"
+          },
+          "metadata": {
+            "designer": {
+              "x": 900,
+              "y": 300
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "{{1.result.prices_url}}/prices",
+        "method": "get",
+        "timeout": "40",
+        "parseResponse": true,
+        "stopOnHttpError": true,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true,
+        "queryParameters": [
+          {
+            "name": "_wrap",
+            "value": "1"
+          }
+        ]
+      },
+      "metadata": {
+        "designer": {
+          "x": 1200,
+          "y": 0,
+          "name": "Step 10: Read the price list"
+        }
+      },
+      "onerror": [
+        {
+          "id": 9,
+          "module": "builtin:Break",
+          "version": 1,
+          "parameters": {},
+          "mapper": {
+            "count": "3",
+            "retry": true,
+            "interval": "1"
+          },
+          "metadata": {
+            "designer": {
+              "x": 1200,
+              "y": 300
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "module": "code:ExecuteCode",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "language": "javascript",
+        "inputFormat": "editor",
+        "dependencies": [],
+        "codeEditorJavascript": "// Adapter: the rule below is the same JavaScript as the recipe's n8n build.\n// $('Step name') answers from this step's inputs: each is that step's output in this scenario.\nconst SOURCES = {\"Config\": \"in0_Config\", \"Step 10: Read the versions\": \"in1_Step10Readtheversions\", \"Step 10: Read the claims list\": \"in2_Step10Readtheclaimslist\", \"Step 10: Read the price list\": \"in3_Step10Readthepricelist\"};\nconst LISTS = [];\nconst EXECUTED = [];\nconst DATA = {};\nfor (const [node, key] of Object.entries(SOURCES)) {\n  const raw = input[key];\n  let v = raw;\n  if (typeof raw === 'string') { try { v = JSON.parse(raw); } catch (e) { v = raw; } }\n  DATA[node] = LISTS.includes(node) ? (v || []).map(i => (i && i.json !== undefined ? i : { json: i })) : [{ json: v }];\n}\nconst $ = (node) => {\n  const ran = node in DATA || EXECUTED.includes(node);\n  const list = () => { if (!(node in DATA)) throw new Error(`step ${node} has no data in this scenario`); return DATA[node]; };\n  return { isExecuted: ran, first: () => list()[0], last: () => list()[list().length - 1], all: () => list(),\n           get item() { return list()[0]; } };\n};\nconst INPUT = \"Step 10: Read the price list\";\nconst $input = { all: () => $(INPUT).all(), first: () => $(INPUT).first(), last: () => $(INPUT).last(), get item() { return $(INPUT).first(); } };\nconst $execution = { id: input.run_id };\nconst BODIES = (out) => ({\"id_q\": encodeURIComponent(out.version_id), \"patch_body\": JSON.stringify(out.body), \"has_message\": !!out.message, \"message_body\": out.message ? JSON.stringify(out.message) : '', \"log_body\": JSON.stringify({ recipe: 'R15.1', item: out.version_id, decision: out.decision, rules: {} }), \"failed_body\": JSON.stringify({ recipe: 'R15.1', item: String('morning run'), reason: 'write failed', detail: 'write failed; never retried', owner: $('Config').first().json.ai_owner }), \"hold\": out.hold});\nconst one = (r) => (Array.isArray(r) ? r : [r]).filter(Boolean).map(i => (i.json !== undefined ? i.json : i));\nconst $json = INPUT && INPUT in DATA ? $input.first().json : {};\nconst __rule = () => {\n// Claim types are those of Table 15.1: price, time, warranty, comparison, environmental, other.\nconst typesOf = c => (Array.isArray(c.types) ? c.types : String(c.types || c.type || 'other').split(/\\s*[,;]\\s*/)).filter(Boolean);\nconst ms = d => (d ? Date.parse(d) : 0) || 0;\nconst overlap = (s, e, spans) => spans.some(([a, b]) => s < b && e > a);\n// Step 6's scan: digits, \"$\" and the scan words (Config), found anywhere in the text.\nfunction scan(text, words) {\n  const hits = [];\n  for (const m of text.matchAll(/\\d+|\\$/g)) hits.push({ word: m[0], start: m.index, end: m.index + m[0].length });\n  for (const w of words) {\n    const re = new RegExp('\\\\b' + w.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&') + '\\\\b', 'gi');\n    for (const m of text.matchAll(re)) hits.push({ word: m[0], start: m.index, end: m.index + m[0].length });\n  }\n  return hits;\n}\nconst LISTED_TYPES = ['price', 'time', 'warranty', 'comparison', 'quantity', 'environmental'];\n// The listing call's reply: every entry a quote and one of the listed types, each quote found in the text.\nfunction readListing(reply, text) {\n  const p = parseAi(reply, ['claims']);\n  if (!p.ok) return { ok: false, problem: 'listing: ' + p.problem };\n  const list = p.value.claims;\n  if (!Array.isArray(list) || list.some(c => !c || typeof c.quote !== 'string' || !c.quote || !LISTED_TYPES.includes(c.type)))\n    return { ok: false, problem: 'listing: claims do not match the schema' };\n  const found = [];\n  for (const c of list) {\n    let i = text.indexOf(c.quote);\n    if (i < 0) return { ok: false, problem: `listing: \"${c.quote}\" is not in the copy` };\n    while (i >= 0) { found.push({ quote: c.quote, type: c.type, start: i, end: i + c.quote.length }); i = text.indexOf(c.quote, i + 1); }\n  }\n  return { ok: true, list, found };\n}\n// Step 6 and step 7: what the listing and the scan find outside the approved spans.\nfunction check(text, spans, found, cfg) {\n  const problems = [], flagged = [];\n  const untagged = found.filter(f => !overlap(f.start, f.end, spans));\n  for (const u of untagged) {\n    const who = cfg.approvers[u.type];\n    if (who) flagged.push({ quote: u.quote, type: u.type, approver: who });\n    else problems.push(`untagged ${u.type} claim \"${u.quote}\" has no named approver`);\n  }\n  const covered = spans.concat(untagged.map(u => [u.start, u.end]));\n  for (const h of scan(text, cfg.scan_words)) {\n    if (!overlap(h.start, h.end, covered)) problems.push(`untagged \"${h.word}\" in \"${text.slice(Math.max(0, h.start - 25), h.end + 25).trim()}\"`);\n  }\n  return { problems: [...new Set(problems)], flagged: flagged.filter((f, i) => flagged.findIndex(g => g.quote === f.quote) === i) };\n}\n\n// Step 10: a changed source or price holds the claim's unsent versions.\n// Failure table: a sign-off open two days goes to the person who names a stand-in.\nconst cfg = $('Config').first().json;\nconst versions = $('Step 10: Read the versions').first().json.items || [];\nconst claims = Object.fromEntries(($('Step 10: Read the claims list').first().json.items || []).map(c => [c.id, c]));\nconst prices = Object.fromEntries(($('Step 10: Read the price list').first().json.items || []).map(p => [p.id, p]));\nconst today = new Date().toISOString().slice(0, 10);\nconst out = [];\nfor (const v of versions) {\n  if (v.status === 'sent' || v.status === 'returned to Ben' || String(v.status).startsWith('held')) continue;\n  const created = ms(v.created);\n  const why = [];\n  for (const c of v.claims || []) {\n    const cur = claims[c.id];\n    if (!cur) why.push(`${c.id} is no longer on the claims list`);\n    else if (Math.max(ms(cur.source_changed), ms(cur.row_changed)) > created || cur.wording !== c.wording) why.push(`${c.id}'s source or row changed`);\n    else if (cur.expiry && String(cur.expiry).slice(0, 10) < today) why.push(`${c.id} expired`);\n  }\n  for (const p of v.prices || []) {\n    const cur = prices[p.id];\n    if (!cur || ms(cur.changed) > created || String(cur.price) !== String(p.price)) why.push(`price ${p.id} changed`);\n  }\n  if (why.length) {\n    out.push({ json: { version_id: v.id, hold: true, body: { status: 'held: source changed', held_reasons: why },\n      message: { to: [cfg.final_approver], subject: `Campaign copy ${v.id} held`, text: why.join('; ') }, decision: 'held: ' + why.join('; ') } });\n  } else if (v.status === 'waiting for sign-off' && Date.now() - ms(v.signoff_requested || v.created) > cfg.signoff_wait_days * 86400000) {\n    const open = Object.entries(v.approvals || {}).filter(([, a]) => a.status === 'open').map(([w]) => w);\n    out.push({ json: { version_id: v.id, hold: false, body: null,\n      message: { to: [cfg.stand_in_namer], subject: `Sign-off for ${v.id} open ${cfg.signoff_wait_days} days`, text: `Still open: ${open.join(', ')}. Name a stand-in.` },\n      decision: 'sign-off open; stand-in requested' } });\n  }\n}\nreturn out;\n};\nreturn { items: one(__rule()).map(o => Object.assign({}, o, BODIES(o))) };\n",
+        "input": [
+          {
+            "name": "in0_Config",
+            "value": "{{1.result}}"
+          },
+          {
+            "name": "in1_Step10Readtheversions",
+            "value": "{{6.data}}"
+          },
+          {
+            "name": "in2_Step10Readtheclaimslist",
+            "value": "{{8.data}}"
+          },
+          {
+            "name": "in3_Step10Readthepricelist",
+            "value": "{{10.data}}"
+          },
+          {
+            "name": "run_id",
+            "value": "{{var.scenario.executionId}}"
+          }
+        ]
+      },
+      "metadata": {
+        "designer": {
+          "x": 1500,
+          "y": 0,
+          "name": "Step 10: Rule: changed sources and open sign-offs"
+        }
+      }
+    },
+    {
+      "id": 12,
+      "module": "builtin:BasicFeeder",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "array": "{{11.result.items}}"
+      },
+      "metadata": {
+        "designer": {
+          "x": 1800,
+          "y": 0,
+          "name": "Step 10: Each version to hold or chase"
+        }
+      }
+    },
+    {
+      "id": 24,
+      "module": "builtin:BasicRouter",
+      "version": 1,
+      "mapper": null,
+      "routes": [
+        {
+          "flow": [
+            {
+              "id": 15,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{1.result.drafts_url}}/versions/{{12.id_q}}",
+                "method": "patch",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{12.patch_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 2400,
+                  "y": 0,
+                  "name": "Step 10: Hold the unsent version"
+                }
+              },
+              "onerror": [
+                {
+                  "id": 13,
+                  "module": "http:MakeRequest",
+                  "version": 4,
+                  "parameters": {},
+                  "mapper": {
+                    "url": "{{1.result.table_api_url}}/exception_queue",
+                    "method": "post",
+                    "timeout": "40",
+                    "parseResponse": false,
+                    "stopOnHttpError": true,
+                    "allowRedirects": true,
+                    "shareCookies": false,
+                    "requestCompressedContent": true,
+                    "contentType": "json",
+                    "inputMethod": "jsonString",
+                    "jsonStringBodyContent": "{{12.failed_body}}"
+                  },
+                  "metadata": {
+                    "designer": {
+                      "x": 2400,
+                      "y": 300,
+                      "name": "Step 10: Hold the unsent version: exception queue"
+                    }
+                  }
+                },
+                {
+                  "id": 14,
+                  "module": "builtin:Ignore",
+                  "version": 1,
+                  "metadata": {
+                    "designer": {
+                      "x": 2700,
+                      "y": 300
+                    }
+                  }
+                }
+              ],
+              "filter": {
+                "name": "hold it",
+                "conditions": [
+                  [
+                    {
+                      "a": "{{12.hold}}",
+                      "b": "true",
+                      "o": "text:equal"
+                    }
+                  ]
+                ]
+              }
+            },
+            {
+              "id": 18,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{1.result.messaging_url}}/messages",
+                "method": "post",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{12.message_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 2700,
+                  "y": 0,
+                  "name": "Step 10: Tell Ben or Helen (held)"
+                }
+              },
+              "onerror": [
+                {
+                  "id": 16,
+                  "module": "http:MakeRequest",
+                  "version": 4,
+                  "parameters": {},
+                  "mapper": {
+                    "url": "{{1.result.table_api_url}}/exception_queue",
+                    "method": "post",
+                    "timeout": "40",
+                    "parseResponse": false,
+                    "stopOnHttpError": true,
+                    "allowRedirects": true,
+                    "shareCookies": false,
+                    "requestCompressedContent": true,
+                    "contentType": "json",
+                    "inputMethod": "jsonString",
+                    "jsonStringBodyContent": "{{12.failed_body}}"
+                  },
+                  "metadata": {
+                    "designer": {
+                      "x": 2700,
+                      "y": 600,
+                      "name": "Step 10: Tell Ben or Helen (held): exception queue"
+                    }
+                  }
+                },
+                {
+                  "id": 17,
+                  "module": "builtin:Ignore",
+                  "version": 1,
+                  "metadata": {
+                    "designer": {
+                      "x": 3000,
+                      "y": 600
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "id": 19,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{1.result.table_api_url}}/decision_log",
+                "method": "post",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{12.log_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 3000,
+                  "y": 0,
+                  "name": "Step 10: Decision log (held)"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "flow": [
+            {
+              "id": 22,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{1.result.messaging_url}}/messages",
+                "method": "post",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{12.message_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 2400,
+                  "y": 900,
+                  "name": "Step 10: Tell Ben or Helen (sign-off open)"
+                }
+              },
+              "onerror": [
+                {
+                  "id": 20,
+                  "module": "http:MakeRequest",
+                  "version": 4,
+                  "parameters": {},
+                  "mapper": {
+                    "url": "{{1.result.table_api_url}}/exception_queue",
+                    "method": "post",
+                    "timeout": "40",
+                    "parseResponse": false,
+                    "stopOnHttpError": true,
+                    "allowRedirects": true,
+                    "shareCookies": false,
+                    "requestCompressedContent": true,
+                    "contentType": "json",
+                    "inputMethod": "jsonString",
+                    "jsonStringBodyContent": "{{12.failed_body}}"
+                  },
+                  "metadata": {
+                    "designer": {
+                      "x": 2400,
+                      "y": 1200,
+                      "name": "Step 10: Tell Ben or Helen (sign-off open): exception queue"
+                    }
+                  }
+                },
+                {
+                  "id": 21,
+                  "module": "builtin:Ignore",
+                  "version": 1,
+                  "metadata": {
+                    "designer": {
+                      "x": 2700,
+                      "y": 1200
+                    }
+                  }
+                }
+              ],
+              "filter": {
+                "name": "sign-off open",
+                "conditions": [
+                  [
+                    {
+                      "a": "{{12.hold}}",
+                      "b": "true",
+                      "o": "text:notequal"
+                    }
+                  ]
+                ]
+              }
+            },
+            {
+              "id": 23,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {},
+              "mapper": {
+                "url": "{{1.result.table_api_url}}/decision_log",
+                "method": "post",
+                "timeout": "40",
+                "parseResponse": false,
+                "stopOnHttpError": true,
+                "allowRedirects": true,
+                "shareCookies": false,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{{12.log_body}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 2700,
+                  "y": 900,
+                  "name": "Step 10: Decision log (sign-off open)"
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "designer": {
+          "x": 2100,
+          "y": 0,
+          "name": "Step 10: Hold it?"
+        }
+      }
+    }
+  ],
+  "metadata": {
+    "instant": false,
+    "version": 1,
+    "designer": {
+      "orphans": []
+    },
+    "scenario": {
+      "dlq": true,
+      "slots": null,
+      "dataloss": false,
+      "maxErrors": 3,
+      "autoCommit": true,
+      "roundtrips": 1,
+      "sequential": false,
+      "confidential": false,
+      "freshVariables": false,
+      "autoCommitTriggerLast": true
+    }
+  }
+}
