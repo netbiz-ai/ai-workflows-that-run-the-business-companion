@@ -3,7 +3,7 @@
 
 - recipes/<ID>/build-spec.md: the n8n and Make rows of the status table.
 - recipes/<ID>/prompts/*.md: the "Status:" line.
-- README.md: the "n8n build" column of the recipe index.
+- README.md: the "n8n build" and "Make build" columns of the recipe index.
 """
 
 import re
@@ -63,8 +63,13 @@ def main() -> None:
             line = (f"Status: run against the golden set in the n8n build on Claude Haiku 5.5, {r['date']} ([report](../n8n/test-report.md))."
                     if ok else "Status: draft; not yet run against the golden set.")
             pf.write_text(re.sub(r"^Status: [^\n]*$", line, pf.read_text(), count=1, flags=re.M))
-        col = (f"[Tested {r['date']}](recipes/{d.name}/n8n/test-report.md)" if ok else "Not yet available")
-        readme = re.sub(rf"^(\| \[{re.escape(d.name)}\][^\n]*\| )[^|\n]*( \|)$", lambda m: m.group(1) + col + m.group(2), readme, count=1, flags=re.M)
+        m = make_report(d)
+        cols = [f"[Tested {r['date']}](recipes/{d.name}/n8n/test-report.md)" if ok else "Not yet available",
+                f"[Tested {m['date']}](recipes/{d.name}/make/test-report.md)" if m and m["passed"] == m["total"] else "Not yet available"]
+        # The first five cells describe the recipe; the build columns after them are rewritten whole.
+        readme = re.sub(rf"^\| \[{re.escape(d.name)}\][^\n]*$",
+                        lambda x: "| " + " | ".join([c.strip() for c in x.group(0).strip("|").split("|")][:5] + cols) + " |",
+                        readme, count=1, flags=re.M)
     (ROOT / "README.md").write_text(readme)
     print("statuses updated")
 
