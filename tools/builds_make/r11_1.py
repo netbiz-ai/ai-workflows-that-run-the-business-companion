@@ -11,9 +11,8 @@ not built.
 Differences from the n8n build, all forced by Make:
 - n8n's "Step 2: Fingerprint the attachment" (Crypto node) is Make's sha256() mapping over the
   same text, so no step is spent on it; the rules that read the fingerprint get it as an input.
-- The step 4 AI call tries four times, as the n8n build's does: mk.ai_step makes three tries,
-  and fourth_try() adds the fourth in the third try's error route, handed on by Make's Resume
-  handler like the others. n8n's "Step 11: AI error" node runs inside the step 5 rule
+- The step 4 AI call tries four times, as the n8n build's does (mk.ai_step tries=4): each try
+  after the first runs in the one before's error route, handed on by Make's Resume handler. n8n's "Step 11: AI error" node runs inside the step 5 rule
   (on_ai_error), because Make branches never meet again.
 - Branches never meet again after a router, so steps 5 to 10 are built once for the response
   table (step 3) and once for the AI step (step 4), with the branch in each step's name, and each
@@ -28,7 +27,6 @@ Differences from the n8n build, all forced by Make:
   does not hand to a later body.
 """
 
-import copy
 import sys
 from pathlib import Path
 
@@ -78,20 +76,6 @@ def rule(js: str, sources: dict[str, str], fp: str | None = None, prelude: str =
         return n8n_rule(js, sources, prelude=prelude, **kw)
     code, inputs = n8n_rule(js, sources, prelude=f"DATA[{FPN!r}] = [{{ json: {{ fingerprint: input.fp }} }}];\n" + prelude, **kw)
     return code, {"fp": fp, **inputs}
-
-
-def fourth_try(s: Scenario, call: dict) -> None:
-    """Give a three-try AI call (mk.ai_step tries=3) its fourth try, in the third try's error route."""
-    third = call["onerror"][0]["onerror"][0]
-    name = third["metadata"]["designer"]["name"].replace("third try", "fourth try")
-    fourth = copy.deepcopy(third)
-    fourth["id"] = s._id(name)
-    fourth["metadata"]["designer"]["name"] = name
-    third["mapper"]["stopOnHttpError"] = True
-    resume = {"id": s._id(f"_resume{s._next}"), "module": "builtin:Resume", "version": 1, "parameters": {},
-              "mapper": {k: "{{" + f"{fourth['id']}.{k}" + "}}" for k in ("statusCode", "data", "headers")},
-              "metadata": {"designer": {}}}
-    third["onerror"] = [fourth, resume]
 
 
 def quotes() -> Scenario:
@@ -210,8 +194,7 @@ def quotes() -> Scenario:
     # ---- step 4: the AI step ---------------------------------------------------------------------------
     vars_js = ("{ quote_pages: $('" + S1 + "').first().json.attachment.pages"
                ".map((p, i) => `--- page ${i + 1} ---\\n${p}`).join('\\n') }")
-    ai = s.ai_step("Step 4", ROOT / "recipes/R11.1/prompts/extract-quote.md", vars_js, base, max_tokens=2048, tries=3)
-    fourth_try(s, ai[1])
+    ai = s.ai_step("Step 4", ROOT / "recipes/R11.1/prompts/extract-quote.md", vars_js, base, max_tokens=2048, tries=4)
     call = s.ref(CALL)
     ai += tail("AI", {**base, CALL: "{{" + f"{call}.data" + "}}"},
                ai_status="{{" + f"{call}.statusCode" + "}}", on_ai_error=AI_ERROR_JS)

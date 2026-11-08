@@ -1,0 +1,1 @@
+- R11.1's Make build now makes its four AI tries with the shared builder's retry steps; the scenario has the same steps as before, only their order inside the blueprint file changed, and its golden set passes again.
